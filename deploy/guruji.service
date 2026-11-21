@@ -1,0 +1,41 @@
+# Guruji Palmistry — systemd unit for a Hostinger VPS (or any Linux server).
+#
+#   sudo cp deploy/guruji.service /etc/systemd/system/guruji.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now guruji
+#   sudo systemctl status guruji     # and: journalctl -u guruji -f
+#
+# Secrets live in /etc/guruji.env (chmod 600, owned by root), never in the repo.
+
+[Unit]
+Description=Guruji Palmistry website
+Documentation=https://github.com/gsrikar250222/palm1
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=guruji
+Group=guruji
+WorkingDirectory=/var/www/guruji
+EnvironmentFile=/etc/guruji.env
+Environment=NODE_ENV=production
+Environment=PORT=3456
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+# Start counting again rather than giving up if it crash-loops briefly
+StartLimitIntervalSec=0
+
+# Hardening — the app only needs to read its own folder
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/guruji/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

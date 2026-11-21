@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Hand turned sideways so the little-finger edge of the palm faces the camera">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#241114"/><stop offset="1" stop-color="#140a0b"/></linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eac6a3"/><stop offset=".65" stop-color="#d3a279"/><stop offset="1" stop-color="#b9815a"/></linearGradient>
+    <linearGradient id="behind" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bb8158"/><stop offset="1" stop-color="#9c6845"/></linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+
+  <g transform="translate(236 14)">
+    <!-- fingers hidden behind, only their tips showing -->
+    <path d="M44 96 C44 70 46 44 48 34 C50 22 68 24 67 36 L64 96 Z" fill="url(#behind)" opacity=".85"/>
+    <path d="M58 100 C58 78 60 56 62 46 C64 34 80 36 79 48 L76 104 Z" fill="url(#behind)" opacity=".6"/>
+    <!-- thumb on the far side -->
+    <path d="M62 150 C84 140 104 150 108 164 C112 178 96 186 80 180 L62 170 Z" fill="url(#behind)" opacity=".75"/>
+    <!-- the hand, seen edge-on: little-finger side towards us -->
+    <path d="M30 262 L30 206 C12 190 6 166 8 140 L12 70 C12 52 38 52 38 70 L40 122
+             C40 96 60 96 60 120 L60 196 C58 226 48 248 38 262 Z"
+          fill="url(#skin)" stroke="#8a5a3c" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- percussion edge (what we need to see) -->
+    <path d="M30 206 C14 190 8 166 10 138 L13 76" fill="none" stroke="#f0b357" stroke-width="4.5" stroke-linecap="round"/>
+    <!-- relationship lines on the edge, below the little finger -->
+    <g stroke="#9c5636" stroke-width="2.2" stroke-linecap="round" opacity=".9">
+      <path d="M17 116 h17"/><path d="M16 130 h14"/><path d="M17 144 h11"/>
+    </g>
+  </g>
+
+  <g fill="#f3d9a8" font-family="system-ui, sans-serif">
+    <text x="22" y="48" font-size="18" font-weight="600">Little-finger edge</text>
+    <text x="22" y="76" font-size="13.5" opacity=".85">Turn the hand sideways so the</text>
+    <text x="22" y="96" font-size="13.5" opacity=".85">outer edge of the palm faces</text>
+    <text x="22" y="116" font-size="13.5" opacity=".85">the camera.</text>
+  </g>
+  <path d="M150 150 C186 150 206 150 232 150" fill="none" stroke="#f0b357" stroke-width="2" stroke-dasharray="6 5"/>
+  <path d="M242 150 l-11 -6 v12 z" fill="#f0b357"/>
+</svg>

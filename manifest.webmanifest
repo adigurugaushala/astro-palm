@@ -1,0 +1,12 @@
+{
+  "name": "Guruji Palmistry",
+  "short_name": "Guruji",
+  "description": "Palmistry, Vedic astrology, Reiki healing and puja seva with Guruji.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#3b0d14",
+  "theme_color": "#3b0d14",
+  "icons": [
+    { "src": "/assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

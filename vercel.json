@@ -1,0 +1,63 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 15,
+      "includeFiles": "{server.js,db.js,payments.js,session.js,chart.js,report.js,course-lessons.js,content-data.js,data/mantras.json}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/(about|services|reiki-healing|courses|resources|faqs|contact|book|track|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(about|services|reiki-healing|courses|resources|faqs|contact|book|track|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)/:rest*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api/|assets/|.*\\.).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/(index.html|mantras-data.js|content-data.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3200 @@
+// GURUJI - Production Application Controller
+
+// Devotee Session & Booking State
+const state = {
+  currentPage: "home",
+  selectedService: {
+    id: "palmistry_reading",
+    title: "Detailed Palm Analysis",
+    price: 549,
+    duration: "30 Mins"
+  },
+  handedness: "Right-handed",
+  selectedDate: "Today, 20 Nov 2026",
+  selectedDateISO: "",
+  selectedTime: "10:45 AM",
+  slotTimerSeconds: 600, // 10 minutes hold
+  slotTimerInterval: null,
+  isSlotHeld: true,
+  user: {
+    name: "Srikar Babu G",
+    email: "srikar.babu@example.com",
+    mobile: "+91 98765 43210",
+    gotram: "Bharadwaja Gotram",
+    dob: "1994-07-18",
+    tob: "06:45 AM",
+    pob: "Hyderabad, Telangana",
+    questions: "Career trajectory, startup venture timing and overseas relocation guidance."
+  },
+  orderId: "GURUJI-PLM-7843",
+  paymentStatus: "PENDING",
+  uploadedPhotos: [
+    "/assets/hand_guide_2_left.jpg",
+    "/assets/hand_guide_3_right.jpg",
+    "/assets/hand_guide_side.svg",
+    "/assets/hand_guide_5_back.jpg"
+  ],
+  chatMessages: [
+    { sender: "user", time: "10:32 AM", text: "Namaste Guruji 🙏 I have uploaded my hand images. Please analyse and guide me about my career and future." },
+    { sender: "guru", time: "10:40 AM", text: "Namaste, I have received your details and hand images. I am analysing your palm lines now. Please give me some time. I will share a detailed reading shortly. 🙏" },
+    { sender: "user", time: "10:41 AM", isImages: true, text: "5 Images • 8.4 MB" },
+    { sender: "guru", time: "11:24 AM", isAudio: true, duration: "2:18", text: "Audio blessing from Guruji" }
+  ],
+  isAudioPlaying: false,
+  audioInterval: null,
+  reviewRating: 5
+};
+
+// Initialize Application
+document.addEventListener("DOMContentLoaded", () => {
+  renderReviews();
+  loadSavedReviews();
+  renderLinesAccordion();
+  if (typeof renderPoojaCards === 'function') renderPoojaCards();
+  renderCalendarDays();
+  updatePoojaSummaryUI();
+  updateConsultSummary();
+  initConsultCalendar();
+  initMantrasLibrary();
+
+  // Handedness Selector Listeners
+  document.querySelectorAll("input[name='consult-handedness']").forEach(radio => {
+    radio.addEventListener("change", (e) => {
+      state.handedness = e.target.value;
+      const handDisplay = document.getElementById("consult-summary-hand");
+      if (handDisplay) handDisplay.innerText = state.handedness;
+    });
+  });
+
+  // Show home page on startup
+  showPage("home");
+});
+
+// ==========================================
+// NATURAL WEBSITE PAGE NAVIGATION
+// ==========================================
+
+function showPage(pageId) {
+  if (!document.getElementById(`page-${pageId}`)) {
+    console.warn(`Unknown page "${pageId}", showing home instead.`);
+    pageId = "home";
+  }
+  state.currentPage = pageId;
+  closeMobileMenu();
+  if (pageId === "book-pooja") initPoojaDatePicker();
+  if (pageId === "book-status") prepareTrackPage();
+
+  // The 10-minute slot hold starts when the devotee enters the booking flow
+  if ((pageId === "book-consultation" || pageId === "book-pooja") && !state.slotTimerInterval && state.paymentStatus !== "SUCCESS") {
+    state.isSlotHeld = true;
+    state.slotTimerSeconds = 600;
+    updateSlotTimerDisplays();
+    startSlotTimer();
+  }
+
+  // Hide all views
+  document.querySelectorAll(".page-view").forEach(el => {
+    el.classList.add("hidden");
+  });
+
+  // Display target page
+  const target = document.getElementById(`page-${pageId}`);
+  if (target) {
+    target.classList.remove("hidden");
+  }
+
+  // Track Status has its own header button
+  const trackBtn = document.getElementById("header-track-btn");
+  if (trackBtn) {
+    const on = pageId === "book-status";
+    trackBtn.classList.toggle("is-active", on);
+    on ? trackBtn.setAttribute("aria-current", "page") : trackBtn.removeAttribute("aria-current");
+  }
+
+  // Update Header Navigation Active Links
+  document.querySelectorAll(".nav-link").forEach(link => {
+    link.classList.remove("nav-pill-active");
+    link.removeAttribute("aria-current");
+  });
+
+  if (pageId === "home") {
+    document.getElementById("nav-home")?.classList.add("nav-pill-active");
+  } else if (pageId === "palmistry") {
+    document.getElementById("nav-palmistry")?.classList.add("nav-pill-active");
+  } else if (pageId.startsWith("book-consultation") || pageId.startsWith("book-pooja") || pageId.startsWith("book-service") || pageId.startsWith("book-datetime")) {
+    document.getElementById("nav-services")?.classList.add("nav-pill-active");
+  } else if (pageId === "mantras" || pageId === "mantra-detail" || pageId.startsWith("resource-")) {
+    document.getElementById("nav-resources")?.classList.add("nav-pill-active");
+    if (pageId === "mantras") {
+      renderMantrasLibrary();
+    }
+  }
+
+  // Header Slot Timer Pill Visibility (Active during booking steps)
+  const timerBadge = document.getElementById("slot-timer-container");
+  if (timerBadge) {
+    if ((pageId === "book-consultation" || pageId === "book-pooja" || pageId === "book-datetime" || pageId === "book-auth" || pageId === "book-payment") && state.isSlotHeld) {
+      timerBadge.classList.remove("hidden");
+      timerBadge.classList.add("flex");
+    } else {
+      timerBadge.classList.add("hidden");
+    }
+  }
+
+  document.querySelector(".nav-link.nav-pill-active")?.setAttribute("aria-current", "page");
+
+  // Smooth scroll to top of window
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ==========================================
+// SERVER API
+// ==========================================
+
+/**
+ * Calls the JSON API. Returns the parsed body on success.
+ * Throws Error(message) when the server rejects the request (validation etc.).
+ * Returns null when the page runs without the server (offline / file://),
+ * so the site keeps working as a demo.
+ */
+async function api(path, { method = "GET", body } = {}) {
+  if (!window.location.protocol.startsWith("http")) return null;
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (e) {
+    return null; // network down / server not running
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+function showOrderId(orderId) {
+  state.orderId = orderId;
+  document.querySelectorAll("[data-order-id]").forEach(el => (el.textContent = orderId));
+}
+
+/** What the server needs to create the current booking. */
+function currentBookingRequest() {
+  if (state.selectedService.id === "pooja_sevas") {
+    return {
+      type: "pooja",
+      poojaIds: selectedPoojas.map(p => p.id),
+      poojaDate: state.pooja.date,
+      poojaSlot: state.pooja.slot && state.pooja.slot.id,
+      prasadam: state.pooja.prasadam || { deliver: false },
+      devotee: { name: state.user.name, mobile: state.user.mobile, gotram: state.user.gotram, dob: state.user.dob }
+    };
+  }
+  return {
+    type: "consultation",
+    serviceId: state.selectedService.id,
+    handedness: state.handedness,
+    slot: { date: state.selectedDate, time: state.selectedTime, iso: state.selectedDateISO || '' },
+    devotee: { name: state.user.name, mobile: state.user.mobile, email: state.user.email }
+  };
+}
+
+/** Creates the booking in the database once per distinct selection. */
+async function ensureBooking() {
+  const request = currentBookingRequest();
+  const key = JSON.stringify(request);
+  if (state.booking && state.bookingKey === key) return state.booking;
+  const data = await api("/api/bookings", { method: "POST", body: request });
+  if (!data) return null; // offline demo mode
+  state.booking = data.booking;
+  state.bookingKey = key;
+  showOrderId(data.booking.orderId);
+  rememberBooking(data.booking);
+  return data.booking;
+}
+
+// ==========================================
+// TRACK STATUS
+// ==========================================
+
+const LAST_BOOKING_KEY = "guruji_last_booking";
+function rememberBooking(b) {
+  try { localStorage.setItem(LAST_BOOKING_KEY, JSON.stringify({ orderId: b.orderId, mobile: b.devotee.mobile })); } catch (e) {}
+}
+
+/** Pre-fills the lookup with the devotee's latest booking (this session, or saved on this device). */
+function prepareTrackPage() {
+  let last = state.booking ? { orderId: state.booking.orderId, mobile: state.booking.devotee.mobile } : null;
+  if (!last) { try { last = JSON.parse(localStorage.getItem(LAST_BOOKING_KEY) || "null"); } catch (e) {} }
+  if (!last) return;
+  document.getElementById("track-order").value = last.orderId;
+  document.getElementById("track-mobile").value = last.mobile;
+  if (state.booking && state.booking.orderId === last.orderId) renderTrackedBooking(state.booking);
+  trackBooking(null, { quiet: true });
+}
+
+async function trackBooking(event, { quiet = false } = {}) {
+  if (event) event.preventDefault();
+  const orderEl = document.getElementById("track-order");
+  orderEl.value = orderEl.value.trim().toUpperCase();
+  // Bookings look like GURUJI-PJA-ABC12F3, enquiries like GPE-ABC12F3
+  const isEnquiry = /^GPE-[A-Z0-9]{4,}$/.test(orderEl.value);
+  VALIDATORS.orderId = (v) => /^(GURUJI-[A-Z]{3}|GPE)-[A-Z0-9]{4,}$/.test(v.trim().toUpperCase());
+  if (!validateFields([
+    { id: "track-order", rule: "orderId", msg: "Enter the reference from your confirmation, e.g. GURUJI-PJA-ABC12F3 or GPE-ABC12F3." },
+    { id: "track-mobile", rule: "mobile", msg: "Enter the 10-digit mobile number you booked with." }
+  ])) return;
+
+  const btn = document.getElementById("track-submit");
+  if (!quiet) setButtonLoading(btn, true, "Checking…");
+  try {
+    const mobile = document.getElementById("track-mobile").value;
+    const path = isEnquiry ? "/api/enquiries/" : "/api/bookings/";
+    const data = await api(`${path}${encodeURIComponent(orderEl.value)}?mobile=${encodeURIComponent(mobile)}`);
+    if (!data) { if (!quiet) showVedicToast("Tracking needs an internet connection to Guruji's server.", "error"); return; }
+    if (isEnquiry) {
+      renderTrackedEnquiry(data.enquiry);
+    } else {
+      rememberBooking(data.booking);
+      renderTrackedBooking(data.booking);
+    }
+  } catch (err) {
+    if (!quiet) {
+      document.getElementById("track-result").classList.add("hidden");
+      showVedicToast(/not found/i.test(err.message) ? "Nothing matches that reference and mobile number." : err.message, "error");
+    }
+  } finally {
+    if (!quiet) setButtonLoading(btn, false);
+  }
+}
+
+const ENQUIRY_STATUS_LABELS = {
+  NEW: ["Received — we will contact you", "bg-amber-100 text-amber-800"],
+  CONTACTED: ["We have been in touch", "bg-sky-100 text-sky-800"],
+  CONFIRMED: ["Confirmed", "bg-emerald-100 text-emerald-800"],
+  COMPLETED: ["Completed", "bg-emerald-100 text-emerald-800"],
+  CLOSED: ["Closed", "bg-zinc-200 text-zinc-700"],
+  CANCELLED: ["Cancelled", "bg-zinc-200 text-zinc-700"]
+};
+
+function renderTrackedEnquiry(e) {
+  const box = document.getElementById("track-result");
+  const [label, tone] = ENQUIRY_STATUS_LABELS[e.status] || [e.status, "bg-zinc-200 text-zinc-700"];
+  const row = (k, v) => v ? `<div class="flex justify-between gap-4 px-4 py-3"><dt class="text-ink-3">${k}</dt><dd class="font-medium text-ink text-right">${escapeHTML(String(v))}</dd></div>` : "";
+  const when = [e.preferredDate, e.preferredTime].filter(Boolean).join(" · ");
+  box.innerHTML = `
+    <div class="rounded-2xl border border-line bg-white shadow-sm overflow-hidden">
+      <div class="px-5 py-4 bg-night text-cream flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <div class="text-2xs uppercase tracking-[0.2em] text-gold-soft font-semibold">Enquiry</div>
+          <div class="font-mono text-lg">${escapeHTML(e.reference)}</div>
+        </div>
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold ${tone}">${label}</span>
+      </div>
+      <dl class="text-sm divide-y divide-line">
+        ${row("Service", e.service && e.service.title)}
+        ${row("Type", e.consultationType)}
+        ${row("Preferred", when)}
+        ${row("Online / in person", e.mode)}
+        ${row("Sent on", new Date(e.createdAt).toLocaleString("en-IN"))}
+      </dl>
+      <p class="px-5 py-4 text-sm text-ink-2 border-t border-line">An enquiry is not a confirmed appointment. We will contact you on the number you gave us; if it is urgent, message us on WhatsApp.</p>
+    </div>`;
+  box.classList.remove("hidden");
+}
+
+const STATUS_LABELS = {
+  PENDING_PAYMENT: ["Awaiting payment", "bg-amber-100 text-amber-800"],
+  SCHEDULED: ["Scheduled", "bg-sky-100 text-sky-800"],
+  AWAITING_REPORT: ["Guruji is preparing your reading", "bg-sky-100 text-sky-800"],
+  PAYMENT_FAILED: ["Payment failed", "bg-rose-100 text-rose-800"],
+  PAID: ["Payment confirmed", "bg-emerald-100 text-emerald-800"],
+  DETAILS_RECEIVED: ["In progress", "bg-sky-100 text-sky-800"],
+  COMPLETED: ["Completed", "bg-emerald-100 text-emerald-800"],
+  CANCELLED: ["Cancelled", "bg-zinc-200 text-zinc-700"]
+};
+
+const courseDoneCount = (b) => Object.keys((b.course && b.course.lessons) || {}).length;
+function courseProgressText(b) {
+  const done = courseDoneCount(b);
+  return done ? `${done} lesson${done === 1 ? "" : "s"} finished` : "Nothing finished yet";
+}
+
+function renderTrackedBooking(b) {
+  const box = document.getElementById("track-result");
+  const isPooja = b.type === "pooja";
+  const isCourse = b.type === "course";
+  const level = { PENDING_PAYMENT: 1, PAYMENT_FAILED: 1, PAID: 2, DETAILS_RECEIVED: 3, SCHEDULED: 3, AWAITING_REPORT: 3, COMPLETED: 4, CANCELLED: 1 }[b.status] || 1;
+  const steps = isPooja
+    ? [["Booked", "Order created"], ["Payment confirmed", "Seva reserved"],
+       ["Pooja scheduled", b.poojaDate ? `${formatPoojaDate(b.poojaDate)} · ${b.poojaSlot.label}` : ""],
+       ["Pooja performed", b.prasadam && b.prasadam.deliver ? "Prasadam dispatched" : "Blessings shared"]]
+    : isCourse
+    ? [["Enrolled", "Place confirmed"], ["Lessons open", "Start any time"],
+       ["In progress", courseProgressText(b)], ["Course complete", "Every lesson done"]]
+    : [["Booked", "Order created"], ["Payment confirmed", "Slot confirmed"],
+       ["Details received", "Birth details & palm photos"], ["Reading completed", "Report ready"]];
+  // a paid pooja is already scheduled for its date
+  const done = isPooja && level >= 2 ? Math.max(level, 3) : isCourse && level >= 2 && courseDoneCount(b) > 0 ? Math.max(level, 3) : level;
+  const failed = b.status === "PAYMENT_FAILED" || b.status === "CANCELLED";
+  const [label, cls] = STATUS_LABELS[b.status] || [b.status, "bg-zinc-100 text-zinc-700"];
+  const when = isPooja ? `${formatPoojaDate(b.poojaDate)} · ${b.poojaSlot.label}`
+    : isCourse ? (b.service && b.service.duration) || ""
+    : [b.slot && b.slot.date, b.slot && b.slot.time].filter(Boolean).join(" at ");
+  const what = isPooja ? b.poojas.map(p => p.name).join(", ") : b.service.title;
+  const addr = isPooja && b.prasadam && b.prasadam.deliver && b.prasadam.address
+    ? `${b.prasadam.address.city}, ${b.prasadam.address.state} – ${b.prasadam.address.pincode}` : (isPooja ? "Not requested" : "");
+  const pct = failed ? 0 : ((done - 1) / (steps.length - 1)) * 100;
+
+  let action = "";
+  if (failed) action = `<button onclick="showPage('${isPooja ? "book-pooja" : "book-consultation"}')" class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15px]">Book again</button>`;
+  else if (isCourse) action = `<a href="/learn/${encodeURIComponent(b.orderId)}" data-link class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15px] inline-flex items-center">Open your lessons</a>`;
+  else if (!isPooja && b.status === "PAID") action = `<button onclick="showPage('book-upload')" class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15px]">Upload palm photos</button>`;
+
+  box.innerHTML = `
+    <div class="bg-white p-6 sm:p-8 rounded-2xl border border-line shadow-sm space-y-7">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div class="text-xs uppercase tracking-[0.18em] text-ink-3 font-semibold">${isPooja ? "Pooja Seva" : isCourse ? "Course" : "Consultation"}</div>
+          <div class="font-mono text-lg font-bold text-ink mt-1">${escapeHTML(b.orderId)}</div>
+        </div>
+        <span class="px-3 py-1.5 rounded-full text-sm font-semibold ${cls}">${escapeHTML(label)}</span>
+      </div>
+
+      <div class="relative">
+        <div class="absolute left-5 right-5 top-5 h-1 rounded-full bg-line"></div>
+        <div class="absolute left-5 top-5 h-1 rounded-full bg-gradient-to-r from-emerald-500 to-amber-500 transition-all" style="width: calc((100% - 2.5rem) * ${pct / 100})"></div>
+        <ol class="relative grid grid-cols-4 gap-2 text-center">
+          ${steps.map(([t, sub], i) => {
+            const n = i + 1, isDone = !failed && n <= done, isNext = !failed && n === done + 1;
+            return `<li class="flex flex-col items-center">
+              <span class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${isDone ? "bg-emerald-600 text-white" : isNext ? "bg-amber-500 text-white ring-4 ring-amber-200" : "bg-white border-2 border-line text-ink-3"}">${isDone ? '<i class="fa-solid fa-check"></i>' : n}</span>
+              <span class="mt-2 text-xs sm:text-sm font-semibold text-ink">${escapeHTML(t)}</span>
+              <span class="text-2xs sm:text-xs text-ink-3 mt-0.5">${escapeHTML(sub)}</span>
+            </li>`;
+          }).join("")}
+        </ol>
+      </div>
+
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-[15px] border-t border-line pt-6">
+        <div><dt class="text-ink-3 text-sm">${isPooja ? "Poojas" : isCourse ? "Course" : "Service"}</dt><dd class="font-semibold text-ink">${escapeHTML(what)}</dd></div>
+        <div><dt class="text-ink-3 text-sm">${isPooja ? "Pooja date & slot" : isCourse ? "Lessons" : "Consultation slot"}</dt><dd class="font-semibold text-ink">${escapeHTML(when || "—")}</dd></div>
+        <div><dt class="text-ink-3 text-sm">Devotee</dt><dd class="font-semibold text-ink">${escapeHTML(b.devotee.name)}${b.devotee.gotram ? ` · ${escapeHTML(b.devotee.gotram)}` : ""}</dd></div>
+        <div><dt class="text-ink-3 text-sm">Amount</dt><dd class="font-semibold text-ink">₹ ${Number(b.amount).toLocaleString("en-IN")}</dd></div>
+        ${isPooja ? `<div class="sm:col-span-2"><dt class="text-ink-3 text-sm">Prasadam delivery</dt><dd class="font-semibold text-ink">${escapeHTML(addr)}</dd></div>` : ""}
+      </dl>
+      ${action ? `<div class="flex justify-end">${action}</div>` : ""}
+    </div>
+    <div id="track-live"></div>`;
+  box.classList.remove("hidden");
+  showOrderId(b.orderId);
+  // the session link, the chat, the chart and the reading (site.js)
+  if (typeof renderBookingExtras === "function") renderBookingExtras(b);
+}
+
+async function updateBooking(event, extra = {}) {
+  if (!state.booking) return null;
+  const data = await api(`/api/bookings/${encodeURIComponent(state.booking.orderId)}`, {
+    method: "PATCH",
+    body: { event, mobile: state.booking.devotee.mobile, ...extra }
+  });
+  if (data) state.booking = data.booking;
+  return data;
+}
+
+/** Puts reviews saved in the database above the built-in testimonials. */
+async function loadSavedReviews() {
+  try {
+    const data = await api("/api/reviews");
+    if (!data || !data.reviews.length) return;
+    const known = new Set(GURUJI_DATA.reviews.map(r => String(r.id)));
+    const fresh = data.reviews.filter(r => !known.has(String(r.id))).map(r => ({
+      id: r.id, name: r.name, location: r.location, rating: r.rating, comment: r.comment,
+      consultation: r.consultation, verified: r.verified,
+      date: new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    }));
+    GURUJI_DATA.reviews.unshift(...fresh);
+    renderReviews();
+  } catch (e) { /* keep the built-in testimonials */ }
+}
+
+// ==========================================
+// MOBILE MENU
+// ==========================================
+
+function toggleMobileMenu(force) {
+  const menu = document.getElementById("mobile-menu");
+  const btn = document.getElementById("mobile-menu-btn");
+  if (!menu || !btn) return;
+  const open = typeof force === "boolean" ? force : menu.classList.contains("is-closed");
+  menu.classList.toggle("is-closed", !open);
+  btn.setAttribute("aria-expanded", String(open));
+  btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  btn.innerHTML = open ? '<i class="fa-solid fa-xmark" aria-hidden="true"></i>' : '<i class="fa-solid fa-bars" aria-hidden="true"></i>';
+}
+
+function closeMobileMenu() { toggleMobileMenu(false); }
+
+function mobileNav(action) {
+  closeMobileMenu();
+  if (typeof action === "function") action();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  closeMobileMenu();
+  // Close whichever modal is open
+  document.querySelectorAll(".fixed.inset-0:not(.hidden)").forEach(m => {
+    if (m.id && m.id.endsWith("-modal")) m.classList.add("hidden");
+  });
+});
+
+// ==========================================
+// PALMISTRY TOPIC BAR & EXPLORE CARDS
+// ==========================================
+
+const PALM_TOPICS = {
+  "overview":      { page: "home",      anchor: "overview-explore-section" },
+  "overview-page": { page: "palmistry", anchor: "palm-intro" },
+  "hand-types":    { page: "palmistry", anchor: "palm-hand-types" },
+  "lines":         { page: "palmistry", anchor: "palm-lines" },
+  "mounts":        { page: "palmistry", anchor: "palm-mounts" },
+  "fingers":       { page: "palmistry", anchor: "palm-fingers" }
+};
+
+function openPalmTopic(btn, topic) {
+  if (btn) switchTab(btn, topic);
+  if (topic === "learn") {
+    openCourseModal("palmistry");
+    return;
+  }
+  const t = PALM_TOPICS[topic];
+  if (!t) return;
+  if (state.currentPage !== t.page) showPage(t.page);
+  setTimeout(() => document.getElementById(t.anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }), 140);
+}
+
+// ==========================================
+// FORM VALIDATION HELPERS
+// ==========================================
+
+const VALIDATORS = {
+  required: (v) => v.trim().length > 0,
+  name: (v) => v.trim().length >= 2,
+  mobile: (v) => /^(\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/.test(v.trim()),
+  email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()),
+  emailOrMobile: (v) => VALIDATORS.email(v) || VALIDATORS.mobile(v)
+};
+
+/** Validates [{id, rule, msg}] — marks invalid fields inline and focuses the first one. */
+function validateFields(rules) {
+  let firstBad = null;
+  rules.forEach(({ id, rule, msg }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    document.querySelector(`.field-error-msg[data-for="${id}"]`)?.remove();
+    el.classList.remove("field-error");
+    el.removeAttribute("aria-invalid");
+    if (!VALIDATORS[rule](el.value || "")) {
+      el.classList.add("field-error");
+      el.setAttribute("aria-invalid", "true");
+      const m = document.createElement("p");
+      m.className = "field-error-msg";
+      m.dataset.for = id;
+      m.textContent = msg;
+      const anchor = el.closest(".relative") || (getComputedStyle(el.parentElement).display.includes("flex") ? el.parentElement : el);
+      anchor.insertAdjacentElement("afterend", m);
+      if (!firstBad) firstBad = el;
+    }
+  });
+  if (firstBad) firstBad.focus({ preventScroll: false });
+  return !firstBad;
+}
+
+// Clear a field's error as soon as the user edits it
+document.addEventListener("input", (e) => {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains("field-error")) return;
+  el.classList.remove("field-error");
+  el.removeAttribute("aria-invalid");
+  document.querySelector(`.field-error-msg[data-for="${el.id}"]`)?.remove();
+});
+
+/** Puts a button into a loading state for the duration of an async action (prevents double submits). */
+function setButtonLoading(btn, loading, label) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    btn.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${label || "Please wait…"}</span>`;
+  } else {
+    btn.disabled = false;
+    btn.removeAttribute("aria-busy");
+    if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+  }
+}
+
+function goToSection(sectionId) {
+  showPage("home");
+  setTimeout(() => {
+    const el = document.getElementById(sectionId);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  }, 120);
+}
+
+function startBooking() {
+  showPage("book-consultation");
+}
+
+function selectServiceAndStart(serviceId) {
+  selectConsultationService(serviceId, serviceId === 'combined_consultation' ? 749 : 549);
+  showPage("book-consultation");
+}
+
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.subnav-tab').forEach(t => {
+    t.classList.remove('active', 'bg-maroon', 'text-cream', 'shadow-sm');
+    t.classList.add('text-ink', 'hover:bg-line');
+    const svg = t.querySelector('svg');
+    if (svg) svg.classList.remove('text-gold');
+  });
+
+  if (btn) {
+    btn.classList.add('active', 'bg-maroon', 'text-cream', 'shadow-sm');
+    btn.classList.remove('text-ink', 'hover:bg-line');
+    const activeSvg = btn.querySelector('svg');
+    if (activeSvg) activeSvg.classList.add('text-gold');
+  }
+}
+
+// ==========================================
+// 10-MINUTE SLOT HOLD COUNTDOWN TIMER
+// ==========================================
+
+function startSlotTimer() {
+  if (state.slotTimerInterval) clearInterval(state.slotTimerInterval);
+
+  state.slotTimerInterval = setInterval(() => {
+    if (state.slotTimerSeconds > 0) {
+      state.slotTimerSeconds--;
+      updateSlotTimerDisplays();
+    } else {
+      clearInterval(state.slotTimerInterval);
+      state.slotTimerInterval = null;
+      state.isSlotHeld = false;
+      state.slotTimerSeconds = 600;
+      updateSlotTimerDisplays();
+      document.getElementById("slot-timer-container")?.classList.add("hidden");
+      if (["book-auth", "book-payment"].includes(state.currentPage)) {
+        showPage(state.selectedService.id === "pooja_sevas" ? "book-pooja" : "book-consultation");
+      }
+      showVedicToast("Your 10-minute slot hold expired. Please choose your slot again.", "error");
+    }
+  }, 1000);
+}
+
+function updateSlotTimerDisplays() {
+  const mins = Math.floor(state.slotTimerSeconds / 60);
+  const secs = state.slotTimerSeconds % 60;
+  const timeString = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+  const displays = [
+    document.getElementById("slot-timer-display"),
+    document.getElementById("slot-timer-inner"),
+    document.getElementById("fail-slot-timer")
+  ];
+
+  displays.forEach(d => {
+    if (d) d.innerText = timeString;
+  });
+}
+
+// ==========================================
+// REVIEWS RENDERER
+// ==========================================
+
+function renderReviews() {
+  const container = document.getElementById("reviews-container");
+  if (!container || !GURUJI_DATA.reviews) return;
+
+  container.innerHTML = GURUJI_DATA.reviews.map(r => `
+    <div class="bg-white p-5 rounded-2xl border border-line shadow-sm flex flex-col justify-between hover:shadow-md transition">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex text-amber-500 text-xs">
+            ${Array(r.rating).fill('<i class="fa-solid fa-star"></i>').join('')}
+          </div>
+          <span class="text-2xs text-ink-3">${r.date}</span>
+        </div>
+        <p class="text-xs text-ink-2 leading-relaxed italic">
+          "${r.comment}"
+        </p>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-sand flex items-center justify-between text-xs">
+        <div>
+          <div class="font-bold text-ink flex items-center gap-1">
+            ${r.name}
+            ${r.verified ? '<i class="fa-solid fa-circle-check text-emerald-600 text-2xs" title="Verified Consultation"></i>' : ''}
+          </div>
+          <span class="text-2xs text-ink-3">${r.location}</span>
+        </div>
+        <span class="text-2xs bg-rose-50 text-maroon px-2 py-0.5 rounded-full font-medium">
+          ${r.consultation.includes("Pooja") ? "Pooja" : "Reading"}
+        </span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ==========================================
+// PALMISTRY LINES ACCORDION (Learn Page)
+// ==========================================
+
+function renderLinesAccordion() {
+  const container = document.getElementById("lines-accordion");
+  if (!container || !GURUJI_DATA.linesGuide) return;
+
+  container.innerHTML = GURUJI_DATA.linesGuide.map((line, idx) => `
+    <div class="border border-line rounded-xl overflow-hidden transition" id="accordion-item-${line.id}">
+      <button onclick="toggleLineDetails('${line.id}')" class="w-full p-3.5 bg-paper hover:bg-rose-50/50 text-left flex items-center justify-between text-xs font-semibold text-ink transition">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${line.color}"></span>
+          <span>${line.name}</span>
+          <span class="text-2xs font-normal text-maroon font-serif">(${line.sanskrit})</span>
+        </div>
+        <i class="fa-solid fa-chevron-down text-2xs text-zinc-400 transition transform" id="icon-${line.id}"></i>
+      </button>
+      <div id="details-${line.id}" class="${idx === 0 ? 'block' : 'hidden'} p-3.5 bg-white border-t border-line text-xs text-ink-2 space-y-1.5">
+        <p class="leading-relaxed"><strong>Significance:</strong> ${line.meaning}</p>
+        <p class="text-emerald-800 leading-relaxed"><strong>Vedic Interpretation:</strong> ${line.indications}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleLineDetails(lineId) {
+  GURUJI_DATA.linesGuide.forEach(line => {
+    const details = document.getElementById(`details-${line.id}`);
+    const icon = document.getElementById(`icon-${line.id}`);
+    if (line.id === lineId) {
+      const isHidden = details.classList.contains("hidden");
+      if (isHidden) {
+        details.classList.remove("hidden");
+        icon.classList.add("rotate-180");
+      } else {
+        details.classList.add("hidden");
+        icon.classList.remove("rotate-180");
+      }
+    } else {
+      details.classList.add("hidden");
+      icon.classList.remove("rotate-180");
+    }
+  });
+}
+
+// ==========================================
+// CONSULTATION BOOKING CONTROLLER (Screenshot 4)
+// ==========================================
+
+function selectConsultationService(serviceId, price, element) {
+  let title = "Detailed Palm Analysis";
+  let duration = "30 Mins";
+  if (serviceId === "astrology_correlation") {
+    title = "Comprehensive Kundali Analysis";
+    duration = "30 Mins";
+  } else if (serviceId === "combined_consultation") {
+    title = "Astro-Palmistry Correlation";
+    duration = "45 Mins";
+  }
+  // Titles and prices are managed in the admin dashboard (site.js keeps them in sync)
+  const managed = typeof siteConsultation === "function" ? siteConsultation(serviceId) : null;
+  if (managed) {
+    title = managed.title;
+    duration = managed.duration || duration;
+    if (managed.price > 0) price = managed.price;
+  }
+
+  state.selectedService = {
+    id: serviceId,
+    title: title,
+    price: price,
+    duration: duration
+  };
+
+  // Update card styling
+  document.querySelectorAll(".consult-card").forEach(c => {
+    c.classList.remove("selected", "border-2", "border-maroon", "bg-rose-50/40");
+    c.classList.add("border", "border-line", "bg-white");
+    const checkBadge = c.querySelector(".fa-check");
+    if (checkBadge) {
+      const parent = checkBadge.closest("div.absolute");
+      if (parent) parent.remove();
+    }
+  });
+
+  const targetCard = element || document.querySelector(`.consult-card[onclick*="'${serviceId}'"]`);
+  if (targetCard) {
+    targetCard.classList.remove("border", "border-line", "bg-white");
+    targetCard.classList.add("selected", "border-2", "border-maroon", "bg-rose-50/40");
+
+    const badge = document.createElement("div");
+    badge.className = "absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-maroon text-white flex items-center justify-center text-2xs";
+    badge.innerHTML = '<i class="fa-solid fa-check"></i>';
+    targetCard.appendChild(badge);
+  }
+
+  // Update right sidebar summary
+  const summaryService = document.getElementById("consult-summary-service");
+  if (summaryService) summaryService.innerText = title;
+
+  const summaryFee = document.getElementById("consult-summary-fee");
+  if (summaryFee) summaryFee.innerText = `₹ ${price.toLocaleString()}`;
+
+  // Sync to payment displays
+  const payDisplay = document.getElementById("pay-amount-display");
+  if (payDisplay) payDisplay.innerText = `₹ ${price.toLocaleString()}`;
+}
+
+function updateConsultSummary() {
+  const dateSel = document.getElementById("consult-date-select");
+  const timeSel = document.getElementById("consult-time-select");
+  if (dateSel && timeSel) {
+    if (dateSel.value) state.selectedDate = dateSel.value;
+    if (timeSel.value) state.selectedTime = timeSel.value;
+  }
+
+  const timeDisplay = document.getElementById("consult-summary-time");
+  if (timeDisplay) {
+    const formattedDate = state.selectedDate ? state.selectedDate.replace(' 2026', '') : 'Today, 20 Nov';
+    timeDisplay.innerText = `${formattedDate}, ${state.selectedTime || '10:45 AM'}`;
+  }
+
+  const authSlotInfo = document.getElementById("auth-slot-held-info");
+  if (authSlotInfo) authSlotInfo.innerText = `${state.selectedDate} at ${state.selectedTime}`;
+  
+  const failSlotTime = document.getElementById("fail-slot-time");
+  if (failSlotTime) failSlotTime.innerText = `${state.selectedDate} at ${state.selectedTime}`;
+
+  const handRadio = document.querySelector("input[name='consult-handedness']:checked");
+  if (handRadio) {
+    state.handedness = handRadio.value;
+    const handDisplay = document.getElementById("consult-summary-hand");
+    if (handDisplay) handDisplay.innerText = handRadio.value;
+  }
+}
+
+// ==========================================
+// VEDIC CONSULTATION CALENDAR CONTROLLER
+// (Wall / Hanging Calendar Type - Inspired by User Design)
+// ==========================================
+
+const consultCalendarState = {
+  year: 2026,
+  month: 10, // 0-indexed: 10 = November
+  todayDay: 20,
+  todayMonth: 10,
+  todayYear: 2026,
+  selectedDay: 20,
+  selectedMonth: 10,
+  selectedYear: 2026,
+  monthNames: [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ],
+  vedicMasams: [
+    "Pushya Masam • Shukla Paksha",
+    "Magha Masam • Shukla Paksha",
+    "Phalguna Masam • Shukla Paksha",
+    "Chaitra Masam • Shukla Paksha",
+    "Vaishakha Masam • Shukla Paksha",
+    "Jyeshtha Masam • Shukla Paksha",
+    "Ashadha Masam • Shukla Paksha",
+    "Shravana Masam • Shukla Paksha",
+    "Bhadrapada Masam • Shukla Paksha",
+    "Ashwina Masam • Shukla Paksha",
+    "Karthika Masam • Shukla Paksha",
+    "Margashirsha Masam • Shukla Paksha"
+  ],
+  slotsCount: {
+    20: 8, 21: 12, 22: 6, 23: 14, 24: 10, 25: 11,
+    26: 9, 27: 15, 28: 7, 29: 8, 30: 12
+  }
+};
+
+function initConsultCalendar() {
+  renderConsultCalendar();
+}
+
+function renderConsultCalendar() {
+  const calGrid = document.getElementById("consult-cal-grid");
+  const monthTitle = document.getElementById("consult-cal-month-title");
+  const vedicMasam = document.getElementById("consult-cal-vedic-masam");
+  if (!calGrid || !monthTitle) return;
+
+  const { year, month, selectedDay, selectedMonth, selectedYear, todayDay, todayMonth, todayYear } = consultCalendarState;
+  
+  // Set Month Title
+  monthTitle.innerHTML = `<i class="fa-regular fa-calendar text-amber-300 text-xs"></i><span>${consultCalendarState.monthNames[month]} ${year}</span>`;
+  if (vedicMasam) {
+    vedicMasam.innerText = consultCalendarState.vedicMasams[month] || "Shubha Muhurtham";
+  }
+
+  // Days calculations
+  const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  let html = "";
+
+  // 1. Leading empty cells
+  for (let i = 0; i < firstDayIndex; i++) {
+    html += `<div class="p-2 text-transparent select-none">.</div>`;
+  }
+
+  // 2. Day cells (1 to totalDays)
+  for (let d = 1; d <= totalDays; d++) {
+    const isPast = (year < todayYear) || 
+                   (year === todayYear && month < todayMonth) || 
+                   (year === todayYear && month === todayMonth && d < todayDay);
+    const isToday = (year === todayYear && month === todayMonth && d === todayDay);
+    const isSelected = (year === selectedYear && month === selectedMonth && d === selectedDay);
+    const dayOfWeek = (firstDayIndex + d - 1) % 7; // 0 = Sun
+    const isSunday = dayOfWeek === 0;
+
+    if (isPast) {
+      // Past day: disabled, dimmed
+      html += `
+        <div class="p-1.5 rounded-xl text-zinc-300 select-none text-center flex flex-col items-center justify-center">
+          <span class="text-xs leading-none">${d}</span>
+        </div>
+      `;
+    } else if (isSelected) {
+      // Active selected day: deep crimson & gold
+      html += `
+        <button type="button" onclick="selectConsultCalendarDate(${year}, ${month}, ${d}, this)" class="consult-cal-day-btn active p-1.5 rounded-xl text-center transition bg-maroon text-white font-bold shadow-md border-2 border-amber-300 flex flex-col items-center justify-center scale-105">
+          <span class="text-xs leading-none">${d}</span>
+          <span class="text-2xs uppercase tracking-tighter text-amber-200 mt-0.5 leading-none">${isToday ? 'Today' : '✓'}</span>
+        </button>
+      `;
+    } else {
+      // Future open day
+      const sunColor = isSunday ? 'text-red-600 font-bold' : 'text-ink font-medium';
+      html += `
+        <button type="button" onclick="selectConsultCalendarDate(${year}, ${month}, ${d}, this)" class="consult-cal-day-btn p-1.5 rounded-xl text-center transition hover:bg-amber-50 hover:border-amber-400 border border-transparent flex flex-col items-center justify-center cursor-pointer group">
+          <span class="text-xs ${sunColor} leading-none group-hover:scale-110 transition">${d}</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 block mt-1"></span>
+        </button>
+      `;
+    }
+  }
+
+  calGrid.innerHTML = html;
+}
+
+function selectConsultCalendarDate(year, month, day, element) {
+  consultCalendarState.selectedYear = year;
+  consultCalendarState.selectedMonth = month;
+  consultCalendarState.selectedDay = day;
+
+  // Re-render calendar so selection badge is crisp
+  renderConsultCalendar();
+
+  // Compute readable date
+  const isToday = (year === consultCalendarState.todayYear && month === consultCalendarState.todayMonth && day === consultCalendarState.todayDay);
+  const isTomorrow = (year === consultCalendarState.todayYear && month === consultCalendarState.todayMonth && day === consultCalendarState.todayDay + 1);
+  const monthShort = consultCalendarState.monthNames[month].slice(0, 3);
+  
+  let label = `${day} ${monthShort} ${year}`;
+  if (isToday) label = `Today, ${day} ${monthShort}`;
+  else if (isTomorrow) label = `Tomorrow, ${day} ${monthShort}`;
+
+  state.selectedDate = `${label} ${year}`;
+  state.selectedDateISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  // Update labels
+  const dateLabelEl = document.getElementById("consult-cal-selected-label");
+  if (dateLabelEl) dateLabelEl.innerText = `${label} ${year}`;
+
+  const slotBadge = document.getElementById("consult-cal-slot-badge");
+  const slots = consultCalendarState.slotsCount[day] || (8 + (day % 7));
+  if (slotBadge) slotBadge.innerText = `${slots} Slots Open`;
+
+  // Update summary sidebar & slot banners
+  const timeDisplay = document.getElementById("consult-summary-time");
+  if (timeDisplay) timeDisplay.innerText = `${label}, ${state.selectedTime}`;
+
+  const authSlotInfo = document.getElementById("auth-slot-held-info");
+  if (authSlotInfo) authSlotInfo.innerText = `${label} at ${state.selectedTime}`;
+
+  const failSlotTime = document.getElementById("fail-slot-time");
+  if (failSlotTime) failSlotTime.innerText = `${label} at ${state.selectedTime}`;
+
+  // Keep hidden inputs synced
+  const dateSel = document.getElementById("consult-date-select");
+  if (dateSel) {
+    dateSel.innerHTML = `<option selected value="${label}">${label}</option>`;
+  }
+}
+
+function selectConsultTimeSlot(timeStr, btnElement) {
+  state.selectedTime = timeStr;
+
+  // Update button visual styles
+  document.querySelectorAll(".consult-time-btn").forEach(btn => {
+    btn.classList.remove("border-2", "border-maroon", "bg-rose-50", "text-maroon", "font-bold", "active");
+    btn.classList.add("border", "border-line", "bg-white", "text-ink", "font-medium");
+    btn.innerText = btn.innerText.replace(" ✓", "");
+  });
+
+  if (btnElement) {
+    btnElement.classList.remove("border-line", "bg-white", "text-ink", "font-medium");
+    btnElement.classList.add("border-2", "border-maroon", "bg-rose-50", "text-maroon", "font-bold", "active");
+    btnElement.innerText = `${timeStr} ✓`;
+  }
+
+  // Update summary sidebar & slot hold info
+  const isToday = (consultCalendarState.selectedDay === consultCalendarState.todayDay && consultCalendarState.selectedMonth === consultCalendarState.todayMonth);
+  const isTomorrow = (consultCalendarState.selectedDay === consultCalendarState.todayDay + 1 && consultCalendarState.selectedMonth === consultCalendarState.todayMonth);
+  const monthShort = consultCalendarState.monthNames[consultCalendarState.selectedMonth].slice(0, 3);
+  let label = `${consultCalendarState.selectedDay} ${monthShort}`;
+  if (isToday) label = `Today, ${consultCalendarState.selectedDay} ${monthShort}`;
+  else if (isTomorrow) label = `Tomorrow, ${consultCalendarState.selectedDay} ${monthShort}`;
+
+  const timeDisplay = document.getElementById("consult-summary-time");
+  if (timeDisplay) timeDisplay.innerText = `${label}, ${timeStr}`;
+
+  const authSlotInfo = document.getElementById("auth-slot-held-info");
+  if (authSlotInfo) authSlotInfo.innerText = `${label} at ${timeStr}`;
+
+  const failSlotTime = document.getElementById("fail-slot-time");
+  if (failSlotTime) failSlotTime.innerText = `${label} at ${timeStr}`;
+
+  // Keep hidden inputs synced
+  const timeSel = document.getElementById("consult-time-select");
+  if (timeSel) {
+    timeSel.innerHTML = `<option selected value="${timeStr}">${timeStr}</option>`;
+  }
+}
+
+function changeConsultMonth(offset) {
+  let newMonth = consultCalendarState.month + offset;
+  let newYear = consultCalendarState.year;
+
+  if (newMonth < 0) {
+    newMonth = 11;
+    newYear--;
+  } else if (newMonth > 11) {
+    newMonth = 0;
+    newYear++;
+  }
+
+  // Don't go before November 2026
+  if (newYear < 2026 || (newYear === 2026 && newMonth < 10)) {
+    return;
+  }
+  // Max 6 months forward
+  if (newYear > 2027 || (newYear === 2027 && newMonth > 4)) {
+    return;
+  }
+
+  consultCalendarState.month = newMonth;
+  consultCalendarState.year = newYear;
+  renderConsultCalendar();
+}
+
+// ==========================================
+// POOJA SEVA BOOKING CONTROLLER (Screenshot 2)
+// ==========================================
+
+let selectedPoojas = [
+  { id: 'navagraha_shanti', name: 'Navagraha Shanti', price: 5100 }
+];
+
+function setPoojaCardState(card, selected) {
+  if (!card) return;
+  card.classList.toggle("selected", selected);
+  card.setAttribute("aria-checked", String(selected));
+  // the tick is drawn from the card's own state (see .pooja-card.selected .pooja-check)
+}
+
+function togglePoojaSelection(poojaId, price, element) {
+  const poojaNamesMap = {
+    'ganapathi_homam': 'Ganapathi Homam',
+    'navagraha_shanti': 'Navagraha Shanti',
+    'shani_shanti': 'Shani Shanti',
+    'pitru_runa_vimochana': 'Pitru Runa Vimochana',
+    'ayushya_homam': 'Ayushya Homam',
+    'santana_prapti': 'Santana Prapti'
+  };
+  const name = poojaNamesMap[poojaId] || poojaId;
+
+  const existingIdx = selectedPoojas.findIndex(p => p.id === poojaId);
+  if (existingIdx >= 0) {
+    selectedPoojas.splice(existingIdx, 1);
+    setPoojaCardState(element, false);
+  } else {
+    selectedPoojas.push({ id: poojaId, name: name, price: price });
+    setPoojaCardState(element, true);
+  }
+
+  updatePoojaSummaryUI();
+}
+
+function removeSelectedPooja() {
+  selectedPoojas = [];
+  document.querySelectorAll(".pooja-card").forEach(c => setPoojaCardState(c, false));
+  updatePoojaSummaryUI();
+}
+
+function removeSinglePooja(id) {
+  const idx = selectedPoojas.findIndex(p => p.id === id);
+  if (idx >= 0) selectedPoojas.splice(idx, 1);
+  setPoojaCardState(document.querySelector(`.pooja-card[onclick*="'${id}'"]`), false);
+  updatePoojaSummaryUI();
+}
+
+const TRASH_ICON = '<svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>';
+
+function updatePoojaSummaryUI() {
+  const container = document.getElementById("pooja-selection-item");
+  const totalDisplay = document.getElementById("pooja-total-amount");
+  const total = selectedPoojas.reduce((acc, p) => acc + p.price, 0);
+
+  if (container) {
+    container.innerHTML = selectedPoojas.length === 0
+      ? `<p class="bk-selection__empty">No pooja selected yet — choose one on the left.</p>`
+      : selectedPoojas.map(p => `
+        <div class="bk-selection__row">
+          <span>${escapeHTML(p.name)}</span>
+          <span class="bk-selection__price">₹ ${p.price.toLocaleString("en-IN")}
+            <button type="button" onclick="event.stopPropagation(); removeSinglePooja('${p.id}')" class="bk-selection__remove" aria-label="Remove ${escapeHTML(p.name)}">${TRASH_ICON}</button>
+          </span>
+        </div>`).join('');
+  }
+  if (totalDisplay) totalDisplay.innerText = `₹ ${total.toLocaleString("en-IN")}`;
+}
+
+// Space / Enter toggles any card that behaves like a checkbox
+document.addEventListener("keydown", (e) => {
+  const el = e.target;
+  if ((e.key === " " || e.key === "Enter") && el.getAttribute && el.getAttribute("role") === "checkbox" && el.hasAttribute("onclick")) {
+    e.preventDefault();
+    el.click();
+  }
+});
+// "Book" buttons on the landing page: open the Pooja booking page with that seva selected
+function selectPoojaSeva(poojaId, title, price) {
+  const ID_ALIASES = { pitru_runa: "pitru_runa_vimochana" };
+  poojaId = ID_ALIASES[poojaId] || poojaId;
+  removeSelectedPooja();
+  const card = document.querySelector(`.pooja-card[onclick*="'${poojaId}'"]`);
+  if (card) {
+    togglePoojaSelection(poojaId, price, card);
+  } else {
+    selectedPoojas.push({ id: poojaId, name: title, price: price });
+    updatePoojaSummaryUI();
+  }
+  showPage("book-pooja");
+}
+
+// ==========================================
+// POOJA DATE, TIME SLOT & PRASADAM ADDRESS
+// ==========================================
+
+const POOJA_SLOTS_OFFLINE = [
+  { id: "pratah", label: "6:00 – 8:00 AM", name: "Pratah Kaal", available: true },
+  { id: "morning", label: "8:00 – 10:00 AM", name: "Morning", available: true },
+  { id: "madhyahna", label: "10:00 AM – 12:00 PM", name: "Madhyahna", available: true },
+  { id: "sandhya", label: "5:00 – 7:00 PM", name: "Sandhya Kaal", available: true }
+];
+state.pooja = { date: "", slot: null };
+
+/** YYYY-MM-DD in India, n days from today. */
+function istDate(n) {
+  return new Date(Date.now() + n * 86400000).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+function formatPoojaDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  const wd = d.toLocaleDateString("en-IN", { weekday: "short" });
+  const mon = d.toLocaleDateString("en-IN", { month: "short" });
+  return `${wd}, ${d.getDate()} ${mon} ${d.getFullYear()}`;   // e.g. "Sun, 22 Nov 2026"
+}
+
+function initPoojaDatePicker() {
+  const input = document.getElementById("pooja-date");
+  if (!input) return;
+  input.min = istDate(1);
+  input.max = istDate(90);
+}
+
+async function loadPoojaSlots(date) {
+  const grid = document.getElementById("pooja-slot-grid");
+  state.pooja.date = date;
+  state.pooja.slot = null;
+  updatePoojaWhen();
+  if (!grid) return;
+  if (!date) {
+    grid.innerHTML = `<p class="col-span-full text-sm text-ink-3 italic py-3">Choose a date to see available slots.</p>`;
+    return;
+  }
+  grid.innerHTML = `<p class="col-span-full text-sm text-ink-3 py-3 flex items-center gap-2"><span class="btn-spinner"></span> Checking available slots…</p>`;
+  let slots = POOJA_SLOTS_OFFLINE;
+  try {
+    const data = await api(`/api/pooja-slots?date=${encodeURIComponent(date)}`);
+    if (data) slots = data.slots;
+  } catch (err) {
+    grid.innerHTML = `<p class="col-span-full text-sm text-rose-700 py-3">${escapeHTML(err.message)}</p>`;
+    return;
+  }
+  if (state.pooja.date !== date) return; // a newer date was picked meanwhile
+  grid.innerHTML = slots.map(sl => `
+    <button type="button" role="radio" aria-checked="false" data-slot="${sl.id}" ${sl.available ? "" : "disabled"}
+      onclick="selectPoojaSlot('${sl.id}', '${escapeHTML(sl.label)}', '${escapeHTML(sl.name)}')" class="slot-chip">
+      <span class="slot-chip__time">${escapeHTML(sl.label)}</span>
+      <span class="slot-chip__name">${escapeHTML(sl.name)}</span>
+      <span class="slot-chip__left">${sl.available ? (sl.remaining !== undefined ? `${sl.remaining} left` : "Available") : "Full"}</span>
+    </button>`).join("");
+}
+
+function selectPoojaSlot(id, label, name) {
+  state.pooja.slot = { id, label, name };
+  document.querySelectorAll("#pooja-slot-grid .slot-chip").forEach(b => {
+    const on = b.dataset.slot === id;
+    b.classList.toggle("is-selected", on);
+    b.setAttribute("aria-checked", String(on));
+  });
+  document.getElementById("pooja-slot-grid").classList.remove("field-error-group");
+  document.querySelector('.field-error-msg[data-for="pooja-slot-grid"]')?.remove();
+  updatePoojaWhen();
+}
+
+function updatePoojaWhen() {
+  const el = document.getElementById("pooja-summary-when");
+  if (!el) return;
+  el.textContent = state.pooja.date
+    ? `${formatPoojaDate(state.pooja.date)}${state.pooja.slot ? " · " + state.pooja.slot.label : ""}`
+    : "Not chosen yet";
+}
+
+function togglePrasadamAddress() {
+  const on = document.getElementById("prasadam-deliver").checked;
+  document.getElementById("prasadam-address").classList.toggle("hidden", !on);
+}
+
+VALIDATORS.pincode = (v) => /^[1-9]\d{5}$/.test(v.trim());
+VALIDATORS.isoDateInWindow = (v) => !!v && v >= istDate(1) && v <= istDate(90);
+
+function proceedToPoojaPayment() {
+  if (selectedPoojas.length === 0) {
+    showVedicToast("Please select at least one Pooja Seva to continue.", "error");
+    return;
+  }
+  const deliver = document.getElementById("prasadam-deliver").checked;
+  const rules = [
+    { id: "pooja-name", rule: "name", msg: "Please enter the devotee's full name." },
+    { id: "pooja-gotram", rule: "required", msg: "Please enter your gotram, or choose “I don't know my gotram”." },
+    { id: "pooja-mobile", rule: "mobile", msg: "Enter a valid 10-digit Indian mobile number." },
+    { id: "pooja-date", rule: "isoDateInWindow", msg: "Choose a pooja date from tomorrow up to 90 days ahead." }
+  ];
+  if (deliver) rules.push(
+    { id: "addr-line1", rule: "required", msg: "Please enter the house / flat number and street." },
+    { id: "addr-city", rule: "name", msg: "Please enter the city or town." },
+    { id: "addr-state", rule: "required", msg: "Please choose the state." },
+    { id: "addr-pincode", rule: "pincode", msg: "Enter a valid 6-digit PIN code." }
+  );
+  let ok = validateFields(rules);
+  if (ok && !state.pooja.slot) {
+    ok = false;
+    const grid = document.getElementById("pooja-slot-grid");
+    grid.classList.add("field-error-group");
+    if (!document.querySelector('.field-error-msg[data-for="pooja-slot-grid"]')) {
+      const m = document.createElement("p");
+      m.className = "field-error-msg"; m.dataset.for = "pooja-slot-grid";
+      m.textContent = "Please choose a time slot for the pooja.";
+      grid.insertAdjacentElement("afterend", m);
+    }
+    grid.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  if (!ok) return;
+
+  state.pooja.prasadam = deliver ? {
+    deliver: true,
+    address: {
+      line1: document.getElementById("addr-line1").value.trim(),
+      line2: document.getElementById("addr-line2").value.trim(),
+      city: document.getElementById("addr-city").value.trim(),
+      state: document.getElementById("addr-state").value,
+      pincode: document.getElementById("addr-pincode").value.trim()
+    }
+  } : { deliver: false };
+  state.selectedDate = formatPoojaDate(state.pooja.date);
+  state.selectedTime = state.pooja.slot.label;
+
+  const total = selectedPoojas.reduce((acc, p) => acc + p.price, 0);
+  const titles = selectedPoojas.map(p => p.name).join(", ");
+
+  const nameInput = document.getElementById("pooja-name");
+  const gotramInput = document.getElementById("pooja-gotram");
+  const dobInput = document.getElementById("pooja-dob");
+  const mobileInput = document.getElementById("pooja-mobile");
+
+  if (nameInput) state.user.name = nameInput.value;
+  if (gotramInput) state.user.gotram = gotramInput.value;
+  if (dobInput) state.user.dob = dobInput.value;
+  if (mobileInput) state.user.mobile = mobileInput.value;
+
+  state.selectedService = {
+    id: "pooja_sevas",
+    title: `Pooja Seva: ${titles}`,
+    price: total,
+    duration: "45-60 Mins Ritual"
+  };
+
+  const payDisplay = document.getElementById("pay-amount-display");
+  if (payDisplay) payDisplay.innerText = `₹ ${total.toLocaleString()}`;
+
+  showPage("book-payment");
+}
+
+function selectServiceCard(serviceId) {
+  selectConsultationService(serviceId, serviceId === 'combined_consultation' ? 749 : 549);
+}
+
+// Handedness Selector Listener
+document.querySelectorAll("input[name='handedness']").forEach(radio => {
+  radio.addEventListener("change", (e) => {
+    state.handedness = e.target.value;
+    document.getElementById("summary-handedness").innerText = state.handedness;
+  });
+});
+
+// ==========================================
+// CALENDAR & TIME SLOTS
+// ==========================================
+
+function renderCalendarDays() {
+  const container = document.getElementById("calendar-days-container");
+  if (!container) return;
+
+  const days = [
+    { label: "Today", date: "20 Nov", day: "Fri", openSlots: 8, selected: true },
+    { label: "Tomorrow", date: "21 Nov", day: "Sat", openSlots: 12, selected: false },
+    { label: "Sun", date: "22 Nov", day: "Sun", openSlots: 6, selected: false },
+    { label: "Mon", date: "23 Nov", day: "Mon", openSlots: 14, selected: false },
+    { label: "Tue", date: "24 Nov", day: "Tue", openSlots: 10, selected: false }
+  ];
+
+  container.innerHTML = days.map((d, index) => `
+    <button onclick="selectDateTab(this, '${d.label}, ${d.date} 2026')" class="calendar-day-btn p-3 rounded-xl border text-center transition ${d.selected ? 'border-2 border-maroon bg-rose-50/50 font-bold' : 'border-line bg-white hover:border-amber-400'}">
+      <span class="text-2xs uppercase font-semibold text-maroon block">${d.label}</span>
+      <span class="text-sm font-bold text-ink block mt-0.5">${d.date}</span>
+      <span class="text-2xs text-emerald-700 font-medium block mt-1">${d.openSlots} open slots</span>
+    </button>
+  `).join('');
+}
+
+function selectDateTab(btn, dateString) {
+  document.querySelectorAll(".calendar-day-btn").forEach(b => {
+    b.classList.remove("border-2", "border-maroon", "bg-rose-50/50", "font-bold");
+    b.classList.add("border-line", "bg-white");
+  });
+
+  btn.classList.remove("border-line", "bg-white");
+  btn.classList.add("border-2", "border-maroon", "bg-rose-50/50", "font-bold");
+
+  state.selectedDate = dateString;
+  document.getElementById("slot-summary-date").innerText = dateString;
+  document.getElementById("auth-slot-held-info").innerText = `${dateString} at ${state.selectedTime}`;
+}
+
+function selectTimeSlot(slotTime) {
+  state.selectedTime = slotTime;
+
+  document.querySelectorAll(".time-slot-btn").forEach(btn => {
+    btn.classList.remove("border-2", "border-maroon", "bg-rose-50", "font-bold");
+    btn.classList.add("border-line", "text-ink", "font-medium");
+    if (btn.innerText.includes("(Selected)")) {
+      btn.innerText = btn.getAttribute("data-slot");
+    }
+  });
+
+  const activeBtn = document.querySelector(`.time-slot-btn[data-slot="${slotTime}"]`);
+  if (activeBtn) {
+    activeBtn.classList.remove("border-line", "text-ink", "font-medium");
+    activeBtn.classList.add("border-2", "border-maroon", "bg-rose-50", "font-bold");
+    activeBtn.innerText = `${slotTime} (Selected)`;
+  }
+
+  document.getElementById("summary-slot-time").innerText = `${state.selectedDate} • ${slotTime}`;
+  document.getElementById("slot-summary-time").innerText = slotTime;
+  document.getElementById("auth-slot-held-info").innerText = `${state.selectedDate} at ${slotTime}`;
+  document.getElementById("fail-slot-time").innerText = `${state.selectedDate} at ${slotTime}`;
+}
+
+// ==========================================
+// DEVOTEE AUTH CONTROLLER (PRESERVES SLOT!)
+// ==========================================
+
+function handleAuthSubmit(event) {
+  event.preventDefault();
+  const ok = validateFields([
+    { id: "auth-name", rule: "name", msg: "Please enter your full name." },
+    { id: "auth-mobile", rule: "mobile", msg: "Enter a valid 10-digit mobile number." },
+    { id: "auth-email", rule: "email", msg: "Enter a valid email address — your report is sent here." }
+  ]);
+  if (!ok) return;
+
+  state.user.name = document.getElementById("auth-name").value;
+  state.user.mobile = document.getElementById("auth-mobile").value;
+  state.user.email = document.getElementById("auth-email").value;
+
+  // Update header display name
+
+  // Sync to birth details form
+  document.getElementById("devotee-fullname").value = state.user.name;
+
+  // Move directly to payment without losing slot
+  showPage("book-payment");
+}
+
+// ==========================================
+// PAYU GATEWAY SIMULATION
+// ==========================================
+
+async function simulatePaymentSuccess(btn) {
+  if (state.paymentInFlight || state.paymentStatus === "SUCCESS") return;
+  state.paymentInFlight = true;
+  setButtonLoading(btn, true, "Processing payment…");
+  try {
+    await ensureBooking();
+    await updateBooking("payment_success");
+    completePayment();
+  } catch (err) {
+    showVedicToast(err.message, "error");
+    if (/filled up/.test(err.message) && state.selectedService.id === "pooja_sevas") {
+      showPage("book-pooja");
+      loadPoojaSlots(state.pooja.date);
+    }
+  } finally {
+    state.paymentInFlight = false;
+    setButtonLoading(btn, false);
+  }
+}
+
+function completePayment() {
+  state.paymentStatus = "SUCCESS";
+  // Slot is confirmed: stop the hold countdown
+  clearInterval(state.slotTimerInterval);
+  state.slotTimerInterval = null;
+  state.isSlotHeld = false;
+  document.getElementById("slot-timer-container")?.classList.add("hidden");
+
+  // Trigger celebratory confetti
+  if (typeof confetti === "function") {
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  }
+
+  // Consultations continue to the palm-photo upload; poojas go straight to their status
+  setTimeout(() => {
+    if (state.selectedService.id === "pooja_sevas") {
+      showPage("book-status");
+      showVedicToast(`Pooja booked for ${state.selectedDate}, ${state.selectedTime}.`);
+    } else {
+      showPage("book-upload");
+    }
+  }, 400);
+}
+
+function simulatePaymentFailure() {
+  ensureBooking().then(() => updateBooking("payment_failed")).catch(() => {});
+  // Show Payment Failure modal (which explicitly shows slot is still held)
+  const failModal = document.getElementById("payment-failure-modal");
+  if (failModal) {
+    failModal.classList.remove("hidden");
+  }
+}
+
+function closeFailureModalAndRetry() {
+  const failModal = document.getElementById("payment-failure-modal");
+  if (failModal) {
+    failModal.classList.add("hidden");
+  }
+  showPage("book-payment");
+}
+
+// ==========================================
+// PALM PHOTO UPLOADER
+// ==========================================
+
+const REQUIRED_PHOTO_SLOTS = [1, 2, 3]; // left palm, right palm, little-finger edge (4 = back of hands, optional)
+state.handPhotos = {};
+
+function handleHandPhotoUpload(slotIndex, event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    showVedicToast("Please upload a JPG, PNG or WEBP photo.", "error");
+    event.target.value = "";
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showVedicToast("That photo is larger than 10 MB. Please choose a smaller one.", "error");
+    event.target.value = "";
+    return;
+  }
+  state.handPhotos[slotIndex] = file;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parentCard = event.target.closest("div.border");
+    if (parentCard) {
+      const img = parentCard.querySelector("img");
+      if (img) img.src = e.target.result;
+      
+      const label = parentCard.querySelector("span[data-upload-label]");
+      if (label) label.innerText = file.name.length > 18 ? `${file.name.substring(0, 16)}…` : file.name;
+
+      const badge = parentCard.querySelector("[data-upload-badge]");
+      if (badge) {
+        badge.className = "inline-block mt-1.5 text-2xs font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full";
+        badge.innerText = "✓ Uploaded";
+      }
+      parentCard.classList.remove("border-rose-400");
+      parentCard.classList.add("border-emerald-400");
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitPalmPhotosAndProceed(btn) {
+  const okDetails = validateFields([
+    { id: "devotee-fullname", rule: "name", msg: "Please enter your full name." },
+    { id: "devotee-dob", rule: "required", msg: "Date of birth is needed for the reading." }
+  ]);
+  if (!okDetails) return;
+
+  const missing = REQUIRED_PHOTO_SLOTS.filter(i => !state.handPhotos[i]);
+  if (missing.length) {
+    document.querySelectorAll("input[onchange^='handleHandPhotoUpload(']").forEach(inp => {
+      const idx = Number(inp.getAttribute("onchange").match(/\((\d)/)[1]);
+      const card = inp.closest("div.border");
+      if (card && missing.includes(idx)) card.classList.add("border-rose-400");
+    });
+    showVedicToast(`Please upload ${missing.length} more required photo${missing.length > 1 ? "s" : ""} (marked in red).`, "error");
+    return;
+  }
+  if (btn && btn.disabled) return;
+  setButtonLoading(btn, true, "Submitting…");
+
+  const details = {
+    name: document.getElementById("devotee-fullname").value,
+    gotram: document.getElementById("devotee-gotram").value,
+    dob: document.getElementById("devotee-dob").value,
+    tob: document.getElementById("devotee-tob").value,
+    pob: document.getElementById("devotee-pob").value,
+    lat: document.getElementById("devotee-lat").value,
+    lon: document.getElementById("devotee-lon").value,
+    questions: document.getElementById("devotee-questions").value
+  };
+  const photos = Object.entries(state.handPhotos).map(([slot, f]) => ({ slot: Number(slot), name: f.name, size: f.size, type: f.type }));
+  try {
+    await updateBooking("details_submitted", { details, photos });
+  } catch (err) {
+    setButtonLoading(btn, false);
+    showVedicToast(err.message, "error");
+    return;
+  }
+
+  // Sync birth details
+  state.user.name = document.getElementById("devotee-fullname").value;
+  state.user.gotram = document.getElementById("devotee-gotram").value;
+  state.user.dob = document.getElementById("devotee-dob").value;
+  state.user.tob = document.getElementById("devotee-tob").value;
+  state.user.pob = document.getElementById("devotee-pob").value;
+  state.user.lat = document.getElementById("devotee-lat").value;
+  state.user.lon = document.getElementById("devotee-lon").value;
+  state.user.questions = document.getElementById("devotee-questions").value;
+
+  // Trigger confetti for submission
+  if (typeof confetti === "function") {
+    confetti({
+      particleCount: 50,
+      spread: 60,
+      origin: { y: 0.6 }
+    });
+  }
+
+  setTimeout(() => {
+    setButtonLoading(btn, false);
+    showPage("book-status");
+  }, 500);
+}
+
+// ==========================================
+// CHAT & LIVE AUDIO CONTROLLER
+// ==========================================
+
+function handleSendChatMessage(event) {
+  event.preventDefault();
+  const input = document.getElementById("chat-input-field");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const container = document.getElementById("chat-messages-container");
+  
+  // Devotee message
+  const userMsg = document.createElement("div");
+  userMsg.className = "flex justify-end";
+  userMsg.innerHTML = `
+    <div class="bg-sand border border-amber-200/80 p-3 rounded-2xl rounded-tr-none max-w-[85%] space-y-1 shadow-sm">
+      <p class="text-ink leading-relaxed">${escapeHTML(text)}</p>
+      <div class="flex items-center justify-end gap-1 text-2xs text-ink-3">
+        <span>Just now</span>
+        <i class="fa-solid fa-check text-zinc-400"></i>
+      </div>
+    </div>
+  `;
+  container.appendChild(userMsg);
+  input.value = "";
+  container.scrollTop = container.scrollHeight;
+
+  // Simulated Guruji Response after 2 seconds
+  setTimeout(() => {
+    const guruMsg = document.createElement("div");
+    guruMsg.className = "flex items-start gap-2.5 animate-fadeIn";
+    guruMsg.innerHTML = `
+      <img src="/assets/adiguru_swamiji_portrait.jpg" class="w-7 h-7 rounded-full object-cover mt-1">
+      <div class="bg-white border border-line p-3 rounded-2xl rounded-tl-none max-w-[85%] space-y-1 shadow-sm">
+        <p class="text-ink leading-relaxed">
+          Kalyanam Astu 🙏. I have reviewed your question. The Sun line in your right palm shows a distinct upward branch forming after age 32. Maintain disciplined sadhana and follow the prescribed remedies.
+        </p>
+        <div class="text-2xs text-ink-3 text-right">
+          Just now
+        </div>
+      </div>
+    `;
+    container.appendChild(guruMsg);
+    container.scrollTop = container.scrollHeight;
+  }, 1800);
+}
+
+function insertEmoji(emoji) {
+  const input = document.getElementById("chat-input-field");
+  input.value += ` ${emoji} `;
+  input.focus();
+}
+
+function appendDevoteeChatBubble(innerHtml) {
+  const container = document.getElementById("chat-messages-container");
+  if (!container) return;
+  const row = document.createElement("div");
+  row.className = "flex justify-end";
+  row.innerHTML = `
+    <div class="bg-sand border border-amber-200/80 p-3 rounded-2xl rounded-tr-none max-w-[85%] space-y-2 shadow-sm">
+      ${innerHtml}
+      <div class="flex items-center justify-end gap-1 text-2xs text-ink-3"><span>Just now</span><i class="fa-solid fa-check text-zinc-400"></i></div>
+    </div>`;
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+}
+
+function triggerPhotoAttach() {
+  let input = document.getElementById("chat-attach-input");
+  if (!input) {
+    input = document.createElement("input");
+    input.type = "file";
+    input.id = "chat-attach-input";
+    input.accept = "image/jpeg,image/png,image/webp,application/pdf";
+    input.multiple = true;
+    input.className = "sr-only";
+    input.addEventListener("change", () => {
+      const files = [...input.files].filter(f => f.size <= 10 * 1024 * 1024);
+      if (files.length < input.files.length) showVedicToast("Files over 10 MB were skipped.", "error");
+      files.forEach(f => {
+        if (f.type.startsWith("image/")) {
+          const url = URL.createObjectURL(f);
+          appendDevoteeChatBubble(`<img src="${url}" alt="${escapeHTML(f.name)}" class="max-h-48 rounded-lg">`);
+        } else {
+          appendDevoteeChatBubble(`<p class="text-ink flex items-center gap-2"><i class="fa-regular fa-file-pdf text-maroon"></i>${escapeHTML(f.name)}</p>`);
+        }
+      });
+      input.value = "";
+    });
+    document.body.appendChild(input);
+  }
+  input.click();
+}
+
+let voiceRecorder = null;
+async function simulateVoiceRecord(btn) {
+  btn = btn || document.getElementById("chat-mic-btn");
+  if (voiceRecorder && voiceRecorder.state === "recording") {
+    voiceRecorder.stop();
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    showVedicToast("Voice notes aren't supported in this browser.", "error");
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks = [];
+    voiceRecorder = new MediaRecorder(stream);
+    voiceRecorder.ondataavailable = (e) => chunks.push(e.data);
+    voiceRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      btn?.classList.remove("text-rose-600", "animate-pulse");
+      const blob = new Blob(chunks, { type: voiceRecorder.mimeType || "audio/webm" });
+      if (blob.size > 0) appendDevoteeChatBubble(`<audio controls src="${URL.createObjectURL(blob)}" class="h-9 max-w-full"></audio>`);
+    };
+    voiceRecorder.start();
+    btn?.classList.add("text-rose-600", "animate-pulse");
+    showVedicToast("Recording… tap the microphone again to send.");
+  } catch (err) {
+    showVedicToast("Microphone permission was denied.", "error");
+  }
+}
+
+function filterChatThreads(btn, status) {
+  btn.parentElement.querySelectorAll("button").forEach(b => {
+    const active = b === btn;
+    b.classList.toggle("bg-maroon", active);
+    b.classList.toggle("text-white", active);
+    b.classList.toggle("font-semibold", active);
+    b.setAttribute("aria-pressed", String(active));
+  });
+  let shown = 0;
+  document.querySelectorAll("[data-thread-status]").forEach(t => {
+    const visible = status === "all" || t.dataset.threadStatus === status;
+    t.classList.toggle("hidden", !visible);
+    if (visible) shown++;
+  });
+  const empty = document.getElementById("chat-threads-empty");
+  if (empty) empty.classList.toggle("hidden", shown > 0);
+}
+
+function showSessionInfo() {
+  showVedicToast(`Order ${state.orderId} · ${state.selectedService.title} · ${state.paymentStatus === "SUCCESS" ? "Paid" : "Payment pending"}`);
+}
+
+function toggleAudioVoiceNote(btn) {
+  const icon = btn.querySelector("i");
+  const bars = document.querySelectorAll("#audio-waveform-bars .wave-bar");
+  const timer = document.getElementById("voice-timer");
+
+  if (!state.isAudioPlaying) {
+    state.isAudioPlaying = true;
+    icon.className = "fa-solid fa-pause text-xs";
+    
+    // Animate waveform bars
+    state.audioInterval = setInterval(() => {
+      bars.forEach(b => {
+        const h = Math.floor(Math.random() * 20) + 6;
+        b.style.height = `${h}px`;
+      });
+    }, 200);
+
+    // Audio tone synthesizer simulation
+    playSacredAudioChime();
+  } else {
+    state.isAudioPlaying = false;
+    icon.className = "fa-solid fa-play text-xs ml-0.5";
+    clearInterval(state.audioInterval);
+  }
+}
+
+function playSacredAudioChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(261.63, ctx.currentTime); // C4 meditative tone
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 1.5);
+  } catch (e) {
+    // AudioContext fallback
+  }
+}
+
+// ==========================================
+// VIDEO CALL ROOM CONTROLLER
+// ==========================================
+
+// ==========================================
+// REPORT VIEWER & PDF EXPORT
+// ==========================================
+
+function generateAndDownloadPDF() {
+  if (typeof window.jspdf === "undefined") {
+    showVedicToast("Opening the print dialog — choose “Save as PDF”.");
+    window.print();
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    unit: 'pt',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Header Banner
+  doc.setFillColor(35, 12, 14); // Deep Vedic Burgundy
+  doc.rect(0, 0, pageWidth, 90, 'F');
+
+  // Title
+  doc.setFont("times", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(247, 227, 191);
+  doc.text("GURUJI VEDIC SANSTHAN", pageWidth / 2, 45, { align: 'center' });
+
+  doc.setFontSize(10);
+  doc.setFont("times", "italic");
+  doc.setTextColor(212, 175, 55);
+  doc.text("HASTAREKHA SAMUDRIKA SHASTRA & KUNDALI DOSSIER", pageWidth / 2, 65, { align: 'center' });
+
+  // Devotee Meta
+  doc.setFillColor(250, 245, 236);
+  doc.rect(40, 105, pageWidth - 80, 50, 'F');
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(44, 18, 20);
+  doc.text(`Devotee Name: ${state.user.name}`, 55, 125);
+  doc.text(`Date of Birth: ${state.user.dob}`, 55, 142);
+  doc.text(`Order ID: ${state.orderId}`, pageWidth - 200, 125);
+  doc.text(`Consultant: Adiguru Swamiji`, pageWidth - 200, 142);
+
+  // Sections
+  let yPos = 180;
+  GURUJI_DATA.sampleReport.sections.forEach((sec, idx) => {
+    if (yPos > 720) {
+      doc.addPage();
+      yPos = 50;
+    }
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(135, 34, 40); // Crimson
+    doc.text(sec.title, 45, yPos);
+    yPos += 16;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(60, 50, 50);
+    const splitText = doc.splitTextToSize(sec.summary, pageWidth - 90);
+    doc.text(splitText, 45, yPos);
+    yPos += (splitText.length * 13) + 12;
+  });
+
+  // Footer Seal
+  if (yPos > 730) {
+    doc.addPage();
+    yPos = 60;
+  }
+  doc.setDrawColor(212, 175, 55);
+  doc.line(45, yPos, pageWidth - 45, yPos);
+  yPos += 20;
+
+  doc.setFont("times", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(35, 12, 14);
+  doc.text("Blessed by Adiguru Swamiji (Hastarekha Peetham)", 45, yPos);
+  doc.setFontSize(9);
+  doc.setTextColor(22, 163, 74);
+  doc.text("✓ CERTIFIED VEDIC SAMUDRIKA DOSSIER", pageWidth - 240, yPos);
+
+  // Save PDF
+  doc.save(`Guruji_Vedic_Palmistry_Report_${state.orderId}.pdf`);
+  
+  // Confetti
+  if (typeof confetti === "function") {
+    confetti({
+      particleCount: 70,
+      spread: 70,
+      origin: { y: 0.7 }
+    });
+  }
+}
+
+// Review Dialog
+function openReviewModal() {
+  document.getElementById("review-modal").classList.remove("hidden");
+}
+
+function closeReviewModal() {
+  document.getElementById("review-modal").classList.add("hidden");
+}
+
+function setReviewRating(rating) {
+  state.reviewRating = rating;
+  const stars = document.querySelectorAll("#review-stars-container i");
+  stars.forEach((s, idx) => {
+    if (idx < rating) {
+      s.className = "fa-solid fa-star cursor-pointer hover:scale-110 transition text-amber-400";
+    } else {
+      s.className = "fa-regular fa-star cursor-pointer hover:scale-110 transition text-zinc-300";
+    }
+  });
+}
+
+async function submitDevoteeReview() {
+  const textarea = document.getElementById("review-feedback-text");
+  const text = textarea.value.trim();
+  if (text.length < 10) {
+    textarea.classList.add("field-error");
+    textarea.focus();
+    showVedicToast("Please write a few words about your experience (10+ characters).", "error");
+    return;
+  }
+  try {
+    await api("/api/reviews", {
+      method: "POST",
+      body: {
+        name: state.user.name, rating: state.reviewRating, comment: text,
+        consultation: state.selectedService.title,
+        orderId: state.booking?.orderId, mobile: state.booking?.devotee?.mobile
+      }
+    });
+  } catch (err) {
+    showVedicToast(err.message, "error");
+    return;
+  }
+  textarea.value = "";
+
+  // Prepend to reviews
+  GURUJI_DATA.reviews.unshift({
+    id: Date.now(),
+    name: state.user.name,
+    location: "",
+    rating: state.reviewRating,
+    date: "Just now",
+    consultation: state.selectedService.title,
+    comment: text,
+    verified: !!(state.booking && state.paymentStatus === "SUCCESS")
+  });
+
+  renderReviews();
+  closeReviewModal();
+
+  if (typeof confetti === "function") {
+    confetti({
+      particleCount: 100,
+      spread: 80,
+      origin: { y: 0.5 }
+    });
+  }
+
+  showVedicToast("Thank you! Your review has been added.");
+}
+
+// Sample Report Modal
+function openSampleReportModal() {
+  document.getElementById("sample-report-modal").classList.remove("hidden");
+}
+
+function closeSampleReportModal() {
+  document.getElementById("sample-report-modal").classList.add("hidden");
+}
+
+// ==========================================
+// NEXT STEPS BOOKINGS
+// ==========================================
+
+function bookFollowUpSession() {
+  state.selectedService = {
+    id: "followup_session",
+    title: "15-Min Follow-up Consultation with Guruji",
+    price: 750,
+    duration: "15 Mins"
+  };
+  document.getElementById("consult-summary-service") && (document.getElementById("consult-summary-service").innerText = state.selectedService.title);
+  document.getElementById("consult-summary-fee") && (document.getElementById("consult-summary-fee").innerText = "₹ 750");
+  const payDisplay = document.getElementById("pay-amount-display");
+  if (payDisplay) payDisplay.innerText = "₹ 750";
+  showPage("book-consultation");
+}
+
+function bookRemedialPooja() {
+  selectPoojaSeva("navagraha_shanti", "Navagraha Shanti Mahapuja", 5100);
+}
+
+function enrollInCourse() {
+  openCourseModal("palmistry");
+}
+
+// Helper: Escape HTML
+function escapeHTML(str) {
+  return str.replace(/[&<>'"]/g, 
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag)
+  );
+}
+
+
+// =============================================================================
+// MANTRAS & STOTRAS VEDIC SACRED KNOWLEDGE LIBRARY ENGINE
+// =============================================================================
+
+const mantrasState = {
+  activeCategory: 'all',
+  searchQuery: '',
+  filterDeity: 'all',
+  filterPurpose: 'all',
+  filterType: 'all',
+  bookmarkedOnly: false,
+  sortBy: 'featured',
+  currentMantraId: null,
+  fontSize: 'md',
+  isAudioPlaying: false,
+  audioContext: null,
+  audioTimerInterval: null,
+  audioSecondsElapsed: 0,
+  bookmarks: []
+};
+
+// Initialize Mantras Library on load
+document.addEventListener("mantras:updated", () => {
+  renderMantrasLibrary();
+  document.querySelectorAll("[data-mantra-count]").forEach(el => el.textContent = MantrasDB.getAll().length);
+});
+
+function initMantrasLibrary() {
+  loadMantraBookmarks();
+  updateBookmarkCounters();
+  renderMantraCategories();
+  renderFeaturedMantras();
+  renderMantrasGrid();
+  renderRecentMantras();
+  const count = (typeof MantrasDB !== "undefined") ? MantrasDB.getAll().length : 0;
+  document.querySelectorAll("[data-mantra-count]").forEach(el => el.textContent = count);
+}
+
+// Load bookmarks from LocalStorage
+function loadMantraBookmarks() {
+  try {
+    const raw = localStorage.getItem('guruji_mantras_bookmarks_v1');
+    mantrasState.bookmarks = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    mantrasState.bookmarks = [];
+  }
+}
+
+// Save bookmarks to LocalStorage
+function saveMantraBookmarks() {
+  try {
+    localStorage.setItem('guruji_mantras_bookmarks_v1', JSON.stringify(mantrasState.bookmarks));
+  } catch (e) {}
+  updateBookmarkCounters();
+}
+
+function updateBookmarkCounters() {
+  const count = mantrasState.bookmarks.length;
+  const heroCount = document.getElementById('hero-bookmarks-count');
+  const pillCount = document.getElementById('pill-bookmarks-count');
+  if (heroCount) heroCount.innerText = count;
+  if (pillCount) pillCount.innerText = count;
+}
+
+// Master Render Function
+function renderMantrasLibrary() {
+  renderMantraCategories();
+  renderFeaturedMantras();
+  renderMantrasGrid();
+  renderRecentMantras();
+  updateBookmarkCounters();
+}
+
+// Render 7 Categories Cards with Live Counts
+function renderMantraCategories() {
+  const container = document.getElementById('categories-showcase-grid');
+  if (!container) return;
+
+  const categories = (typeof GURUJI_MANTRAS_CATEGORIES !== 'undefined') ? GURUJI_MANTRAS_CATEGORIES : [
+    { id: 'navagraha', name: 'Navagraha Mantras & Stotras', telugu_name: 'నవగ్రహ మంత్రాలు', icon: 'fa-solid fa-sun', count: 11, description: 'Planetary Beeja Mantras & Vyasa Navagraha Stotram' },
+    { id: 'ganapati', name: 'Ganapati Mantras', telugu_name: 'గణపతి మంత్రాలు', icon: 'fa-solid fa-om', count: 3, description: 'Vighnaharta Beeja & Runa Hara prayers' },
+    { id: 'guru_knowledge', name: 'Guru & Knowledge Mantras', telugu_name: 'గురు & విద్యా మంత్రాలు', icon: 'fa-solid fa-graduation-cap', count: 5, description: 'Hayagriva, Dakshinamurthy & Medha Suktam' },
+    { id: 'devi', name: 'Devi Mantras & Stotras', telugu_name: 'దేవీ మంత్రాలు & స్తోత్రాలు', icon: 'fa-solid fa-spa', count: 4, description: 'Durga Saptashloki & Mahalakshmi prayers' },
+    { id: 'debt_financial', name: 'Debt Relief & Financial Prayers', telugu_name: 'రుణ విమోచన స్తోత్రాలు', icon: 'fa-solid fa-hand-holding-dollar', count: 3, description: 'Runa Vimochana Narasimha & Kanakadhara' },
+    { id: 'specific_purpose', name: 'Specific Purpose Mantras', telugu_name: 'విశిష్ట ప్రయోజన మంత్రాలు', icon: 'fa-solid fa-crosshairs', count: 4, description: 'Desired spouse, recovering lost items & protection' },
+    { id: 'daily_prayers', name: 'Daily Prayers', telugu_name: 'నిత్య ప్రార్థనలు', icon: 'fa-solid fa-hands-praying', count: 5, description: 'Prithvi Vandana, Karaagre, Gayatri & Mrityunjaya' }
+  ];
+
+  const allMantras = (typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : [];
+
+  container.innerHTML = categories.map(cat => {
+    const liveCount = allMantras.filter(m => m.category === cat.id || (m.categories && m.categories.includes(cat.id))).length || cat.count;
+    const isActive = mantrasState.activeCategory === cat.id;
+
+    return `
+      <div 
+        onclick="setCategoryPill('${cat.id}')"
+        class="group cursor-pointer bg-white rounded-2xl p-5 border transition-all duration-300 relative overflow-hidden shadow-xs hover:shadow-md ${
+          isActive 
+            ? 'border-amber-600 ring-2 ring-amber-500/30 bg-paper' 
+            : 'border-line hover:border-amber-400'
+        }"
+      >
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center text-lg group-hover:scale-110 transition">
+            <i class="${cat.icon}"></i>
+          </div>
+          <span class="text-2xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+            ${liveCount} Mantras
+          </span>
+        </div>
+
+        <div class="text-2xs font-telugu text-amber-800 font-medium truncate mb-0.5">
+          ${cat.telugu_name || ''}
+        </div>
+        <h3 class="font-serif font-bold text-sm text-night-2 group-hover:text-amber-900 transition mb-1.5">
+          ${cat.name}
+        </h3>
+        <p class="text-2xs text-ink-3 line-clamp-2 leading-relaxed">
+          ${cat.description}
+        </p>
+      </div>
+    `;
+  }).join('');
+}
+
+// Render Featured Mantras Section
+function renderFeaturedMantras() {
+  const container = document.getElementById('featured-mantras-grid');
+  if (!container) return;
+
+  const all = (typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : [];
+  const featured = all.filter(m => m.featured).slice(0, 6);
+
+  container.innerHTML = featured.map(m => createMantraCardHTML(m, true)).join('');
+}
+
+// Filter and Render All Mantras Grid
+function renderMantrasGrid() {
+  const container = document.getElementById('mantras-card-grid');
+  const emptyState = document.getElementById('mantras-empty-state');
+  const countDisplay = document.getElementById('current-count-display');
+  if (!container) return;
+
+  let list = (typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : [];
+
+  // 1. Filter by Bookmarked Only
+  if (mantrasState.bookmarkedOnly) {
+    list = list.filter(m => mantrasState.bookmarks.includes(m.id));
+  }
+
+  // 2. Filter by Category
+  if (mantrasState.activeCategory !== 'all') {
+    list = list.filter(m => 
+      m.category === mantrasState.activeCategory || 
+      (m.categories && m.categories.includes(mantrasState.activeCategory))
+    );
+  }
+
+  // 3. Filter by Deity
+  if (mantrasState.filterDeity !== 'all') {
+    const q = mantrasState.filterDeity.toLowerCase();
+    list = list.filter(m => 
+      (m.deity && m.deity.toLowerCase().includes(q)) || 
+      (m.planet && m.planet.toLowerCase().includes(q))
+    );
+  }
+
+  // 4. Filter by Purpose
+  if (mantrasState.filterPurpose !== 'all') {
+    const q = mantrasState.filterPurpose.toLowerCase();
+    list = list.filter(m => 
+      m.purpose_tags && m.purpose_tags.some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  // 5. Filter by Mantra Type
+  if (mantrasState.filterType !== 'all') {
+    const q = mantrasState.filterType.toLowerCase();
+    list = list.filter(m => 
+      m.mantra_type && m.mantra_type.toLowerCase().includes(q)
+    );
+  }
+
+  // 6. Search Query
+  if (mantrasState.searchQuery.trim() !== '') {
+    const query = mantrasState.searchQuery.toLowerCase().trim();
+    list = list.filter(m => {
+      const inTitle = m.title && m.title.toLowerCase().includes(query);
+      const inSanskritTitle = m.sanskrit_title && m.sanskrit_title.includes(query);
+      const inTeluguTitle = m.telugu_title && m.telugu_title.includes(query);
+      const inDeity = m.deity && m.deity.toLowerCase().includes(query);
+      const inPlanet = m.planet && m.planet.toLowerCase().includes(query);
+      const inTranslit = m.english_transliteration && m.english_transliteration.toLowerCase().includes(query);
+      const inSanskritText = m.sanskrit_text && m.sanskrit_text.includes(query);
+      const inTeluguText = m.telugu_text && m.telugu_text.includes(query);
+      const inShortDesc = m.short_description && m.short_description.toLowerCase().includes(query);
+      const inTags = m.purpose_tags && m.purpose_tags.some(t => t.toLowerCase().includes(query));
+      return inTitle || inSanskritTitle || inTeluguTitle || inDeity || inPlanet || inTranslit || inSanskritText || inTeluguText || inShortDesc || inTags;
+    });
+  }
+
+  // 7. Sort
+  if (mantrasState.sortBy === 'name_asc') {
+    list.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (mantrasState.sortBy === 'category') {
+    list.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+  } else if (mantrasState.sortBy === 'deity') {
+    list.sort((a, b) => (a.deity || '').localeCompare(b.deity || ''));
+  } else {
+    // Featured first
+    list.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
+  }
+
+  if (countDisplay) countDisplay.innerText = list.length;
+
+  if (list.length === 0) {
+    container.innerHTML = '';
+    if (emptyState) emptyState.classList.remove('hidden');
+  } else {
+    if (emptyState) emptyState.classList.add('hidden');
+    container.innerHTML = list.map(m => createMantraCardHTML(m, false)).join('');
+  }
+}
+
+// Render Recently Added Mantras
+function renderRecentMantras() {
+  const container = document.getElementById('recent-mantras-grid');
+  if (!container) return;
+
+  const all = (typeof MantrasDB !== 'undefined') ? MantrasDB.getRecent(3) : [];
+  container.innerHTML = all.map(m => createMantraCardHTML(m, false)).join('');
+}
+
+// HTML Generator for Individual Mantra Card
+function createMantraCardHTML(m, isFeatured = false) {
+  const isBookmarked = mantrasState.bookmarks.includes(m.id);
+  const categoryLabel = m.category_names ? m.category_names[0] : (m.category || 'Vedic Mantra');
+
+  return `
+    <div class="bg-white rounded-2xl border ${
+      isFeatured 
+        ? 'border-amber-400 shadow-md ring-1 ring-amber-300/40 bg-gradient-to-b from-white to-paper' 
+        : 'border-line shadow-xs hover:shadow-md hover:border-amber-400'
+    } p-6 flex flex-col justify-between transition-all duration-300 group relative">
+      
+      <div>
+        <!-- Card Top Badges & Bookmark Action -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <span class="text-2xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 truncate max-w-[200px]">
+            ${categoryLabel}
+          </span>
+          <button 
+            onclick="toggleMantraBookmark('${m.id}', event)" 
+            class="w-7 h-7 rounded-full flex items-center justify-center text-xs transition ${
+              isBookmarked 
+                ? 'text-amber-500 bg-amber-50' 
+                : 'text-zinc-400 hover:text-amber-500 hover:bg-zinc-100'
+            }" 
+            title="${isBookmarked ? 'Remove Bookmark' : 'Add to Bookmarks'}"
+          >
+            <i class="${isBookmarked ? 'fa-solid' : 'fa-regular'} fa-star"></i>
+          </button>
+        </div>
+
+        <!-- Mantra Titles -->
+        <div class="space-y-1 mb-2">
+          <h3 
+            onclick="openMantraDetail('${m.id}')" 
+            class="font-serif font-bold text-base sm:text-lg text-night-2 group-hover:text-amber-900 transition cursor-pointer"
+          >
+            ${m.title}
+          </h3>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="font-sanskrit text-amber-900 font-semibold">${m.sanskrit_title || ''}</span>
+            <span class="text-zinc-300">•</span>
+            <span class="font-telugu text-amber-800 text-2xs">${m.telugu_title || ''}</span>
+          </div>
+        </div>
+
+        <!-- Deity / Planet -->
+        <div class="text-2xs text-zinc-500 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-om text-amber-700 text-2xs"></i>
+          <span>${m.deity || 'Universal'}</span>
+          ${m.planet ? `<span class="text-zinc-300">|</span> <span>${m.planet}</span>` : ''}
+        </div>
+
+        <!-- Sanskrit Verse Teaser Preview -->
+        <div class="bg-parchment rounded-xl p-3 border border-line my-3">
+          <div class="font-sanskrit text-sm font-semibold text-ink text-center line-clamp-2 select-all">
+            ${m.sanskrit_text || ''}
+          </div>
+        </div>
+
+        <!-- Short Description -->
+        <p class="text-xs text-ink-2 line-clamp-2 leading-relaxed mb-4 font-light">
+          ${m.short_description || m.introduction || ''}
+        </p>
+
+        <!-- Purpose Tags -->
+        ${m.purpose_tags && m.purpose_tags.length > 0 ? `
+          <div class="flex flex-wrap gap-1 mb-4">
+            ${m.purpose_tags.slice(0, 2).map(tag => `
+              <span class="text-2xs bg-zinc-100 text-zinc-700 px-2 py-0.5 rounded-md">${tag}</span>
+            `).join('')}
+            ${m.purpose_tags.length > 2 ? `<span class="text-2xs text-zinc-400 self-center">+${m.purpose_tags.length - 2} more</span>` : ''}
+          </div>
+        ` : ''}
+
+      </div>
+
+      <!-- Card Action Footer -->
+      <div class="pt-3 border-t border-zinc-100 flex items-center justify-between gap-2 mt-auto">
+        <button 
+          onclick="copyMantraCardText('${m.id}', event)" 
+          class="text-xs text-zinc-600 hover:text-amber-800 font-medium flex items-center gap-1 py-1 px-2 rounded hover:bg-amber-50 transition"
+          title="Copy Sanskrit Verse"
+        >
+          <i class="fa-regular fa-copy text-amber-600"></i>
+          <span>Copy</span>
+        </button>
+
+        <button 
+          onclick="openMantraDetail('${m.id}')" 
+          class="text-xs font-semibold text-maroon hover:text-maroon-dark flex items-center gap-1 group-hover:translate-x-0.5 transition"
+        >
+          <span>Read &amp; Recite</span>
+          <i class="fa-solid fa-arrow-right text-2xs"></i>
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+// Open Dedicated Mantra Detail View
+function openMantraDetail(mantraId) {
+  renderMantraDetail(mantraId);
+  showPage('mantra-detail');
+}
+
+// Render Complete Mantra Detail Page
+function renderMantraDetail(mantraId) {
+  const m = (typeof MantrasDB !== 'undefined') ? MantrasDB.getById(mantraId) : null;
+  if (!m) {
+    showVedicToast('Mantra details loading...');
+    return;
+  }
+
+  mantrasState.currentMantraId = m.id;
+
+  // Breadcrumbs & Titles
+  document.getElementById('detail-breadcrumb-title').innerText = m.title;
+  document.getElementById('detail-title').innerText = m.title;
+  document.getElementById('detail-sanskrit-title').innerText = m.sanskrit_title || '';
+  document.getElementById('detail-telugu-title').innerText = m.telugu_title || '';
+  document.getElementById('detail-intro').innerText = m.introduction || m.short_description || '';
+
+  // Badges
+  document.getElementById('detail-category-badge').innerText = m.category_names ? m.category_names[0] : (m.category || 'Mantra');
+  document.getElementById('detail-deity-badge').innerText = m.deity || 'Universal Deity';
+  document.getElementById('detail-type-badge').innerText = m.mantra_type || 'Mantra';
+
+  // Bookmark Button State
+  const isBookmarked = mantrasState.bookmarks.includes(m.id);
+  const bookmarkIcon = document.getElementById('detail-bookmark-icon');
+  const bookmarkText = document.getElementById('detail-bookmark-text');
+  if (bookmarkIcon && bookmarkText) {
+    bookmarkIcon.className = isBookmarked ? 'fa-solid fa-star text-amber-500' : 'fa-regular fa-star text-amber-500';
+    bookmarkText.innerText = isBookmarked ? 'Bookmarked' : 'Save to Bookmarks';
+  }
+
+  // Verses Display
+  document.getElementById('detail-sanskrit-box').innerText = m.sanskrit_text || 'Text coming soon';
+  document.getElementById('detail-telugu-box').innerText = m.telugu_text || 'తెలుగు లిపి త్వరలో చేర్చబడును';
+  document.getElementById('detail-transliteration-box').innerText = m.english_transliteration || 'Transliteration coming soon';
+
+  // Meanings
+  document.getElementById('detail-english-meaning').innerText = m.english_meaning || 'Deep spiritual meaning coming soon.';
+  document.getElementById('detail-telugu-meaning').innerText = m.telugu_meaning || 'తాత్పర్యం త్వరలో అందించబడును.';
+
+  // Traditional Purpose & Significance
+  document.getElementById('detail-significance').innerText = m.traditional_significance || m.short_description || '';
+  
+  const tagsContainer = document.getElementById('detail-purpose-tags');
+  if (tagsContainer) {
+    tagsContainer.innerHTML = (m.purpose_tags || []).map(t => `
+      <span class="text-xs bg-amber-50 text-amber-900 border border-amber-200/70 px-2.5 py-1 rounded-lg font-medium">${t}</span>
+    `).join('');
+  }
+
+  // Recitation Vidhi & Guidance
+  document.getElementById('detail-method-text').innerText = m.recitation_method || 'Recite with a clean body and focused devotion during peaceful morning hours.';
+
+  const guidance = m.recitation_guidance || {};
+  document.getElementById('detail-count').innerText = guidance.recommended_count || '108 times daily';
+  document.getElementById('detail-time').innerText = guidance.best_time || 'Brahma Muhurta / Sunrise';
+  document.getElementById('detail-mala').innerText = guidance.rosary_mala || 'Rudraksha or Tulasi Mala';
+  document.getElementById('detail-direction').innerText = guidance.facing_direction || 'East or North';
+
+  const dhyanaContainer = document.getElementById('detail-dhyana-container');
+  const dhyanaEl = document.getElementById('detail-dhyana');
+  if (guidance.dhyana_shloka) {
+    dhyanaContainer.classList.remove('hidden');
+    dhyanaEl.innerText = guidance.dhyana_shloka;
+  } else {
+    dhyanaContainer.classList.add('hidden');
+  }
+
+  const notesEl = document.getElementById('detail-important-notes');
+  if (notesEl) {
+    notesEl.innerText = m.important_notes || 'Maintain physical cleanliness and sattvic thoughts while chanting.';
+  }
+
+  // Reset Font Size
+  setMantraFontSize(mantrasState.fontSize);
+
+  // Stop any active audio from previous mantra
+  stopMantraAudio();
+
+  // Setup Previous & Next Navigation
+  setupAdjacentMantraNavigation(m.id);
+
+  // Setup Related Mantras
+  setupRelatedMantras(m);
+}
+
+// Previous & Next Mantra Navigation Setup
+function setupAdjacentMantraNavigation(currentId) {
+  const all = (typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : [];
+  const idx = all.findIndex(m => m.id === currentId);
+
+  const prevBtn = document.getElementById('btn-prev-mantra');
+  const nextBtn = document.getElementById('btn-next-mantra');
+  const prevTitle = document.getElementById('prev-mantra-title');
+  const nextTitle = document.getElementById('next-mantra-title');
+
+  if (idx > 0) {
+    const prev = all[idx - 1];
+    prevBtn.classList.remove('opacity-40', 'pointer-events-none');
+    prevTitle.innerText = prev.title;
+  } else {
+    prevBtn.classList.add('opacity-40', 'pointer-events-none');
+    prevTitle.innerText = 'First Mantra';
+  }
+
+  if (idx < all.length - 1) {
+    const next = all[idx + 1];
+    nextBtn.classList.remove('opacity-40', 'pointer-events-none');
+    nextTitle.innerText = next.title;
+  } else {
+    nextBtn.classList.add('opacity-40', 'pointer-events-none');
+    nextTitle.innerText = 'Last Mantra';
+  }
+}
+
+function navigateAdjacentMantra(direction) {
+  const all = (typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : [];
+  const idx = all.findIndex(m => m.id === mantrasState.currentMantraId);
+  const targetIdx = idx + direction;
+  if (targetIdx >= 0 && targetIdx < all.length) {
+    openMantraDetail(all[targetIdx].id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+// Setup Related Mantras Section
+function setupRelatedMantras(currentMantra) {
+  const container = document.getElementById('related-mantras-grid');
+  if (!container) return;
+
+  const all = (typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : [];
+  const related = all.filter(m => 
+    m.id !== currentMantra.id && 
+    (m.category === currentMantra.category || m.deity === currentMantra.deity)
+  ).slice(0, 3);
+
+  if (related.length === 0) {
+    container.innerHTML = all.filter(m => m.id !== currentMantra.id).slice(0, 3).map(m => createMantraCardHTML(m, false)).join('');
+  } else {
+    container.innerHTML = related.map(m => createMantraCardHTML(m, false)).join('');
+  }
+}
+
+// Font Size Adjustment in Mantra Detail
+function setMantraFontSize(size) {
+  mantrasState.fontSize = size;
+  const sanskritBox = document.getElementById('detail-sanskrit-box');
+  const teluguBox = document.getElementById('detail-telugu-box');
+
+  ['font-scale-sm', 'font-scale-md', 'font-scale-lg'].forEach(cls => {
+    sanskritBox?.classList.remove(cls);
+    teluguBox?.classList.remove(cls);
+  });
+
+  const targetClass = `font-scale-${size}`;
+  sanskritBox?.classList.add(targetClass);
+  teluguBox?.classList.add(targetClass);
+
+  // Update button highlights
+  ['sm', 'md', 'lg'].forEach(s => {
+    const btn = document.getElementById(`btn-font-${s}`);
+    if (btn) {
+      if (s === size) {
+        btn.className = 'px-2 py-0.5 rounded bg-white font-bold text-amber-900 shadow-xs font-serif';
+      } else {
+        btn.className = 'px-2 py-0.5 rounded hover:bg-white text-zinc-700 font-serif';
+      }
+    }
+  });
+}
+
+// Copy Text Handlers
+function copyCurrentMantra(type) {
+  const m = (typeof MantrasDB !== 'undefined') ? MantrasDB.getById(mantrasState.currentMantraId) : null;
+  if (!m) return;
+
+  let textToCopy = '';
+  if (type === 'sanskrit') {
+    textToCopy = m.sanskrit_text;
+    showVedicToast('Sanskrit Devanagari verse copied!');
+  } else if (type === 'telugu') {
+    textToCopy = m.telugu_text;
+    showVedicToast('Telugu verse copied!');
+  } else if (type === 'transliteration') {
+    textToCopy = m.english_transliteration;
+    showVedicToast('English transliteration copied!');
+  }
+
+  copyToClipboard(textToCopy);
+}
+
+function copyMantraCardText(mantraId, event) {
+  if (event) event.stopPropagation();
+  const m = (typeof MantrasDB !== 'undefined') ? MantrasDB.getById(mantraId) : null;
+  if (!m) return;
+  copyToClipboard(m.sanskrit_text);
+  showVedicToast(`"${m.title}" Sanskrit verse copied!`);
+}
+
+function copyToClipboard(text) {
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+// Bookmark Handlers
+function toggleMantraBookmark(id, event) {
+  if (event) event.stopPropagation();
+  const idx = mantrasState.bookmarks.indexOf(id);
+  if (idx === -1) {
+    mantrasState.bookmarks.push(id);
+    showVedicToast('Saved to your sacred bookmarks!');
+  } else {
+    mantrasState.bookmarks.splice(idx, 1);
+    showVedicToast('Removed from bookmarks.');
+  }
+
+  saveMantraBookmarks();
+  renderMantrasGrid();
+  renderFeaturedMantras();
+
+  if (mantrasState.currentMantraId === id) {
+    const bookmarkIcon = document.getElementById('detail-bookmark-icon');
+    const bookmarkText = document.getElementById('detail-bookmark-text');
+    const isBookmarked = mantrasState.bookmarks.includes(id);
+    if (bookmarkIcon && bookmarkText) {
+      bookmarkIcon.className = isBookmarked ? 'fa-solid fa-star text-amber-500' : 'fa-regular fa-star text-amber-500';
+      bookmarkText.innerText = isBookmarked ? 'Bookmarked' : 'Save to Bookmarks';
+    }
+  }
+}
+
+function toggleCurrentMantraBookmark() {
+  if (mantrasState.currentMantraId) {
+    toggleMantraBookmark(mantrasState.currentMantraId);
+  }
+}
+
+// Filter and Search Handlers
+function handleMantraSearch(query) {
+  mantrasState.searchQuery = query;
+  const clearBtn = document.getElementById('mantras-search-clear');
+  if (clearBtn) {
+    if (query.trim() !== '') clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+  }
+  renderMantrasGrid();
+}
+
+function clearMantraSearch() {
+  const input = document.getElementById('mantras-search-input');
+  if (input) input.value = '';
+  mantrasState.searchQuery = '';
+  document.getElementById('mantras-search-clear')?.classList.add('hidden');
+  renderMantrasGrid();
+}
+
+function setCategoryPill(catId) {
+  mantrasState.activeCategory = catId;
+  mantrasState.bookmarkedOnly = false;
+
+  // Update pills UI
+  document.querySelectorAll('.category-pill').forEach(btn => {
+    if (btn.getAttribute('data-cat') === catId) {
+      btn.className = 'category-pill active-pill px-3 py-1 rounded-full border border-amber-600/30 bg-maroon text-white whitespace-nowrap transition';
+    } else {
+      btn.className = 'category-pill px-3 py-1 rounded-full border border-zinc-200 bg-white hover:bg-amber-50 text-zinc-700 whitespace-nowrap transition';
+    }
+  });
+
+  const catSelect = document.getElementById('filter-category');
+  if (catSelect) catSelect.value = catId;
+
+  renderMantraCategories();
+  renderMantrasGrid();
+
+  // Scroll to all mantras section
+  const target = document.getElementById('all-mantras-section');
+  if (target) target.scrollIntoView({ behavior: 'smooth' });
+}
+
+function handleCategoryFilter(catId) {
+  setCategoryPill(catId);
+}
+
+function handleDeityFilter(deity) {
+  mantrasState.filterDeity = deity;
+  renderMantrasGrid();
+}
+
+function handlePurposeFilter(purpose) {
+  mantrasState.filterPurpose = purpose;
+  renderMantrasGrid();
+}
+
+function handleTypeFilter(type) {
+  mantrasState.filterType = type;
+  renderMantrasGrid();
+}
+
+function handleMantraSort(sortBy) {
+  mantrasState.sortBy = sortBy;
+  renderMantrasGrid();
+}
+
+function filterByBookmarks() {
+  mantrasState.bookmarkedOnly = !mantrasState.bookmarkedOnly;
+  const pill = document.getElementById('pill-bookmarked');
+  if (pill) {
+    if (mantrasState.bookmarkedOnly) {
+      pill.className = 'category-pill px-3 py-1 rounded-full border border-amber-600 bg-maroon text-white whitespace-nowrap font-medium transition flex items-center gap-1';
+    } else {
+      pill.className = 'category-pill px-3 py-1 rounded-full border border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 whitespace-nowrap font-medium transition flex items-center gap-1';
+    }
+  }
+  renderMantrasGrid();
+}
+
+function resetAllMantraFilters() {
+  mantrasState.activeCategory = 'all';
+  mantrasState.searchQuery = '';
+  mantrasState.filterDeity = 'all';
+  mantrasState.filterPurpose = 'all';
+  mantrasState.filterType = 'all';
+  mantrasState.bookmarkedOnly = false;
+  mantrasState.sortBy = 'featured';
+
+  const sInput = document.getElementById('mantras-search-input');
+  if (sInput) sInput.value = '';
+  document.getElementById('mantras-search-clear')?.classList.add('hidden');
+
+  const catSel = document.getElementById('filter-category');
+  if (catSel) catSel.value = 'all';
+
+  const deitySel = document.getElementById('filter-deity');
+  if (deitySel) deitySel.value = 'all';
+
+  const purpSel = document.getElementById('filter-purpose');
+  if (purpSel) purpSel.value = 'all';
+
+  const typeSel = document.getElementById('filter-type');
+  if (typeSel) typeSel.value = 'all';
+
+  setCategoryPill('all');
+  renderMantrasLibrary();
+  showVedicToast('All filters have been reset.');
+}
+
+// Share Mantra Handler
+function shareCurrentMantra() {
+  const m = (typeof MantrasDB !== 'undefined') ? MantrasDB.getById(mantrasState.currentMantraId) : null;
+  if (!m) return;
+
+  const shareData = {
+    title: `${m.title} - GURUJI Mantras Library`,
+    text: `${m.sanskrit_title} — ${m.sanskrit_text}\n${m.english_meaning}`,
+    url: window.location.href
+  };
+
+  if (navigator.share) {
+    navigator.share(shareData).catch(() => {});
+  } else {
+    copyToClipboard(`${m.title}\n${m.sanskrit_text}\n${m.english_meaning}\nRead on Guruji Sanctuary: ${window.location.href}`);
+    showVedicToast('Sacred mantra link and text copied to share!');
+  }
+}
+
+// Sacred Audio Chime / Singing Bowl Player with Web Audio API
+function toggleMantraAudio() {
+  if (mantrasState.isAudioPlaying) {
+    stopMantraAudio();
+  } else {
+    startMantraAudio();
+  }
+}
+
+function startMantraAudio() {
+  mantrasState.isAudioPlaying = true;
+  const playIcon = document.getElementById('audio-play-icon');
+  const statusPill = document.getElementById('audio-status-pill');
+  const waveContainer = document.getElementById('audio-wave-container');
+
+  if (playIcon) playIcon.className = 'fa-solid fa-pause';
+  if (statusPill) statusPill.classList.remove('hidden');
+
+  if (waveContainer) {
+    waveContainer.querySelectorAll('span').forEach(bar => {
+      bar.classList.add('audio-bar-playing');
+    });
+  }
+
+  // Play peaceful Vedic resonant chime
+  playSacredBellTone();
+
+  // Timer simulation
+  mantrasState.audioSecondsElapsed = 0;
+  clearInterval(mantrasState.audioTimerInterval);
+  mantrasState.audioTimerInterval = setInterval(() => {
+    mantrasState.audioSecondsElapsed++;
+    const timerDisplay = document.getElementById('audio-timer-display');
+    if (timerDisplay) {
+      const mins = String(Math.floor(mantrasState.audioSecondsElapsed / 60)).padStart(2, '0');
+      const secs = String(mantrasState.audioSecondsElapsed % 60).padStart(2, '0');
+      timerDisplay.innerText = `${mins}:${secs} / 01:08`;
+    }
+
+    // Auto loop bell chime every 10 seconds
+    if (mantrasState.audioSecondsElapsed % 12 === 0) {
+      playSacredBellTone();
+    }
+
+    if (mantrasState.audioSecondsElapsed >= 68) {
+      stopMantraAudio();
+    }
+  }, 1000);
+}
+
+function stopMantraAudio() {
+  mantrasState.isAudioPlaying = false;
+  clearInterval(mantrasState.audioTimerInterval);
+  mantrasState.audioSecondsElapsed = 0;
+
+  const playIcon = document.getElementById('audio-play-icon');
+  const statusPill = document.getElementById('audio-status-pill');
+  const waveContainer = document.getElementById('audio-wave-container');
+  const timerDisplay = document.getElementById('audio-timer-display');
+
+  if (playIcon) playIcon.className = 'fa-solid fa-play';
+  if (statusPill) statusPill.classList.add('hidden');
+  if (timerDisplay) timerDisplay.innerText = '00:00 / 01:08';
+
+  if (waveContainer) {
+    waveContainer.querySelectorAll('span').forEach(bar => {
+      bar.classList.remove('audio-bar-playing');
+    });
+  }
+}
+
+// Synthesize authentic Vedic singing bowl / temple bell acoustic resonance
+function playSacredBellTone() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const fundamentalFreq = 432; // Sacred cosmic tuning 432Hz
+    const harmonics = [1, 2.01, 3.02, 4.2];
+    const gains = [0.4, 0.2, 0.1, 0.05];
+
+    harmonics.forEach((harmonic, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.value = fundamentalFreq * harmonic;
+
+      gain.gain.setValueAtTime(gains[i], ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 4.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 4.5);
+    });
+  } catch (err) {
+    console.warn('Web Audio note initialized:', err);
+  }
+}
+
+// Devotional Floating Toast
+function showVedicToast(message, variant) {
+  const toast = document.getElementById('vedic-toast');
+  const toastText = document.getElementById('vedic-toast-text');
+  if (!toast || !toastText) return;
+
+  toastText.innerText = message;
+  toast.classList.toggle('is-error', variant === 'error');
+  toast.classList.add('show');
+
+  clearTimeout(window._toastTimeout);
+  window._toastTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+  }, variant === 'error' ? 4200 : 2800);
+}
+
+// Help Modal Controls
+function openHelpModal() {
+  document.getElementById('help-modal')?.classList.remove('hidden');
+}
+
+function closeHelpModal() {
+  document.getElementById('help-modal')?.classList.add('hidden');
+}
+
+// =============================================================================
+// ADMIN PIN & MANTRA CURATION MODAL (PIN: 1008)
+// =============================================================================
+
+function openAdminMantraModal(editId = null) {
+  const modal = document.getElementById('admin-mantra-modal');
+  const pinScreen = document.getElementById('admin-pin-screen');
+  const formScreen = document.getElementById('admin-form-screen');
+  const pinInput = document.getElementById('admin-pin-input');
+  const pinError = document.getElementById('admin-pin-error');
+  const deleteBtn = document.getElementById('admin-delete-btn');
+
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+  pinScreen.classList.remove('hidden');
+  formScreen.classList.add('hidden');
+  if (pinError) pinError.classList.add('hidden');
+  if (pinInput) { pinInput.value = ''; pinInput.focus(); }
+
+  // If already authorized in this tab, go direct to form
+  if (sessionStorage.getItem('guruji_admin_pin')) {
+    showAdminForm(editId);
+  } else {
+    document.getElementById('admin-edit-id').value = editId || '';
+  }
+}
+
+function closeAdminMantraModal() {
+  document.getElementById('admin-mantra-modal')?.classList.add('hidden');
+}
+
+async function verifyAdminPin() {
+  const pin = document.getElementById('admin-pin-input').value.trim();
+  const pinError = document.getElementById('admin-pin-error');
+  if (!pin) { pinError?.classList.remove('hidden'); return; }
+
+  // The PIN is checked by the server (ADMIN_PIN in .env), never in the browser
+  let ok = false;
+  try {
+    const res = await fetch('/api/admin/verify', { method: 'POST', headers: { 'X-Admin-Pin': pin } });
+    ok = res.ok;
+    if (res.status === 429) showVedicToast('Too many attempts — please wait a minute.', 'error');
+  } catch (e) {
+    showVedicToast('Could not reach the server to check the PIN.', 'error');
+  }
+  if (ok) {
+    sessionStorage.setItem('guruji_admin_pin', pin);
+    pinError?.classList.add('hidden');
+    showAdminForm(document.getElementById('admin-edit-id').value);
+  } else {
+    pinError?.classList.remove('hidden');
+  }
+}
+
+function showAdminForm(editId) {
+  document.getElementById('admin-pin-screen')?.classList.add('hidden');
+  const formScreen = document.getElementById('admin-form-screen');
+  const modalTitle = document.getElementById('admin-modal-title');
+  const deleteBtn = document.getElementById('admin-delete-btn');
+
+  if (!formScreen) return;
+  formScreen.classList.remove('hidden');
+
+  if (editId) {
+    const m = (typeof MantrasDB !== 'undefined') ? MantrasDB.getById(editId) : null;
+    if (m) {
+      if (modalTitle) modalTitle.innerText = `Edit Sacred Mantra: ${m.title}`;
+      document.getElementById('admin-edit-id').value = m.id;
+      document.getElementById('admin-input-title').value = m.title || '';
+      document.getElementById('admin-input-sanskrit-title').value = m.sanskrit_title || '';
+      document.getElementById('admin-input-telugu-title').value = m.telugu_title || '';
+      document.getElementById('admin-input-category').value = m.category || 'navagraha';
+      document.getElementById('admin-input-type').value = m.mantra_type || 'Mantra';
+      document.getElementById('admin-input-deity').value = m.deity || '';
+      document.getElementById('admin-input-planet').value = m.planet || '';
+      document.getElementById('admin-input-tags').value = (m.purpose_tags || []).join(', ');
+      document.getElementById('admin-input-short-desc').value = m.short_description || '';
+      document.getElementById('admin-input-sanskrit-text').value = m.sanskrit_text || '';
+      document.getElementById('admin-input-telugu-text').value = m.telugu_text || '';
+      document.getElementById('admin-input-translit').value = m.english_transliteration || '';
+      document.getElementById('admin-input-eng-meaning').value = m.english_meaning || '';
+      document.getElementById('admin-input-tel-meaning').value = m.telugu_meaning || '';
+      document.getElementById('admin-input-count').value = m.recitation_guidance?.recommended_count || '';
+      document.getElementById('admin-input-time').value = m.recitation_guidance?.best_time || '';
+      if (deleteBtn) deleteBtn.classList.remove('hidden');
+      return;
+    }
+  }
+
+  // Adding new mantra
+  if (modalTitle) modalTitle.innerText = 'Add New Sacred Mantra';
+  document.getElementById('admin-edit-id').value = '';
+  document.getElementById('admin-input-title').value = '';
+  document.getElementById('admin-input-sanskrit-title').value = '';
+  document.getElementById('admin-input-telugu-title').value = '';
+  document.getElementById('admin-input-tags').value = '';
+  document.getElementById('admin-input-short-desc').value = '';
+  document.getElementById('admin-input-sanskrit-text').value = '';
+  document.getElementById('admin-input-telugu-text').value = '';
+  document.getElementById('admin-input-translit').value = '';
+  document.getElementById('admin-input-eng-meaning').value = '';
+  document.getElementById('admin-input-tel-meaning').value = '';
+  document.getElementById('admin-input-count').value = '108 times daily';
+  document.getElementById('admin-input-time').value = 'Brahma Muhurta';
+  if (deleteBtn) deleteBtn.classList.add('hidden');
+}
+
+async function saveAdminMantra() {
+  const title = document.getElementById('admin-input-title').value.trim();
+  const sanskritTitle = document.getElementById('admin-input-sanskrit-title').value.trim();
+  const teluguTitle = document.getElementById('admin-input-telugu-title').value.trim();
+  const sanskritText = document.getElementById('admin-input-sanskrit-text').value.trim();
+  const teluguText = document.getElementById('admin-input-telugu-text').value.trim();
+  const translit = document.getElementById('admin-input-translit').value.trim();
+
+  if (!title || !sanskritText || !teluguText || !translit) {
+    showVedicToast('Please fill in Title, Sanskrit verse, Telugu verse and Transliteration.', 'error');
+    return;
+  }
+
+  const editId = document.getElementById('admin-edit-id').value;
+  const category = document.getElementById('admin-input-category').value;
+  const deity = document.getElementById('admin-input-deity').value.trim();
+  const planet = document.getElementById('admin-input-planet').value.trim();
+  const mantraType = document.getElementById('admin-input-type').value.trim() || 'Vedic Mantra';
+  const tags = document.getElementById('admin-input-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+  const shortDesc = document.getElementById('admin-input-short-desc').value.trim();
+  const engMeaning = document.getElementById('admin-input-eng-meaning').value.trim();
+  const telMeaning = document.getElementById('admin-input-tel-meaning').value.trim();
+  const count = document.getElementById('admin-input-count').value.trim() || '108 times daily';
+  const bestTime = document.getElementById('admin-input-time').value.trim() || 'Brahma Muhurta';
+
+  const mantraObj = {
+    title,
+    sanskrit_title: sanskritTitle,
+    telugu_title: teluguTitle,
+    category,
+    categories: [category],
+    mantra_type: mantraType,
+    deity,
+    planet,
+    purpose_tags: tags,
+    short_description: shortDesc,
+    introduction: shortDesc,
+    sanskrit_text: sanskritText,
+    telugu_text: teluguText,
+    english_transliteration: translit,
+    english_meaning: engMeaning,
+    telugu_meaning: telMeaning,
+    traditional_significance: shortDesc,
+    recitation_method: 'Recite with a clean disposition and pure focus.',
+    recitation_guidance: {
+      recommended_count: count,
+      best_time: bestTime,
+      rosary_mala: 'Rudraksha or Tulasi Mala',
+      facing_direction: 'East or North'
+    },
+    published: true,
+    featured: false
+  };
+
+  try {
+    if (editId) {
+      await MantrasDB.updateMantra(editId, mantraObj);
+      showVedicToast(`Sacred mantra "${title}" successfully updated!`);
+    } else {
+      await MantrasDB.addMantra(mantraObj);
+      showVedicToast(`New sacred mantra "${title}" successfully added!`);
+    }
+  } catch (err) {
+    showVedicToast(`Not saved: ${err.message}`, 'error');
+    if (!sessionStorage.getItem('guruji_admin_pin')) openAdminMantraModal(editId);
+    return;
+  }
+
+  closeAdminMantraModal();
+  renderMantrasLibrary();
+
+  // Update total count in hero
+  const statEl = document.getElementById('stat-total-mantras');
+  if (statEl) statEl.innerText = MantrasDB.getAll().length;
+}
+
+async function deleteCurrentAdminMantra() {
+  const editId = document.getElementById('admin-edit-id').value;
+  if (!editId) return;
+
+  if (confirm('Are you sure you wish to remove this sacred mantra from the sanctuary library?')) {
+    try {
+      await MantrasDB.deleteMantra(editId);
+    } catch (err) {
+      showVedicToast(`Not deleted: ${err.message}`, 'error');
+      return;
+    }
+    showVedicToast('Mantra has been removed from the library.');
+    closeAdminMantraModal();
+    renderMantrasLibrary();
+  }
+}
+
+// =============================================================================
+// LANDING PAGE INTERACTIVE EXPLORER & FAQ ACCORDION
+// =============================================================================
+
+const HOME_LINES_DATA = {
+  heart: {
+    badge: 'Primary Line Analysis',
+    title: 'Heart Line (హృదయ రేఖ) — Emotional Nature & Relationships',
+    desc: 'Originating beneath the index or middle finger and extending across the upper palm, the Heart Line reveals how you process emotions, express devotion, connect in intimate partnerships, and withstand emotional trials.',
+    checkpoints: 'Depth and curvature toward the Mount of Jupiter; breaks indicating emotional resets; chained links denoting empathy; timing of soulmate intersections.'
+  },
+  head: {
+    badge: 'Intellectual Faculty',
+    title: 'Head Line (శిరో రేఖ) — Intellect, Focus & Mental Clarity',
+    desc: 'Starting near the thumb and traversing across the mid-palm, the Head Line maps your intellectual focus, learning capacity, decision-making style, and mental endurance.',
+    checkpoints: 'Straight line indicating pragmatic logical reasoning; curved line indicating creative artistic intuition; forks (Writer\'s Fork) signaling dual talents.'
+  },
+  life: {
+    badge: 'Vital Pranic Force',
+    title: 'Life Line (జీవన రేఖ) — Physical Vitality & Major Transitions',
+    desc: 'Encircling the Mount of Venus, the Life Line reflects physical vitality, constitutional stamina, recovery power, changes of residence, and major life transitions.',
+    checkpoints: 'Wide sweeping arc denoting radiant vitality and enthusiasm; branches pointing toward Jupiter denoting early life ambition; protective sister lines.'
+  },
+  fate: {
+    badge: 'Karmic Destiny',
+    title: 'Fate Line (భాగ్య రేఖ) — Career Trajectory & Material Destiny',
+    desc: 'Rising vertically from the base of the palm toward the Mount of Saturn, the Fate Line reflects career milestones, financial shifts, and outer worldly achievements.',
+    checkpoints: 'Ascent from the Moon mount showing career fueled by public support; changes in direction marking career pivots; intersections with head line around age 35.'
+  },
+  mounts: {
+    badge: 'Planetary Vortexes',
+    title: 'Planetary Mounts (గ్రహ పర్వతాలు) — Cosmic Archetype Energy Zones',
+    desc: 'The 7 planetary mounts correspond to the energetic archetypes of Vedic astrology: Jupiter (leadership/guru), Saturn (discipline/karma), Apollo/Sun (fame/dharma), and Venus (vitality/love).',
+    checkpoints: 'Elevation and firmness of mounts; auspicious symbols like fish (Matsya), lotus (Padma), and trident (Trishula) that magnify planetary blessings.'
+  }
+};
+
+function selectHomeLine(lineKey) {
+  const data = HOME_LINES_DATA[lineKey];
+  if (!data) return;
+
+  const badgeEl = document.getElementById('home-line-badge');
+  const titleEl = document.getElementById('home-line-title');
+  const descEl = document.getElementById('home-line-desc');
+  const checkEl = document.getElementById('home-line-checkpoints');
+
+  if (badgeEl) badgeEl.innerText = data.badge;
+  if (titleEl) titleEl.innerText = data.title;
+  if (descEl) descEl.innerText = data.desc;
+  if (checkEl) checkEl.innerText = data.checkpoints;
+
+  // Toggle button active styles
+  ['heart', 'head', 'life', 'fate', 'mounts'].forEach(key => {
+    const btn = document.getElementById(`home-line-btn-${key}`);
+    if (btn) {
+      if (key === lineKey) {
+        btn.className = 'w-full text-left p-3.5 rounded-xl border border-amber-600/40 bg-maroon text-white flex items-center justify-between transition shadow-xs';
+      } else {
+        btn.className = 'w-full text-left p-3.5 rounded-xl border border-zinc-200 bg-paper text-night-2 hover:bg-amber-50 flex items-center justify-between transition';
+      }
+    }
+  });
+}
+
+function toggleFaq(faqId) {
+  const el = document.getElementById(faqId);
+  const icon = document.getElementById(`icon-${faqId}`);
+  if (!el) return;
+
+  const isHidden = el.classList.contains('hidden');
+  if (isHidden) {
+    el.classList.remove('hidden');
+    if (icon) icon.className = 'fa-solid fa-chevron-up text-xs text-amber-700';
+  } else {
+    el.classList.add('hidden');
+    if (icon) icon.className = 'fa-solid fa-chevron-down text-xs text-amber-700';
+  }
+}
+
+// =============================================================================
+// OFFERINGS TABS, COURSES MODAL & DAAN SEVA HANDLERS
+// =============================================================================
+
+function switchOfferingsTab(tabName) {
+  const tabs = ['showcase', 'courses', 'daan'];
+  tabs.forEach(t => {
+    const view = document.getElementById(`offerings-view-${t}`);
+    const btn = document.getElementById(`tab-btn-${t}`);
+    if (view) {
+      if (t === tabName) view.classList.remove('hidden');
+      else view.classList.add('hidden');
+    }
+    if (btn) {
+      if (t === tabName) {
+        btn.className = 'px-4 py-2 rounded-full border border-amber-600/40 bg-maroon text-white font-semibold shadow-xs transition flex items-center gap-1.5 whitespace-nowrap';
+      } else {
+        btn.className = 'px-4 py-2 rounded-full border border-line-strong bg-white hover:bg-amber-50 text-night-2 font-medium transition flex items-center gap-1.5 whitespace-nowrap';
+      }
+    }
+  });
+}
+
+const COURSES_DATA = {
+  palmistry: {
+    title: 'Palmistry Course — Hasta Samudrika Shastra',
+    badge: 'Hasta Samudrika Shastra',
+    duration: '6 Weeks • Live Zoom with Swamiji',
+    price: '₹4,999',
+    desc: 'Comprehensive certified curriculum directly taught by Adiguru Swamiji. Learn to accurately identify hand shapes, analyze line curvatures, planetary mounts, age markers, and prescribe Vedic remedies.'
+  },
+  astrology: {
+    title: 'Vedic Astrology Course — Jyotisha Shastra',
+    badge: 'Jyotisha Shastra Fundamentals',
+    duration: '8 Weeks • Live Interactive Cohort',
+    price: '₹5,999',
+    desc: 'Foundational and predictive Vedic Astrology. Covers the 12 Rashis, 9 Grahas, 27 Nakshatras, Kundali casting, Dasha-Bhukti analysis, and Muhurta calculation.'
+  },
+  sanatana: {
+    title: 'Sanatana Dharma & Vedic Wisdom Course',
+    badge: 'Veda & Upanishad Philosophy',
+    duration: '4 Weeks • Guided Sadhana',
+    price: '₹2,999',
+    desc: 'Deep dive into Sanatana Dharma, the law of Karma (Sanchita, Prarabdha, Agami), Bhagavad Gita teachings, and daily Vedic living principles.'
+  },
+  practices: {
+    title: 'Spiritual Practices Course — Poojas, Mantras & Remedies',
+    badge: 'Agama & Mantra Vidya',
+    duration: '4 Weeks • Daily Practice',
+    price: '₹3,499',
+    desc: 'Learn proper Sanskrit acoustic pronunciation, Beeja mantra chanting methods, Sandhyavandanam, and home puja rituals for spiritual purification and peace.'
+  }
+};
+
+let currentSelectedCourse = 'palmistry';
+
+// The course pages carry the real curriculum, fees and dates (Admin → Courses),
+// so the old modal now simply opens the matching course page.
+const COURSE_PAGES = {
+  palmistry: '/courses/foundation-course-in-palmistry',
+  astrology: '/courses/introduction-to-vedic-astrology',
+  sanatana: '/courses/sanatana-dharma-and-practical-living',
+  practices: '/courses/chakra-awareness-and-meditation'
+};
+
+function openCourseModal(type = 'palmistry') {
+  if (typeof navigate === 'function') return navigate(COURSE_PAGES[type] || '/courses');
+  currentSelectedCourse = type;
+  const course = COURSES_DATA[type] || COURSES_DATA.palmistry;
+  
+  const titleEl = document.getElementById('course-modal-title');
+  const badgeEl = document.getElementById('course-modal-badge');
+  const durationEl = document.getElementById('course-modal-duration');
+  const priceEl = document.getElementById('course-modal-price');
+  const descEl = document.getElementById('course-modal-desc');
+
+  if (titleEl) titleEl.innerText = course.title;
+  if (badgeEl) badgeEl.innerText = course.badge;
+  if (durationEl) durationEl.innerText = course.duration;
+  if (priceEl) priceEl.innerText = course.price;
+  if (descEl) descEl.innerText = course.desc;
+
+  document.getElementById('course-details-modal')?.classList.remove('hidden');
+}
+
+function closeCourseModal() {
+  document.getElementById('course-details-modal')?.classList.add('hidden');
+}
+
+function confirmCourseRegistration() {
+  // Nothing is confirmed until we have spoken to the student: this opens the enquiry form.
+  closeCourseModal();
+  const slug = (COURSE_PAGES[currentSelectedCourse] || '').split('/').pop();
+  if (typeof navigate === 'function') navigate('/contact?kind=course' + (slug ? '&service=' + encodeURIComponent(slug) : ''));
+  else showPage('contact');
+}
+
+// Daan & Charity Modal
+let currentDaan = { title: 'Gau Seva & Daan', amount: 1100 };
+
+function openDaanModal(title, amount) {
+  currentDaan = { title, amount };
+  const titleEl = document.getElementById('daan-modal-title');
+  const amountEl = document.getElementById('daan-modal-amount');
+  const descEl = document.getElementById('daan-modal-desc');
+
+  if (titleEl) titleEl.innerText = title;
+  if (amountEl) amountEl.innerText = `₹${amount.toLocaleString('en-IN')}`;
+  if (descEl) descEl.innerText = `Your sacred contribution of ₹${amount} for ${title} will be performed with sankalpa in your family's name at Varanasi Peetham.`;
+
+  document.getElementById('daan-seva-modal')?.classList.remove('hidden');
+}
+
+function closeDaanModal() {
+  document.getElementById('daan-seva-modal')?.classList.add('hidden');
+}
+
+function confirmDaanDonation() {
+  // Daan is arranged personally: we take the request here and send payment details back.
+  closeDaanModal();
+  showVedicToast(`Please tell us about the ${currentDaan.title} you wish to offer — we will send the details.`);
+  if (typeof navigate === 'function') navigate('/contact'); else showPage('contact');
+}
+
+
