@@ -19,10 +19,18 @@
     positioning: 'Guidance · Healing · Devotion · Learning',
     email: 'support@gurujipalmistry.org',
     // Shown on the WhatsApp button and contact page. Edit in Admin → Settings.
-    phone: '+91 98765 43210',
-    whatsapp: '919876543210',
-    address: '',
+    phone: '+91 89776 25078',
+    whatsapp: '918977625078',
+    address: 'Heritage Centre: 2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039',
+    mapUrl: 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9',
     mapEmbedUrl: '',
+    registeredAddress: 'GURUJI PALMISTRY, 2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri), Telangana',
+    registrationNumber: 'SEA/MED/ALO/NR/1439866/2026',
+    registrationAct: 'Telangana Shops & Establishments Act, 1988',
+    registrationAuthority: 'Government of Telangana — Labour Department (ALO Nacharam)',
+    certificatePdf: '/assets/certificate_of_registration_guruji_palmistry.pdf',
+    certificateImg: '/assets/certificate_of_registration_guruji_palmistry.jpg',
+    verifyGovtUrl: 'https://labour.telangana.gov.in/',
     social: { instagram: '', youtube: '', facebook: '' },
     hero: {
       title: 'Discover Yourself Through Ancient Wisdom',
@@ -45,7 +53,7 @@
   // -------------------------------------------------------------------------
   const about = {
     name: 'Adiguru Swamiji',
-    alsoKnownAs: 'Satish Mokkapati',
+    alsoKnownAs: 'Satish Mokkapati (Mokkapati Satish Kumar)',
     role: 'Founder – Omnipresence 1008',
     portrait: '/assets/adiguru_swamiji_portrait.jpg',
     intro: 'Guruji brings together the traditional sciences of Hasta Samudrika Shastra (palmistry) and Jyotisha (Vedic astrology) with a calm, practical way of explaining them — so that a reading leaves you clearer, not more anxious.',
@@ -53,6 +61,10 @@
       {
         id: 'journey', title: "Guruji's Journey",
         body: 'Guruji’s path began in corporate life, where years of work in management and process improvement shaped a habit of careful observation and structured thinking. Alongside that career grew a lifelong pull towards spiritual practice — study of the Shastras, sadhana, and time with teachers of palmistry and astrology. Over time the spiritual work became the centre of life, and Guruji began offering readings, guidance and teaching to others.'
+      },
+      {
+        id: 'registration', title: 'Official Government Registration & Credentials',
+        body: 'Guruji Palmistry is an officially registered consulting establishment under the Government of Telangana Labour Department (Registration No: SEA/MED/ALO/NR/1439866/2026, Telangana Shops & Establishments Act, 1988). Employer / Founder: Mokkapati Satish Kumar. Official certificates and registered premises verify our ethical commitment and public accountability.'
       },
       {
         id: 'philosophy', title: 'Our Philosophy',
@@ -75,7 +87,7 @@
         body: 'Mission: make authentic palmistry, astrology and spiritual practice accessible, honest and useful. Vision: a community of seekers who use ancient wisdom for self-understanding and service.'
       }
     ],
-    highlights: ['Background in corporate management (MBA, B.Com, Six Sigma)', 'Founder of Omnipresence 1008', 'Palmistry, Astrology, Reiki & Spiritual guidance', 'Teaching through structured courses']
+    highlights: ['Govt. of Telangana Registered (Reg: SEA/MED/ALO/NR/1439866/2026)', 'Heritage Centre in Uppal, Hyderabad', 'Background in corporate management (MBA, B.Com, Six Sigma)', 'Founder of Omnipresence 1008', 'Palmistry, Astrology, Reiki & Spiritual guidance', 'Teaching through structured courses']
   };
 
   // -------------------------------------------------------------------------

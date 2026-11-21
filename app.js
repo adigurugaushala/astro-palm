@@ -19,7 +19,7 @@ const state = {
   user: {
     name: "Srikar Babu G",
     email: "srikar.babu@example.com",
-    mobile: "+91 98765 43210",
+    mobile: "+91 89776 25078",
     gotram: "Bharadwaja Gotram",
     dob: "1994-07-18",
     tob: "06:45 AM",
@@ -2792,6 +2792,28 @@ function openHelpModal() {
 function closeHelpModal() {
   document.getElementById('help-modal')?.classList.add('hidden');
 }
+
+// Certificate Proof Modal Controls
+function openCertificateModal() {
+  const m = document.getElementById('certificate-modal');
+  if (m) {
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeCertificateModal() {
+  const m = document.getElementById('certificate-modal');
+  if (m) {
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+}
+
+window.openCertificateModal = openCertificateModal;
+window.closeCertificateModal = closeCertificateModal;
 
 // =============================================================================
 // ADMIN PIN & MANTRA CURATION MODAL (PIN: 1008)

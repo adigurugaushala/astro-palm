@@ -187,10 +187,22 @@
       ${hero({ eyebrow: 'About Guruji', title: a.name, sub: a.intro, crumbs: crumbs([['Home', '/'], ['About Guruji']]) })}
       <section class="sp-section">
         <div class="sp-wrap grid gap-10 lg:grid-cols-[340px_1fr] items-start">
-          <figure class="sp-portrait">
-            <img src="${esc(a.portrait)}" alt="Portrait of ${esc(a.name)}">
-            <figcaption><strong>${esc(a.name)}</strong>${a.alsoKnownAs ? `<span>Also known as ${esc(a.alsoKnownAs)}</span>` : ''}${a.role ? `<span>${esc(a.role)}</span>` : ''}</figcaption>
-          </figure>
+          <div class="space-y-4">
+            <figure class="sp-portrait">
+              <img src="${esc(a.portrait)}" alt="Portrait of ${esc(a.name)}">
+              <figcaption><strong>${esc(a.name)}</strong>${a.alsoKnownAs ? `<span>Also known as ${esc(a.alsoKnownAs)}</span>` : ''}${a.role ? `<span>${esc(a.role)}</span>` : ''}</figcaption>
+            </figure>
+            <div class="sp-panel bg-amber-50/70 border border-amber-300 text-center space-y-2 p-4 rounded-2xl shadow-xs">
+              <div class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100/90 px-3 py-1 rounded-full border border-amber-300">
+                <i class="fa-solid fa-stamp text-amber-700"></i> Govt. of Telangana Registered
+              </div>
+              <div class="font-mono text-xs font-bold text-night-2">Reg: SEA/MED/ALO/NR/1439866/2026</div>
+              <p class="text-[11px] text-ink-3">Labour Dept · Telangana Shops &amp; Establishments Act, 1988</p>
+              <button type="button" onclick="openCertificateModal()" class="gold-gradient-btn text-xs px-4 py-2 rounded-xl w-full flex items-center justify-center gap-2 font-semibold shadow-xs">
+                <i class="fa-regular fa-id-card"></i> View Certificate Proof
+              </button>
+            </div>
+          </div>
           <div class="space-y-6">
             ${block(sec('journey'))}
             ${sec('approach') ? `<blockquote class="sp-quote"><p>${esc(sec('approach').body)}</p><cite>— ${esc(sec('approach').title)}</cite></blockquote>` : ''}
@@ -568,11 +580,33 @@
           <aside class="space-y-4">
             <div class="sp-panel">
               <h2 class="sp-h3">Reach us directly</h2>
-              <ul class="sp-contact">
-                ${st.email ? `<li><i class="fa-regular fa-envelope" aria-hidden="true"></i><a href="mailto:${esc(st.email)}">${esc(st.email)}</a></li>` : ''}
-                ${waLink() ? `<li><i class="fa-brands fa-whatsapp" aria-hidden="true"></i><a href="${waLink('Namaste')}" target="_blank" rel="noopener">${esc(st.phone || 'WhatsApp')}</a></li>` : ''}
-                ${st.address ? `<li><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>${esc(st.address)}</span></li>` : ''}
+              <ul class="sp-contact space-y-3">
+                ${st.email ? `<li><i class="fa-regular fa-envelope" aria-hidden="true"></i><div><strong>Email</strong><br><a href="mailto:${esc(st.email)}">${esc(st.email)}</a></div></li>` : ''}
+                ${waLink() ? `<li><i class="fa-brands fa-whatsapp text-emerald-600" aria-hidden="true"></i><div><strong>Phone &amp; WhatsApp</strong><br><a href="${waLink('Namaste')}" target="_blank" rel="noopener">${esc(st.phone || '+91 89776 25078')}</a></div></li>` : ''}
+                <li><i class="fa-solid fa-location-dot text-amber-600" aria-hidden="true"></i><div><strong>Heritage Centre:</strong><br><a href="${esc(st.mapUrl || 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9')}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-maroon">2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039</a><div class="mt-1"><a href="${esc(st.mapUrl || 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9')}" target="_blank" rel="noopener" class="text-xs font-semibold text-maroon hover:underline inline-flex items-center gap-1"><i class="fa-solid fa-diamond-turn-right text-2xs"></i> Open Google Maps directions →</a></div></div></li>
+                <li><i class="fa-solid fa-building text-zinc-500" aria-hidden="true"></i><div><strong>Registered Shop / Establishment Address:</strong><br><span class="text-xs text-ink-2">${esc(st.registeredAddress || 'GURUJI PALMISTRY, 2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri), Telangana')}</span></div></li>
               </ul>
+            </div>
+            <div class="sp-panel bg-amber-50/70 border border-amber-300">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-200/80 text-amber-900 flex items-center justify-center shrink-0 mt-0.5">
+                  <i class="fa-solid fa-stamp text-base"></i>
+                </div>
+                <div class="space-y-1.5 flex-1 text-xs">
+                  <div class="font-bold text-night-2 font-serif text-sm">Govt. of Telangana Registered</div>
+                  <div class="text-[11px] text-ink-3">Labour Department · Form - II Certificate of Registration</div>
+                  <div class="font-mono text-2xs font-bold text-amber-950 bg-white/90 px-2 py-1 rounded border border-amber-300 inline-block">Reg No: SEA/MED/ALO/NR/1439866/2026</div>
+                  <div class="text-[11px] text-ink-2">Employer: <strong>Mokkapati Satish Kumar</strong></div>
+                  <div class="pt-2 flex flex-wrap gap-2">
+                    <button type="button" onclick="openCertificateModal()" class="gold-gradient-btn px-3 py-1.5 rounded-lg text-2xs font-semibold flex items-center gap-1.5 shadow-xs">
+                      <i class="fa-regular fa-id-card"></i> View Certificate
+                    </button>
+                    <a href="/assets/certificate_of_registration_guruji_palmistry.pdf" target="_blank" class="px-3 py-1.5 rounded-lg border border-amber-400 bg-white text-ink text-2xs font-semibold hover:bg-amber-100/50 flex items-center gap-1.5">
+                      <i class="fa-solid fa-download"></i> PDF
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="sp-panel">
               <h2 class="sp-h3">Pay online instead</h2>

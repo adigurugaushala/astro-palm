@@ -1259,6 +1259,25 @@
               </div>
             </div>
 
+            <!-- Government Registration & Proof Strip -->
+            <div class="bg-amber-50/80 border border-amber-300/80 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs mt-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
+                  <i class="fa-solid fa-stamp text-sm"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-xs text-night-2">Govt. of Telangana Registered</span>
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Verified</span>
+                  </div>
+                  <div class="text-2xs text-zinc-600 font-mono mt-0.5">Reg. No: <strong class="text-amber-950">SEA/MED/ALO/NR/1439866/2026</strong> · Labour Dept</div>
+                </div>
+              </div>
+              <button type="button" onclick="openCertificateModal()" class="gold-gradient-btn px-3.5 py-1.5 rounded-lg text-2xs font-bold flex items-center gap-1.5 shrink-0 shadow-xs">
+                <i class="fa-regular fa-id-card"></i> View Certificate Proof →
+              </button>
+            </div>
+
             <div class="pt-3">
               <button onclick="startBooking()" class="gold-gradient-btn px-6 py-3 rounded-xl text-xs font-semibold shadow-md">
                 Consult with Guruji →
@@ -1404,7 +1423,7 @@
               <span>Book Your Consultation (₹549) →</span>
             </button>
 
-            <a href="https://wa.me/919876543210" target="_blank" class="px-5 py-3.5 rounded-xl border border-amber-500/40 text-amber-200 hover:text-white hover:bg-white/10 text-xs font-semibold flex items-center gap-2">
+            <a href="https://wa.me/918977625078" target="_blank" class="px-5 py-3.5 rounded-xl border border-amber-500/40 text-amber-200 hover:text-white hover:bg-white/10 text-xs font-semibold flex items-center gap-2">
               <i class="fa-brands fa-whatsapp text-emerald-400 text-sm"></i>
               <span>WhatsApp Sanctuary Help</span>
             </a>
@@ -3719,12 +3738,29 @@
         </ul>
       </nav>
       <div>
-        <h4 class="text-sm font-semibold text-cream mb-3">Contact</h4>
-        <ul class="space-y-2.5 text-sm">
+        <h4 class="text-sm font-semibold text-cream mb-3">Contact &amp; Centre</h4>
+        <ul class="space-y-2 text-sm">
           <li><a href="mailto:support@gurujipalmistry.org" class="hover:text-amber-300 break-all" data-setting-email><i class="fa-regular fa-envelope w-5 text-amber-400" aria-hidden="true"></i>support@gurujipalmistry.org</a></li>
-          <li><a href="#" class="hover:text-amber-300" data-setting-whatsapp target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp w-5 text-amber-400" aria-hidden="true"></i><span data-setting-phone>+91 98765 43210</span></a></li>
+          <li><a href="https://wa.me/918977625078" class="hover:text-amber-300" data-setting-whatsapp target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp w-5 text-amber-400" aria-hidden="true"></i><span data-setting-phone>+91 89776 25078</span></a></li>
+          <li class="pt-1 text-xs text-cream-2 leading-relaxed">
+            <i class="fa-solid fa-location-dot w-5 text-amber-400" aria-hidden="true"></i>
+            <strong>Heritage Centre:</strong><br>
+            <a href="https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9" target="_blank" rel="noopener" class="hover:text-amber-300 underline underline-offset-2">
+              2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039
+            </a>
+          </li>
+          <li class="pt-1 text-[11px] text-zinc-400 leading-normal">
+            <span class="text-amber-300/90 font-semibold">Registered Establishment:</span><br>
+            GURUJI PALMISTRY, 2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri)<br>
+            <span class="font-mono text-amber-400 text-[10px]">Reg: SEA/MED/ALO/NR/1439866/2026</span>
+          </li>
         </ul>
-        <a href="/contact" data-link class="mt-4 inline-flex gold-gradient-btn h-10 px-5 rounded-full text-sm">Send an enquiry</a>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a href="/contact" data-link class="inline-flex gold-gradient-btn h-9 px-4 rounded-full text-xs items-center">Send an enquiry</a>
+          <button type="button" onclick="openCertificateModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-400/50 bg-white/5 hover:bg-white/10 text-amber-300 text-2xs transition">
+            <i class="fa-solid fa-certificate"></i> Govt. Proof
+          </button>
+        </div>
       </div>
     </div>
     <div class="max-w-7xl mx-auto mt-10 pt-6 border-t border-white/10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-zinc-300/80">
@@ -3733,6 +3769,7 @@
         <a href="/privacy-policy" data-link class="hover:text-amber-300">Privacy Policy</a>
         <a href="/terms" data-link class="hover:text-amber-300">Terms &amp; Conditions</a>
         <a href="/cancellation-refund-policy" data-link class="hover:text-amber-300">Cancellation &amp; Refund</a>
+        <a href="javascript:void(0)" onclick="openCertificateModal()" class="hover:text-amber-300 inline-flex items-center gap-1 text-amber-300/90"><i class="fa-solid fa-stamp text-amber-400"></i> Reg. No. SEA/MED/ALO/NR/1439866/2026</a>
         <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-lock text-emerald-500" aria-hidden="true"></i>Payments by Cashfree</span>
       </nav>
     </div>
@@ -4016,14 +4053,73 @@
       <p class="text-xs text-zinc-600 leading-relaxed">
         Need assistance with consultation bookings, pooja seva scheduling, or navigating the Mantras &amp; Stotras Library? Our sevaks are here to help.
       </p>
-      <div class="bg-amber-50 rounded-xl p-3 text-xs text-amber-900 border border-amber-200 text-left space-y-1">
-        <div><strong>WhatsApp Helpline:</strong> +91 98765 43210</div>
+      <div class="bg-amber-50 rounded-xl p-3 text-xs text-amber-900 border border-amber-200 text-left space-y-1.5">
+        <div><strong>WhatsApp Helpline:</strong> <a href="https://wa.me/918977625078" target="_blank" rel="noopener" class="underline hover:text-maroon">+91 89776 25078</a></div>
         <div><strong>Email Support:</strong> <a href="mailto:support@gurujipalmistry.org" class="underline underline-offset-2 hover:text-maroon">support@gurujipalmistry.org</a></div>
+        <div><strong>Heritage Centre:</strong> <a href="https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9" target="_blank" rel="noopener" class="underline hover:text-maroon">2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad - 500039</a></div>
+        <div><strong>Govt. Registration:</strong> <button type="button" onclick="closeHelpModal(); openCertificateModal();" class="text-maroon font-bold underline inline-flex items-center gap-1">SEA/MED/ALO/NR/1439866/2026 (View Certificate)</button></div>
         <div><strong>Ashram Timings:</strong> 6:00 AM – 8:00 PM IST</div>
       </div>
       <button onclick="closeHelpModal()" class="w-full py-2.5 bg-maroon text-white text-xs font-semibold rounded-xl hover:bg-maroon-dark transition">
         Close
       </button>
+    </div>
+  </div>
+
+  <!-- Certificate of Registration Proof Modal -->
+  <div id="certificate-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[90] hidden items-center justify-center p-3 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="cert-modal-title">
+    <div class="bg-paper rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border-2 border-amber-500/40 p-4 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-line pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-stamp" aria-hidden="true"></i>
+          </div>
+          <div>
+            <h3 id="cert-modal-title" class="font-serif font-bold text-base sm:text-lg text-ink">Government of Telangana Registration</h3>
+            <p class="text-xs text-ink-3">Labour Department · Form - II Certificate of Registration</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeCertificateModal()" class="w-9 h-9 rounded-full bg-black/5 hover:bg-black/10 text-ink flex items-center justify-center transition" aria-label="Close certificate modal">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="bg-amber-50/70 border border-amber-300 rounded-xl p-3.5 text-xs text-ink space-y-1.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div><strong class="text-ink-3 block text-2xs uppercase">Registration Number</strong><span class="font-mono font-bold text-amber-950 text-sm">SEA/MED/ALO/NR/1439866/2026</span></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Date of Registration</strong><span class="font-semibold">20/11/2026</span></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Establishment Name</strong><span class="font-bold text-maroon">GURUJI PALMISTRY</span></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Employer Name</strong><span>MOKKAPATI SATISH KUMAR</span></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Father's Name</strong><span>MOKKAPATI KRISHNA MURTHY</span></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Nature of Business</strong><span>CONSULTING SERVICES</span></div>
+        </div>
+        <div class="pt-2 border-t border-amber-200/80 space-y-1">
+          <div><strong class="text-ink-3 block text-2xs uppercase">Registered Establishment Address</strong><span class="text-xs">2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri), Telangana</span></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Heritage Centre (Consultations &amp; Sevas)</strong><a href="https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9" target="_blank" rel="noopener" class="text-xs text-maroon font-semibold underline underline-offset-2">2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039</a></div>
+          <div><strong class="text-ink-3 block text-2xs uppercase">Official Verification Portal</strong><a href="https://labour.telangana.gov.in/" target="_blank" rel="noopener" class="text-xs text-maroon underline underline-offset-2 break-all">https://labour.telangana.gov.in/</a> <span class="text-2xs text-ink-3">(Verify by entering Reg No. SEA/MED/ALO/NR/1439866/2026)</span></div>
+        </div>
+      </div>
+
+      <div class="rounded-xl overflow-hidden border border-line shadow-inner bg-black/5 text-center">
+        <a href="/assets/certificate_of_registration_guruji_palmistry.pdf" target="_blank" title="Click to view full original document">
+          <img src="/assets/certificate_of_registration_guruji_palmistry.jpg" alt="Government of Telangana Certificate of Registration - Guruji Palmistry" class="w-full h-auto object-contain mx-auto max-h-[460px] rounded-lg hover:opacity-95 transition" loading="lazy">
+        </a>
+        <div class="p-2 text-2xs text-ink-3">Click certificate image to open full document in high resolution</div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <div class="flex flex-wrap gap-2">
+          <a href="/assets/certificate_of_registration_guruji_palmistry.pdf" target="_blank" class="gold-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-file-pdf"></i> Open Original PDF
+          </a>
+          <a href="https://labour.telangana.gov.in/" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl border border-line bg-white hover:bg-black/5 text-ink text-xs font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Verify on Govt Portal
+          </a>
+        </div>
+        <button type="button" onclick="closeCertificateModal()" class="px-5 py-2 rounded-xl bg-zinc-200 hover:bg-zinc-300 text-zinc-800 text-xs font-semibold transition">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 
