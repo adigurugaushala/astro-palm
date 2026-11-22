@@ -177,12 +177,11 @@
     const a = C().about;
     const sec = (id) => (a.sections || []).find(s => s.id === id);
     const block = (s) => !s ? '' : `
-      <div class="sp-panel">
-        <h2 class="sp-h3">${esc(s.title)}</h2>
-        ${s.body ? `<p class="sp-text">${esc(s.body)}</p>` : ''}
+      <div class="sp-panel space-y-4">
+        <h2 class="sp-h3 text-2xl font-serif text-amber-950">${esc(s.title)}</h2>
+        ${s.paragraphs ? s.paragraphs.map(p => `<p class="sp-text leading-relaxed text-ink-2">${p}</p>`).join('') : s.body ? `<p class="sp-text leading-relaxed text-ink-2">${esc(s.body)}</p>` : ''}
         ${s.list ? `<ul class="sp-ticks">${s.list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
       </div>`;
-    const others = (a.sections || []).filter(s => !['journey', 'approach'].includes(s.id));
     return `
       ${hero({ eyebrow: 'About Guruji', title: a.name, sub: a.intro, crumbs: crumbs([['Home', '/'], ['About Guruji']]) })}
       <section class="sp-section">
@@ -205,13 +204,10 @@
           </div>
           <div class="space-y-6">
             ${block(sec('journey'))}
-            ${sec('approach') ? `<blockquote class="sp-quote"><p>${esc(sec('approach').body)}</p><cite>— ${esc(sec('approach').title)}</cite></blockquote>` : ''}
+            ${sec('approach') ? `<blockquote class="sp-quote"><p class="text-lg italic font-serif leading-relaxed text-amber-900">${esc(sec('approach').body)}</p><cite class="mt-2 block font-sans font-semibold text-xs tracking-wider uppercase text-amber-800">— ${esc(sec('approach').title)}</cite></blockquote>` : ''}
             ${(a.highlights || []).length ? `<ul class="sp-chips">${a.highlights.map(h => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}
           </div>
         </div>
-      </section>
-      <section class="sp-section sp-section--tint">
-        <div class="sp-wrap grid gap-5 md:grid-cols-2">${others.map(block).join('')}</div>
       </section>
       ${ctaBand('Speak with Guruji', 'Begin with a palm analysis, a Kundali analysis, or the combined Astro-Palmistry Correlation.')}`;
   };
@@ -583,7 +579,7 @@
               <ul class="sp-contact space-y-3">
                 ${st.email ? `<li><i class="fa-regular fa-envelope" aria-hidden="true"></i><div><strong>Email</strong><br><a href="mailto:${esc(st.email)}">${esc(st.email)}</a></div></li>` : ''}
                 ${waLink() ? `<li><i class="fa-brands fa-whatsapp text-emerald-600" aria-hidden="true"></i><div><strong>Phone &amp; WhatsApp</strong><br><a href="${waLink('Namaste')}" target="_blank" rel="noopener">${esc(st.phone || '+91 89776 25078')}</a></div></li>` : ''}
-                <li><i class="fa-solid fa-location-dot text-amber-600" aria-hidden="true"></i><div><strong>Heritage Centre:</strong><br><a href="${esc(st.mapUrl || 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9')}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-maroon">2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039</a><div class="mt-1"><a href="${esc(st.mapUrl || 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9')}" target="_blank" rel="noopener" class="text-xs font-semibold text-maroon hover:underline inline-flex items-center gap-1"><i class="fa-solid fa-diamond-turn-right text-2xs"></i> Open Google Maps directions →</a></div></div></li>
+                <li><i class="fa-solid fa-location-dot text-amber-600" aria-hidden="true"></i><div><strong>Wellness Centre:</strong><br><a href="${esc(st.mapUrl || 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9')}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-maroon">2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039</a><div class="mt-1"><a href="${esc(st.mapUrl || 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9')}" target="_blank" rel="noopener" class="text-xs font-semibold text-maroon hover:underline inline-flex items-center gap-1"><i class="fa-solid fa-diamond-turn-right text-2xs"></i> Open Google Maps directions →</a></div></div></li>
                 <li><i class="fa-solid fa-building text-zinc-500" aria-hidden="true"></i><div><strong>Registered Shop / Establishment Address:</strong><br><span class="text-xs text-ink-2">${esc(st.registeredAddress || 'GURUJI PALMISTRY, 2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri), Telangana')}</span></div></li>
               </ul>
             </div>

@@ -21,7 +21,7 @@
     // Shown on the WhatsApp button and contact page. Edit in Admin → Settings.
     phone: '+91 89776 25078',
     whatsapp: '918977625078',
-    address: 'Heritage Centre: 2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039',
+    address: 'Wellness Centre: 2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039',
     mapUrl: 'https://maps.app.goo.gl/vGo2MHhgGJyLLxrr9',
     mapEmbedUrl: '',
     registeredAddress: 'GURUJI PALMISTRY, 2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri), Telangana',
@@ -54,40 +54,40 @@
   const about = {
     name: 'Adiguru Swamiji',
     alsoKnownAs: 'Satish Mokkapati (Mokkapati Satish Kumar)',
-    role: 'Founder – Omnipresence 1008',
+    role: 'Spiritual Guide & Founder',
+    tagline: 'Beyond Prediction. Towards Self-Discovery.',
     portrait: '/assets/adiguru_swamiji_portrait.jpg',
-    intro: 'Guruji brings together the traditional sciences of Hasta Samudrika Shastra (palmistry) and Jyotisha (Vedic astrology) with a calm, practical way of explaining them — so that a reading leaves you clearer, not more anxious.',
+    intro: 'Adiguru Swamiji is a spiritual seeker whose journey spans over 25 years of corporate leadership and a deeper pursuit of life’s purpose. Guided by an inclination towards spirituality since childhood and transformed by experiences, travels, service, and his meeting with Gopal Baba, he now shares insights from Palmistry, Astrology, and Conscious Living. His endeavour is to help individuals move beyond prediction towards awareness, understanding, and self-discovery.',
     sections: [
       {
-        id: 'journey', title: "Guruji's Journey",
-        body: 'Guruji’s path began in corporate life, where years of work in management and process improvement shaped a habit of careful observation and structured thinking. Alongside that career grew a lifelong pull towards spiritual practice — study of the Shastras, sadhana, and time with teachers of palmistry and astrology. Over time the spiritual work became the centre of life, and Guruji began offering readings, guidance and teaching to others.'
+        id: 'journey',
+        title: 'A Journey from Professional Success to Spiritual Discovery',
+        paragraphs: [
+          'From an early childhood, Adiguru Swamiji was deeply inclined towards spirituality, drawn to questions about life, human existence, the mysteries of nature, and the deeper meaning behind our experiences. This inner curiosity remained a constant companion, even while his professional life took him through a demanding and rewarding corporate journey.',
+          'With over 25 years of experience in multinational companies, spanning leadership, operations, strategy, business transformation, and organizational management, he had the opportunity to work with people from diverse backgrounds and travel to several countries. These experiences allowed him to appreciate different cultures, traditions, philosophies, and ways of life, broadening his understanding of humanity beyond geographical and cultural boundaries.',
+          'Yet, somewhere along this journey, the search for meaning began to take precedence over the pursuit of conventional success.',
+          'In 2017, he chose to embark on a more personal path of spiritual exploration, self-discovery, and service. This journey led to the beginnings of <strong>Adiguru Gaushala</strong> and <strong>Adiguru Ayurveda</strong>, initiatives born out of a deeper connection to traditional wisdom, nature, compassion, and conscious living. He also serves as a Trustee of <strong>Sri Sankara Vidyabharathi Gowsamrakshana Charitable Trust</strong>, continuing his association with the values of service and Dharma.',
+          'A pivotal moment in his life was his meeting with <strong>Gopal Baba</strong>, an encounter that profoundly changed his perspective on life. It brought a deeper understanding of spirituality, the purpose of human existence, the significance of surrender, and the realization that life is not merely about what we accumulate, but about what we discover within ourselves.',
+          'Today, Adiguru Swamiji is sought after for his insights into <strong>Palmistry, Astrology, and Conscious Living</strong>. His approach is not merely about predicting events or interpreting signs, but about helping individuals understand themselves better, recognize their inherent strengths, explore life’s possibilities, and approach their journey with greater awareness.',
+          'He believes that ancient knowledge is not meant to create fear or dependency, but to awaken understanding; not to dictate one’s destiny, but to help one consciously participate in it.',
+          '<strong>His journey continues—with the conviction that the greatest discovery in life is the discovery of one’s own self.</strong>'
+        ]
       },
       {
-        id: 'registration', title: 'Official Government Registration & Credentials',
-        body: 'Guruji Palmistry is an officially registered consulting establishment under the Government of Telangana Labour Department (Registration No: SEA/MED/ALO/NR/1439866/2026, Telangana Shops & Establishments Act, 1988). Employer / Founder: Mokkapati Satish Kumar. Official certificates and registered premises verify our ethical commitment and public accountability.'
-      },
-      {
-        id: 'philosophy', title: 'Our Philosophy',
-        body: 'The lines of the hand and the planets of the birth chart describe tendencies, strengths and seasons of life — not a fixed sentence. We read them to build self-awareness, and we combine traditional wisdom with practical application so that every insight can be used in daily life.'
-      },
-      {
-        id: 'practice', title: 'Areas of Practice',
-        list: ['Palmistry — detailed palm analysis', 'Vedic Astrology — Kundali, Dasha and Muhurta', 'Reiki Healing — sessions and training', 'Spiritual guidance — Japa, mantra, puja and sadhana']
-      },
-      {
-        id: 'approach', title: 'Our Approach',
-        body: 'Guidance, not fear. Awareness, not dependency. We never make fear-based predictions or push remedies you do not need. You will hear what the hand and chart indicate, where they agree, and what you can do about it — in plain language.'
-      },
-      {
-        id: 'purpose', title: 'Purpose',
-        body: 'To help individuals understand themselves and navigate life with greater clarity, balance and confidence.'
-      },
-      {
-        id: 'mission', title: 'Mission & Vision',
-        body: 'Mission: make authentic palmistry, astrology and spiritual practice accessible, honest and useful. Vision: a community of seekers who use ancient wisdom for self-understanding and service.'
+        id: 'approach',
+        title: 'Beyond Prediction. Towards Self-Discovery.',
+        body: 'Ancient knowledge is not meant to create fear or dependency, but to awaken understanding; not to dictate one’s destiny, but to help one consciously participate in it. The greatest discovery in life is the discovery of one’s own self.'
       }
     ],
-    highlights: ['Govt. of Telangana Registered (Reg: SEA/MED/ALO/NR/1439866/2026)', 'Heritage Centre in Uppal, Hyderabad', 'Background in corporate management (MBA, B.Com, Six Sigma)', 'Founder of Omnipresence 1008', 'Palmistry, Astrology, Reiki & Spiritual guidance', 'Teaching through structured courses']
+    highlights: [
+      'Beyond Prediction. Towards Self-Discovery.',
+      '25+ Years Corporate Leadership & Global Experience',
+      'Founder – Adiguru Gaushala & Adiguru Ayurveda',
+      'Trustee, Sri Sankara Vidyabharathi Gowsamrakshana Charitable Trust',
+      'Spiritual Guidance & Insights from Gopal Baba',
+      'Palmistry, Astrology & Conscious Living',
+      'Wellness Centre in Uppal, Hyderabad'
+    ]
   };
 
   // -------------------------------------------------------------------------
@@ -221,10 +221,10 @@
     S('palmistry', 'marriage-relationship-analysis', 'Marriage & Relationship Analysis', 'The Heart line, relationship lines and Mount of Venus read for emotional nature and partnership.', ['Emotional temperament', 'Relationship patterns', 'Indications around marriage'], { image: '/assets/services/palmistry_marriage.jpg' }),
     S('palmistry', 'business-guidance', 'Business Guidance', 'Reading of the hand for enterprise, risk-taking, financial sense and partnership suitability.', ['Entrepreneurial indicators', 'Financial temperament', 'Suitable fields and timing'], { image: '/assets/services/palmistry_business.jpg' }),
     S('palmistry', 'personality-analysis', 'Personality Analysis', 'Hand shape, fingers and thumb read for character, decision-making and natural strengths.', ['Core temperament', 'Strengths to build on', 'Patterns to be aware of'], { image: '/assets/services/palmistry_mounts.jpg' }),
-    S('palmistry', 'major-minor-lines', 'Major & Minor Palm Lines', 'A dedicated reading of every major and minor line on both hands, and how they have changed.', ['Life, Head, Heart, Fate and Sun lines', 'Minor lines and their meaning', 'Comparison of left and right hands'], { image: '/assets/services/palmistry_lines.jpg' }),
-    S('palmistry', 'mounts-finger-analysis', 'Mounts & Finger Analysis', 'The seven mounts and the length, shape and setting of the fingers and thumb.', ['Planetary mounts and their development', 'Finger proportions and phalanges', 'Thumb — will and logic'], { image: '/assets/services/palmistry_mounts.jpg' }),
-    S('palmistry', 'online-palmistry-consultation', 'Online Palmistry Consultation', 'A palm reading from anywhere — share clear photos of your hands and speak with Guruji on a call.', ['No travel required', 'Guidance on taking good palm photos', 'Call at a convenient time'], { image: '/assets/palmistry_guide_sample_1795167367437.jpg' }),
-    S('palmistry', 'life-guidance', 'Life Guidance Reading', 'A broader reading that looks at where you are now and the themes of the coming years.', ['Current life period', 'Areas needing attention', 'Practical suggestions'], { image: '/assets/hero_palm_art_clean.jpg' }),
+    S('palmistry', 'major-minor-lines', 'Major & Minor Palm Lines', 'A dedicated reading of every major and minor line on both hands, and how they have changed.', ['Life, Head, Heart, Fate and Sun lines', 'Minor lines and their meaning', 'Comparison of left and right hands'], { image: '/assets/services/palmistry_lines_macro.jpg' }),
+    S('palmistry', 'mounts-finger-analysis', 'Mounts & Finger Analysis', 'The seven mounts and the length, shape and setting of the fingers and thumb.', ['Planetary mounts and their development', 'Finger proportions and phalanges', 'Thumb — will and logic'], { image: '/assets/services/palmistry_mounts_detail.jpg' }),
+    S('palmistry', 'online-palmistry-consultation', 'Online Palmistry Consultation', 'A palm reading from anywhere — share clear photos of your hands and speak with Guruji on a call.', ['No travel required', 'Guidance on taking good palm photos', 'Call at a convenient time'], { image: '/assets/services/palmistry_online_consult.jpg' }),
+    S('palmistry', 'life-guidance', 'Life Guidance Reading', 'A broader reading that looks at where you are now and the themes of the coming years.', ['Current life period', 'Areas needing attention', 'Practical suggestions'], { image: '/assets/services/palmistry_life_guidance.jpg' }),
 
     // --- Astrology ---------------------------------------------------------
     S('astrology', 'horoscope-analysis', 'Horoscope Analysis', 'A general reading of your birth chart and its main indications.', ['Overall chart strengths', 'Key life themes', 'Questions answered'], { image: '/assets/services/astrology_annual.jpg' }),
@@ -318,22 +318,22 @@
   ];
 
   const courses = [
-    C('palmistry', 'introduction-to-palmistry', 'Introduction to Palmistry', 'A friendly first course: what palmistry is, how to look at a hand, and the meaning of the main lines.', ['History and traditions of Hasta Samudrika Shastra', 'Which hand to read and why', 'Hand shapes at a glance', 'The four major lines', 'Taking good palm photos'], ['Read the major lines on a hand', 'Recognise the basic hand types', 'Know what palmistry can and cannot tell you'], { status: 'open', featured: true }),
-    C('palmistry', 'foundation-course-in-palmistry', 'Foundation Course in Palmistry', 'A structured foundation in the hand, fingers, mounts and lines.', ['Hand shapes and elements', 'Fingers, phalanges and thumb', 'The seven mounts', 'Major lines in depth', 'Introduction to minor lines', 'Practice readings'], ['Give a basic, structured reading', 'Combine shape, mounts and lines', 'Avoid common beginner mistakes'], { featured: true }),
-    C('palmistry', 'advanced-palmistry', 'Advanced Palmistry', 'For students who have completed the foundation: timing, special marks and synthesis.', ['Timing events on the lines', 'Special marks and their meaning', 'Changes between left and right hands', 'Synthesis of a full reading'], ['Time indications on the major lines', 'Interpret special marks in context']),
-    C('palmistry', 'mounts-of-the-palm', 'Mounts of the Palm', 'A focused module on the planetary mounts and their development.', ['Jupiter, Saturn, Sun, Mercury', 'Mars (upper and lower), Moon, Venus', 'Displaced and combined mounts'], ['Assess mount development', 'Relate mounts to temperament']),
-    C('palmistry', 'major-and-minor-lines', 'Major & Minor Lines', 'Every line in detail, including the less common minor lines.', ['Life, Head, Heart, Fate, Sun lines', 'Mercury, marriage, travel and other minor lines', 'Breaks, islands, chains and branches'], ['Read each line confidently', 'Understand line quality and marks']),
-    C('palmistry', 'hand-shapes-and-finger-analysis', 'Hand Shapes & Finger Analysis', 'What the shape of the hand and the fingers reveal about character.', ['Elemental hand types', 'Finger length, setting and tips', 'The thumb — will and logic'], ['Classify a hand quickly', 'Read personality from shape']),
-    C('palmistry', 'signs-symbols-and-markings', 'Signs, Symbols & Markings', 'Stars, crosses, triangles, squares, islands, grilles and other markings.', ['Catalogue of special signs', 'Where they appear and what changes', 'Reading signs in context'], ['Identify the common special marks', 'Interpret them without exaggeration']),
-    C('palmistry', 'career-analysis-through-palmistry', 'Career Analysis through Palmistry', 'Applying palmistry to questions of work, aptitude and career change.', ['Fate and Sun lines for career', 'Mounts and fingers for aptitude', 'Case studies'], ['Give focused career readings']),
-    C('palmistry', 'relationship-analysis-through-palmistry', 'Relationship Analysis through Palmistry', 'Applying palmistry to emotional nature and relationships.', ['Heart line and Girdle of Venus', 'Relationship lines', 'Mount of Venus', 'Case studies'], ['Give sensitive, responsible relationship readings']),
-    C('palmistry', 'practical-palm-reading-workshop', 'Practical Palm Reading Workshop', 'Hands-on reading practice with feedback from Guruji.', ['Live reading practice', 'Structuring a consultation', 'Feedback and correction'], ['Read with confidence in front of a client'], { mode: 'Offline workshop (online option on request)' }),
-    C('palmistry', 'professional-palmistry-practitioner-course', 'Professional Palmistry Practitioner Course', 'An in-depth programme for those who wish to practise palmistry professionally.', ['Complete palmistry syllabus', 'Ethics and responsible guidance', 'Consultation and report writing', 'Supervised practice readings'], ['Conduct full consultations', 'Write clear reading reports', 'Practise ethically']),
+    C('palmistry', 'introduction-to-palmistry', 'Introduction to Palmistry', 'A friendly first course: what palmistry is, how to look at a hand, and the meaning of the main lines.', ['History and traditions of Hasta Samudrika Shastra', 'Which hand to read and why', 'Hand shapes at a glance', 'The four major lines', 'Taking good palm photos'], ['Read the major lines on a hand', 'Recognise the basic hand types', 'Know what palmistry can and cannot tell you'], { status: 'open', featured: true, image: '/assets/courses/course_intro_palmistry.jpg' }),
+    C('palmistry', 'foundation-course-in-palmistry', 'Foundation Course in Palmistry', 'A structured foundation in the hand, fingers, mounts and lines.', ['Hand shapes and elements', 'Fingers, phalanges and thumb', 'The seven mounts', 'Major lines in depth', 'Introduction to minor lines', 'Practice readings'], ['Give a basic, structured reading', 'Combine shape, mounts and lines', 'Avoid common beginner mistakes'], { featured: true, image: '/assets/courses/course_foundation_palmistry.jpg' }),
+    C('palmistry', 'advanced-palmistry', 'Advanced Palmistry', 'For students who have completed the foundation: timing, special marks and synthesis.', ['Timing events on the lines', 'Special marks and their meaning', 'Changes between left and right hands', 'Synthesis of a full reading'], ['Time indications on the major lines', 'Interpret special marks in context'], { image: '/assets/courses/course_advanced_palmistry.jpg' }),
+    C('palmistry', 'mounts-of-the-palm', 'Mounts of the Palm', 'A focused module on the planetary mounts and their development.', ['Jupiter, Saturn, Sun, Mercury', 'Mars (upper and lower), Moon, Venus', 'Displaced and combined mounts'], ['Assess mount development', 'Relate mounts to temperament'], { image: '/assets/courses/course_mounts_palm.jpg' }),
+    C('palmistry', 'major-and-minor-lines', 'Major & Minor Lines', 'Every line in detail, including the less common minor lines.', ['Life, Head, Heart, Fate, Sun lines', 'Mercury, marriage, travel and other minor lines', 'Breaks, islands, chains and branches'], ['Read each line confidently', 'Understand line quality and marks'], { image: '/assets/courses/course_major_minor_lines.jpg' }),
+    C('palmistry', 'hand-shapes-and-finger-analysis', 'Hand Shapes & Finger Analysis', 'What the shape of the hand and the fingers reveal about character.', ['Elemental hand types', 'Finger length, setting and tips', 'The thumb — will and logic'], ['Classify a hand quickly', 'Read personality from shape'], { image: '/assets/courses/course_hand_shapes_fingers.jpg' }),
+    C('palmistry', 'signs-symbols-and-markings', 'Signs, Symbols & Markings', 'Stars, crosses, triangles, squares, islands, grilles and other markings.', ['Catalogue of special signs', 'Where they appear and what changes', 'Reading signs in context'], ['Identify the common special marks', 'Interpret them without exaggeration'], { image: '/assets/courses/course_signs_symbols.jpg' }),
+    C('palmistry', 'career-analysis-through-palmistry', 'Career Analysis through Palmistry', 'Applying palmistry to questions of work, aptitude and career change.', ['Fate and Sun lines for career', 'Mounts and fingers for aptitude', 'Case studies'], ['Give focused career readings'], { image: '/assets/courses/course_career_palmistry.jpg' }),
+    C('palmistry', 'relationship-analysis-through-palmistry', 'Relationship Analysis through Palmistry', 'Applying palmistry to emotional nature and relationships.', ['Heart line and Girdle of Venus', 'Relationship lines', 'Mount of Venus', 'Case studies'], ['Give sensitive, responsible relationship readings'], { image: '/assets/courses/course_relationship_palmistry.jpg' }),
+    C('palmistry', 'practical-palm-reading-workshop', 'Practical Palm Reading Workshop', 'Hands-on reading practice with feedback from Guruji.', ['Live reading practice', 'Structuring a consultation', 'Feedback and correction'], ['Read with confidence in front of a client'], { mode: 'Offline workshop (online option on request)', image: '/assets/courses/course_practical_workshop.jpg' }),
+    C('palmistry', 'professional-palmistry-practitioner-course', 'Professional Palmistry Practitioner Course', 'An in-depth programme for those who wish to practise palmistry professionally.', ['Complete palmistry syllabus', 'Ethics and responsible guidance', 'Consultation and report writing', 'Supervised practice readings'], ['Conduct full consultations', 'Write clear reading reports', 'Practise ethically'], { image: '/assets/courses/course_professional_practitioner.jpg' }),
 
-    C('reiki', 'reiki-level-1', 'Reiki Level 1 — Beginner', 'Introduction to Reiki, the Reiki principles and self-practice.', ['History and principles of Reiki', 'Attunement (as per the lineage followed)', 'Hand positions for self-practice', 'Daily self-practice routine'], ['Practise Reiki on yourself daily', 'Understand the Reiki principles'], { featured: true }),
-    C('reiki', 'reiki-level-2', 'Reiki Level 2 — Practitioner', 'Practising Reiki for others and distance Reiki.', ['Level 2 symbols (as per the lineage)', 'Sessions for others', 'Distance Reiki', 'Practitioner ethics'], ['Give a Reiki session to others', 'Offer distance sessions'], { certificate: 'Certificate on completion (as per lineage)' }),
-    C('reiki', 'reiki-level-3', 'Reiki Level 3 — Advanced / Master Level', 'Advanced practice for experienced practitioners.', ['Advanced symbols and practice', 'Deepening personal practice', 'Integrating Reiki with meditation'], ['Deepen and refine your practice']),
-    C('reiki', 'reiki-master-teacher-training', 'Reiki Master Teacher Training', 'Training to teach and attune others — a future offering, only if appropriately qualified.', ['Offered only when the teacher holds the required qualification'], ['—'], { status: 'upcoming' }),
+    C('reiki', 'reiki-level-1', 'Reiki Level 1 — Beginner', 'Introduction to Reiki, the Reiki principles and self-practice.', ['History and principles of Reiki', 'Attunement (as per the lineage followed)', 'Hand positions for self-practice', 'Daily self-practice routine'], ['Practise Reiki on yourself daily', 'Understand the Reiki principles'], { featured: true, image: '/assets/courses/reiki_level_1_beginner.jpg' }),
+    C('reiki', 'reiki-level-2', 'Reiki Level 2 — Practitioner', 'Practising Reiki for others and distance Reiki.', ['Level 2 symbols (as per the lineage)', 'Sessions for others', 'Distance Reiki', 'Practitioner ethics'], ['Give a Reiki session to others', 'Offer distance sessions'], { certificate: 'Certificate on completion (as per lineage)', image: '/assets/courses/reiki_level_2_practitioner.jpg' }),
+    C('reiki', 'reiki-level-3', 'Reiki Level 3 — Advanced / Master Level', 'Advanced practice for experienced practitioners.', ['Advanced symbols and practice', 'Deepening personal practice', 'Integrating Reiki with meditation'], ['Deepen and refine your practice'], { image: '/assets/courses/reiki_level_3_master.jpg' }),
+    C('reiki', 'reiki-master-teacher-training', 'Reiki Master Teacher Training', 'Training to teach and attune others — a future offering, only if appropriately qualified.', ['Offered only when the teacher holds the required qualification'], ['—'], { status: 'upcoming', image: '/assets/courses/reiki_master_teacher.jpg' }),
 
     C('future', 'introduction-to-vedic-astrology', 'Introduction to Vedic Astrology', 'The building blocks of Jyotisha: Grahas, Rashis, Bhavas and Nakshatras.', ['Grahas, Rashis and Bhavas', 'Reading a birth chart', 'Introduction to Dashas'], ['Read the basic layout of a chart'], { status: 'upcoming' }),
     C('future', 'basics-of-nakshatras', 'Basics of Nakshatras', 'The 27 Nakshatras, their deities, symbols and qualities.', ['The 27 Nakshatras', 'Padas and lords', 'Nakshatra in daily life'], ['Identify and describe each Nakshatra'], { status: 'upcoming' }),
@@ -369,13 +369,13 @@
        'The dominant hand — the one you write with — is usually taken to show how you are living and developing now. The non-dominant hand is taken to show inborn tendencies. Comparing the two shows how a person has grown into, or away from, their natural patterns.',
        'Traditional Indian practice sometimes reads the right hand for men and the left for women. Many modern practitioners, including Guruji, prefer to read both hands for everyone and then compare them.',
        'When you book a reading, please send clear photos of both palms, taken in good daylight, with the fingers slightly apart.'],
-      { featured: true, date: '2026-11-12' }),
+      { featured: true, date: '2026-11-12', image: '/assets/articles/article_which_hand_read.jpg' }),
     A('can-palm-lines-change', 'palmistry', 'Articles & Blogs', 'Can Palm Lines Change Over Time?',
       'Palm lines are not fixed. Here is what tends to change, and what it means for a reading.',
       ['Yes — the finer lines on the hand can change over months and years, and even the major lines can lengthen, fade or develop branches.',
        'This is one reason palmistry is best used as a description of tendencies rather than a fixed prediction. The hand reflects how a person is living; as habits and circumstances change, some lines change with them.',
        'Comparing photos of your hands taken a few years apart can be an interesting exercise. In a follow-up reading Guruji often looks at what has changed since the last consultation.'],
-      { date: '2026-11-08' }),
+      { date: '2026-11-08', image: '/assets/articles/article_can_lines_change.jpg' }),
     A('the-four-major-lines', 'palmistry', 'Palmistry Learning Guides', 'The Four Major Lines of the Palm',
       'A beginner’s guide to the Life, Head, Heart and Fate lines — where they are and what they describe.',
       ['Life line — curves around the base of the thumb, enclosing the Mount of Venus. It is read for vitality and the general course of life; its length is not a measure of lifespan.',
@@ -383,58 +383,58 @@
        'Heart line — runs below the fingers, from the edge of the palm under the little finger towards the index or middle finger. It is read for emotional nature and relationships.',
        'Fate line — runs vertically up the centre of the palm towards the middle finger. It is read for career, responsibility and the direction of life. Not everyone has a clear fate line.',
        'A good reading always considers these lines together with the shape of the hand, the fingers and the mounts.'],
-      { featured: true, date: '2026-11-15' }),
+      { featured: true, date: '2026-11-15', image: '/assets/articles/article_four_major_lines.jpg' }),
     A('what-is-mahadasha', 'astrology', 'Astrology Guides', 'What Are Mahadasha and Antardasha?',
       'The Vimshottari Dasha system explained simply — how Vedic astrology divides life into planetary periods.',
       ['Vedic astrology divides life into periods, each ruled by one of the nine Grahas. The most widely used system is the Vimshottari Dasha, a cycle of 120 years.',
        'A Mahadasha is a major period ruled by one planet — for example, Venus rules a 20-year Mahadasha and the Sun a 6-year one. Each Mahadasha is divided into Antardashas (sub-periods) of all nine planets.',
        'Which Mahadasha you are born into depends on the Nakshatra of the Moon at birth. That is why an accurate birth time matters.',
        'During a reading, the running Mahadasha and Antardasha help explain why certain themes become prominent at certain times of life.'],
-      { featured: true, date: '2026-11-10' }),
+      { featured: true, date: '2026-11-10', image: '/assets/articles/article_mahadasha_cycles.jpg' }),
     A('is-exact-birth-time-necessary', 'astrology', 'Astrology Guides', 'Is the Exact Birth Time Necessary?',
       'Why birth time matters for a Kundali, and what can be done when it is not known.',
       ['The Lagna (ascendant) changes roughly every two hours, and the Moon’s position and the Dasha balance also depend on the time of birth. An accurate time therefore makes a large difference to a Kundali.',
        'If you only know an approximate time, share the range — Guruji can work with it and will explain which conclusions are less certain.',
        'If the time is not known at all, Prashna (horary) astrology or palmistry can be used instead, or alongside the chart.'],
-      { date: '2026-11-05' }),
+      { date: '2026-11-05', image: '/assets/articles/article_exact_birth_time.jpg' }),
     A('reiki-complementary-practice', 'reiki-wellness', 'Spiritual Practices', 'Reiki as a Complementary Wellness Practice',
       'What Reiki is, what a session is like, and why it complements — never replaces — medical care.',
       ['Reiki is a Japanese relaxation practice in which the practitioner places their hands lightly on, or just above, the body in a series of positions. Many people find it deeply relaxing.',
        'A session usually takes place lying down and fully clothed, in a quiet room. Distance sessions are also offered, in which you rest at home at an agreed time.',
        'Reiki is a complementary practice. It is not a medical treatment, does not diagnose any condition, and should never be used in place of advice or treatment from a qualified doctor. If you are unwell, please continue to follow your doctor’s advice.'],
-      { featured: true, date: '2026-11-14' }),
+      { featured: true, date: '2026-11-14', image: '/assets/articles/article_reiki_complementary.jpg' }),
     A('how-to-begin-japa', 'mantras-spirituality', 'Graha & Mantra Reference', 'How to Begin a Daily Japa Practice',
       'Choosing a mantra, using a mala and keeping a steady daily count.',
       ['Japa is the repetition of a mantra with attention. A simple daily practice is more valuable than an ambitious one that is soon abandoned.',
        'Choose a time and a place — early morning is traditional. Sit comfortably, take a moment to settle, and state your Sankalpa (intention) silently.',
        'A mala has 108 beads plus the guru bead (Meru). Move one bead per repetition and do not cross the Meru; turn the mala around to begin another round.',
        'Begin with one mala a day and stay with it. If you would like a mantra chosen for you, see our Mantra Guidance service, or browse the Mantras & Stotras library.'],
-      { date: '2026-11-03' }),
+      { date: '2026-11-03', image: '/assets/articles/article_how_begin_japa.jpg' }),
     A('what-is-sankalpa', 'puja-ritual', 'Articles & Blogs', 'What Is Sankalpa?',
       'The formal statement of intention at the start of every puja and japa.',
       ['Sankalpa is the resolve made at the start of a ritual. It states who is performing it (name and gotram), where and when (by the Panchanga), and for what purpose.',
        'When a puja is performed on your behalf, the priest takes the Sankalpa in your name and gotram. This is why we ask for these details when you book.',
        'If you do not know your gotram, tell us — it is traditional to use the Kashyapa gotram in that case, and the priest will guide you.'],
-      { date: '2026-11-02' }),
+      { date: '2026-11-02', image: '/assets/articles/article_what_is_sankalpa.jpg' }),
     A('a-simple-breath-meditation', 'meditation', 'Spiritual Practices', 'A Simple Ten-Minute Breath Meditation',
       'An easy daily meditation for beginners.',
       ['Sit comfortably with the spine upright. Close your eyes and let the breath be natural.',
        'Bring your attention to the breath at the nostrils. Notice the cool air coming in and the warm air going out.',
        'When the mind wanders — it will — gently bring it back to the breath, without judging yourself.',
        'Start with ten minutes a day. Consistency matters more than length.'],
-      { date: '2026-10-28' }),
+      { date: '2026-10-28', image: '/assets/articles/article_breath_meditation.jpg' }),
     A('dharma-in-daily-life', 'sanatana-dharma', 'Articles & Blogs', 'Dharma in Daily Life',
       'What dharma means in practical, everyday terms.',
       ['Dharma is often translated as duty or righteousness, but it is better understood as acting in harmony with one’s nature, role and responsibilities.',
        'In daily life this can be as simple as doing one’s work honestly, caring for family and elders, and keeping a small daily practice of prayer or reflection.',
        'The Shastras describe dharma as something that sustains — a life lived in dharma supports both the individual and those around them.'],
-      { date: '2026-10-25' }),
+      { date: '2026-10-25', image: '/assets/articles/article_dharma_daily_life.jpg' }),
     A('self-awareness-through-palmistry-and-astrology', 'self-development', 'Articles & Blogs', 'Self-Awareness Through Palmistry and Astrology',
       'Using a reading as a mirror for growth rather than a forecast to fear.',
       ['The most useful readings leave you with a clearer picture of your own tendencies — what comes naturally, and where you tend to struggle.',
        'Used this way, palmistry and astrology support self-awareness. They can suggest where to put effort, which periods suit which kinds of action, and which patterns are worth changing.',
        'At Guruji Palmistry our approach is guidance, not fear; awareness, not dependency.'],
-      { date: '2026-10-20' })
+      { date: '2026-10-20', image: '/assets/articles/article_self_awareness.jpg' })
   ];
 
   // -------------------------------------------------------------------------
