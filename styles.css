@@ -26,8 +26,8 @@
   --c-line-strong: 216 200 180; /* #d8c8b4  strong border */
 
   /* ---- Typography ---- */
-  --font-sans: 'Outfit', system-ui, sans-serif;
-  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Lato', 'Outfit', system-ui, sans-serif;
+  --font-serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
   --font-display: 'Cinzel', serif;
   --font-devanagari: 'Noto Serif Devanagari', serif;
   --font-telugu: 'Noto Sans Telugu', sans-serif;

@@ -33,8 +33,8 @@
     verifyGovtUrl: 'https://labour.telangana.gov.in/',
     social: { instagram: '', youtube: '', facebook: '' },
     hero: {
-      title: 'Discover Yourself Through Ancient Wisdom',
-      subtitle: 'Palmistry, Vedic astrology, Reiki healing and spiritual guidance with Guruji — practical insight for career, relationships, health of mind and the path ahead.'
+      title: 'Ancient Wisdom. Personal Guidance. Inner Clarity.',
+      subtitle: "Discover the wisdom of Palmistry, Vedic Astrology and Reiki through personal consultations, spiritual practices and traditional knowledge. Guidance to understand yourself better, navigate life's challenges and move forward with greater clarity."
     }
   };
 
@@ -350,7 +350,7 @@
     S('astrology', 'marriage-compatibility', 'Marriage Compatibility', 'Chart matching for marriage — Guna Milan and a deeper comparison of the two charts.', ['Ashtakoota Guna Milan', 'Manglik and other considerations', 'Strengths and areas to work on'], { requiredInfo: ['Birth details (date, time, place) of both people'], image: '/assets/services/astrology_marriage.jpg' }),
     S('astrology', 'career-astrology', 'Career Astrology', 'The 10th Bhava, its lord and the Dasha periods read for career direction and timing.', ['Suitable fields', 'Periods of growth and change', 'Practical guidance'], { image: '/assets/services/astrology_career.jpg' }),
     S('astrology', 'business-astrology', 'Business Astrology', 'Astrological guidance for starting or expanding a business, partnerships and timing.', ['Business suitability', 'Partnership indications', 'Favourable periods'], { image: '/assets/services/astrology_business.jpg' }),
-    S('astrology', 'prashna-astrology', 'Prashna Astrology', 'Horary astrology — a chart cast for the moment a question is asked, useful when birth time is unknown.', ['Answers to a specific question', 'Works without birth details', 'Quick, focused guidance'], { requiredInfo: ['Your question, clearly worded', 'Your current location'], image: '/assets/services/astrology_prashna.jpg' }),
+    S('astrology', 'prashna-astrology', 'Prashna Astrology', 'Hora astrology — a chart cast for the moment a question is asked, useful when birth time is unknown.', ['Answers to a specific question', 'Works without birth details', 'Quick, focused guidance'], { requiredInfo: ['Your question, clearly worded', 'Your current location'], image: '/assets/services/astrology_prashna.jpg' }),
     S('astrology', 'annual-horoscope', 'Annual Horoscope (Varshaphal)', 'A reading of the year ahead from your birthday chart and transits.', ['Themes for the year', 'Favourable and challenging months', 'Suggested focus'], { image: '/assets/services/astrology_annual.jpg' }),
     S('astrology', 'muhurta-consultation', 'Muhurta Consultation', 'Selection of an auspicious time for an important event, with explanation.', ['Suitable dates and times', 'Reasoning explained', 'Guidance on preparations'], { image: '/assets/svc/muhurta.webp' }),
 
@@ -397,16 +397,16 @@
     S('muhurta', 'naming-ceremony-muhurta', 'Naming Ceremony (Namakaranam) Muhurta', 'An auspicious time for the naming ceremony, and suggested starting syllables.', ['Suitable dates', 'Nakshatra syllables for the name']),
 
     // --- Reiki -------------------------------------------------------------
-    S('reiki', 'reiki-individual-session', 'Reiki Healing — Individual Session', 'A one-to-one Reiki session for relaxation and a sense of balance.', ['Deep relaxation', 'Calm and grounding', 'Time to rest the mind'], { duration: 'About 45–60 minutes', featured: true }),
-    S('reiki', 'reiki-extended-session', 'Reiki Healing — Extended Session', 'A longer session that allows more time for relaxation and integration.', ['More time to settle', 'Includes guided breathing'], { duration: 'About 90 minutes' }),
-    S('reiki', 'distance-reiki-session', 'Distance Reiki Session', 'A Reiki session offered remotely at an agreed time, while you rest at home.', ['From anywhere', 'Rest in your own space'], { duration: 'About 30–45 minutes' }),
-    S('reiki', 'stress-relaxation-session', 'Stress Relaxation Session', 'A session focused on relaxation for busy, stressful periods.', ['Pause and unwind', 'Simple breathing practices for home']),
-    S('reiki', 'chakra-balancing-session', 'Chakra Awareness & Balancing Session', 'Reiki with attention to each of the seven chakras, and an introduction to chakra awareness.', ['Introduction to the seven chakras', 'Guided awareness practice']),
-    S('reiki', 'reiki-meditation-session', 'Reiki Meditation Session', 'A guided meditation session using Reiki principles.', ['Guided meditation', 'Reiki principles for daily life']),
-    S('reiki', 'reiki-package-3', 'Reiki Healing Package — 3 Sessions', 'Three sessions scheduled over a few weeks.', ['Regular rhythm of sessions', 'Space to notice change']),
-    S('reiki', 'reiki-package-5', 'Reiki Healing Package — 5 Sessions', 'Five sessions for a longer period of regular practice.', ['Steady, regular support', 'Flexible scheduling']),
-    S('reiki', 'reiki-follow-up-session', 'Reiki Follow-up Session', 'A follow-up session for those who have had Reiki with us before.', ['Continue your practice']),
-    S('reiki', 'reiki-consultation', 'Reiki Consultation', 'A short conversation to understand Reiki and decide whether it is right for you.', ['Questions answered', 'No obligation']),
+    S('reiki', 'reiki-individual-session', 'Reiki Healing Session (In-Person at Adiguru Wellness Centre)', 'A one-to-one in-person Reiki session at Adiguru Wellness Centre for deep relaxation, vitality and inner balance.', ['Deep relaxation & stress relief', 'Calm and grounding', 'Time to rest the mind and body', 'Personalised in-person care at Adiguru Wellness Centre'], { duration: 'About 45–60 minutes', featured: true, image: '/assets/courses/reiki_level_1_beginner.jpg' }),
+    S('reiki', 'distance-reiki-session', 'Distance Reiki Session (Online / Remote)', 'A gentle Reiki session offered remotely at an agreed time, while you rest comfortably in your own space.', ['Convenient remote session from anywhere', 'Rest in your personal sacred space', 'Subtle energy balancing and calm'], { duration: 'About 30–45 minutes', featured: true, image: '/assets/courses/reiki_level_2_practitioner.jpg' }),
+    S('reiki', 'reiki-extended-session', 'Reiki Healing — Extended Session', 'A longer session that allows more time for relaxation and integration.', ['More time to settle', 'Includes guided breathing'], { duration: 'About 90 minutes', published: false }),
+    S('reiki', 'stress-relaxation-session', 'Stress Relaxation Session', 'A session focused on relaxation for busy, stressful periods.', ['Pause and unwind', 'Simple breathing practices for home'], { published: false }),
+    S('reiki', 'chakra-balancing-session', 'Chakra Awareness & Balancing Session', 'Reiki with attention to each of the seven chakras, and an introduction to chakra awareness.', ['Introduction to the seven chakras', 'Guided awareness practice'], { published: false }),
+    S('reiki', 'reiki-meditation-session', 'Reiki Meditation Session', 'A guided meditation session using Reiki principles.', ['Guided meditation', 'Reiki principles for daily life'], { published: false }),
+    S('reiki', 'reiki-package-3', 'Reiki Healing Package — 3 Sessions', 'Three sessions scheduled over a few weeks.', ['Regular rhythm of sessions', 'Space to notice change'], { published: false }),
+    S('reiki', 'reiki-package-5', 'Reiki Healing Package — 5 Sessions', 'Five sessions for a longer period of regular practice.', ['Steady, regular support', 'Flexible scheduling'], { published: false }),
+    S('reiki', 'reiki-follow-up-session', 'Reiki Follow-up Session', 'A follow-up session for those who have had Reiki with us before.', ['Continue your practice'], { published: false }),
+    S('reiki', 'reiki-consultation', 'Reiki Consultation', 'A short conversation to understand Reiki and decide whether it is right for you.', ['Questions answered', 'No obligation'], { published: false }),
 
     // --- Spiritual guidance ------------------------------------------------
     S('spiritual-guidance', 'mantra-guidance', 'Mantra Guidance', 'Help choosing a mantra and building a daily japa practice.', ['A mantra suited to you', 'Correct pronunciation and method']),
@@ -513,7 +513,7 @@
       'Why birth time matters for a Kundali, and what can be done when it is not known.',
       ['The Lagna (ascendant) changes roughly every two hours, and the Moon’s position and the Dasha balance also depend on the time of birth. An accurate time therefore makes a large difference to a Kundali.',
         'If you only know an approximate time, share the range — Guruji can work with it and will explain which conclusions are less certain.',
-        'If the time is not known at all, Prashna (horary) astrology or palmistry can be used instead, or alongside the chart.'],
+        'If the time is not known at all, Prashna (Hora) astrology or palmistry can be used instead, or alongside the chart.'],
       { date: '2026-11-05', image: '/assets/articles/article_exact_birth_time.jpg' }),
     A('reiki-complementary-practice', 'reiki-wellness', 'Spiritual Practices', 'Reiki as a Complementary Wellness Practice',
       'What Reiki is, what a session is like, and why it complements — never replaces — medical care.',
@@ -574,7 +574,7 @@
         ['What information is required for horoscope analysis?', 'Your date of birth, the exact time of birth, and the place of birth (city, state, country).'],
         ['Is exact birth time necessary?', 'It matters a great deal, because the Lagna changes roughly every two hours. If you only know an approximate time, share the range; if it is unknown, Prashna astrology or palmistry can be used.'],
         ['What is Mahadasha and Antardasha?', 'They are the major and sub-periods of the Vimshottari Dasha system, each ruled by one of the nine Grahas. They help explain why certain themes become prominent at certain times.'],
-        ['What is Prashna astrology?', 'Horary astrology — a chart cast for the moment a question is asked. It is useful for a specific question, or when birth details are not available.'],
+        ['What is Prashna astrology?', 'Hora astrology — a chart cast for the moment a question is asked. It is useful for a specific question, or when birth details are not available.'],
         ['What are planetary remedies?', 'Traditional practices such as japa, puja, charity (daan) and disciplined conduct associated with a Graha. We suggest remedies only where they are genuinely indicated, and never as a condition of the reading.']
       ]
     },

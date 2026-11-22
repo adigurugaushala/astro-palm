@@ -405,7 +405,7 @@
     return `
       ${hero({
       eyebrow: 'Reiki Healing', title: 'Reiki — rest, balance and relaxation', sub: 'A gentle, hands-on or distance practice that many people find deeply relaxing. Offered as a complementary wellness practice alongside — never instead of — medical care.', image: '/assets/svc/reiki.svg', crumbs: crumbs([['Home', '/'], ['Reiki Healing']]),
-      extra: `<div class="flex flex-col sm:flex-row gap-3 mt-6"><button type="button" onclick="bookService('reiki-individual-session')" class="gold-gradient-btn h-12 px-6 rounded-full">Book a Reiki Session</button><a href="#reiki-sessions" class="h-12 px-6 rounded-full border border-cream/40 text-cream hover:border-gold hover:text-gold flex items-center justify-center font-medium">See sessions &amp; packages</a></div>`
+      extra: `<div class="flex flex-col sm:flex-row gap-3 mt-6"><button type="button" onclick="bookService('reiki-individual-session')" class="gold-gradient-btn h-12 px-6 rounded-full">Book a Reiki Session</button><a href="#reiki-sessions" class="h-12 px-6 rounded-full border border-cream/40 text-cream hover:border-gold hover:text-gold flex items-center justify-center font-medium">See Reiki sessions</a></div>`
     })}
       <section class="sp-section">
         <div class="sp-wrap grid gap-6 md:grid-cols-3">
@@ -428,8 +428,8 @@
       </section>
       <section class="sp-section" id="reiki-sessions">
         <div class="sp-wrap">
-          ${sectionHead('Sessions & packages', 'Reiki services')}
-          <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">${sessions.map(s => `
+          ${sectionHead('Reiki Sessions', 'Reiki services')}
+          <div class="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto">${sessions.map(s => `
             <article class="sp-panel sp-session">
               <h3 class="sp-h3"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
               <p class="sp-text">${esc(s.short)}</p>
@@ -837,7 +837,7 @@
           <div>
             <p class="sp-eyebrow sp-eyebrow--maroon">Healing</p>
             <h2 class="sp-h2">Reiki Healing</h2>
-            <p class="sp-text mt-3">Individual, extended and distance Reiki sessions, chakra awareness and Reiki meditation — offered for relaxation and a sense of balance, as a complementary practice alongside medical care.</p>
+            <p class="sp-text mt-3">In-person sessions at Adiguru Wellness Centre and distance Reiki sessions — offered for relaxation and a sense of balance, as a complementary practice alongside medical care.</p>
             <div class="flex flex-wrap gap-3 mt-6"><a href="/reiki-healing" data-link class="gold-gradient-btn h-12 px-6 rounded-full">Explore Reiki</a><button type="button" onclick="bookService('reiki-individual-session')" class="sp-btn-outline">Book a session</button></div>
           </div>
         </div>
