@@ -89,6 +89,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <!-- Tailwind (Play CDN). Theme values below map 1:1 to the design tokens in styles.css -->
+  <script>
+    // Suppress Tailwind Play CDN development warning from browser console
+    const _origConsoleWarn = console.warn;
+    console.warn = function(...args) {
+      if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+      _origConsoleWarn.apply(console, args);
+    };
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     const token = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
@@ -178,7 +186,11 @@
         if (err.code !== 'auth/popup-closed-by-user') {
           console.error('[Firebase Auth Error]', err);
           if (typeof showVedicToast === 'function') {
-            showVedicToast('Google sign-in could not be completed.', 'warn');
+            if (err.code === 'auth/unauthorized-domain') {
+              showVedicToast('Domain not authorized in Firebase yet. Add ' + window.location.hostname + ' in Firebase Console → Authorized Domains.', 'warn');
+            } else {
+              showVedicToast('Google sign-in could not be completed.', 'warn');
+            }
           }
         }
       }
