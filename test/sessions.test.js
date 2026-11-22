@@ -1,6 +1,7 @@
 // Video/audio sessions, chat, birth chart, PDF reading, Guruji's case area and
 // self-paced courses — run with: npm test
 'use strict';
+process.env.NODE_ENV = 'test';
 
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');

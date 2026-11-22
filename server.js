@@ -1411,22 +1411,70 @@ function getSharedStore() {
   return sharedStore;
 }
 
-async function start() {
-  const store = await createStore();
-  const server = createServer(store);
-  server.listen(PORT, HOST, () => {
-    console.log(`GURUJI server listening on ${HOST}:${PORT}  (storage: ${store.mode})`);
-    if (HOST === '127.0.0.1') console.log('[server] Bound to localhost only. Behind a reverse proxy that is right; on a managed host set HOST=0.0.0.0.');
+function start() {
+  const rawPort = process.env.PORT || PORT;
+  const isSocket = isNaN(Number(rawPort));
+  const listenPort = isSocket ? rawPort : Number(rawPort);
+  const listenHost = isSocket ? null : (process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1'));
+
+  let activeHandler = null;
+  const storePromise = createStore().then(st => {
+    activeHandler = createHandler(st);
+    console.log(`[server] Store initialized (${st.mode}). Ready to serve requests.`);
+    return st;
+  }).catch(err => {
+    console.error('[server] Store initialization error:', err);
+    throw err;
   });
+
+  const server = http.createServer(async (req, res) => {
+    try {
+      if (!activeHandler) {
+        const st = await storePromise;
+        activeHandler = createHandler(st);
+      }
+      return activeHandler(req, res);
+    } catch (e) {
+      console.error('[server] Startup error handling request:', e);
+      res.writeHead(503, { 'Content-Type': 'text/plain' });
+      res.end('503 Service Unavailable — Initializing...');
+    }
+  });
+
+  const onListening = () => {
+    console.log(`GURUJI server listening on ${isSocket ? listenPort : `${listenHost}:${listenPort}`}`);
+    if (listenHost === '127.0.0.1') console.log('[server] Bound to localhost only. On managed hosting (Hostinger/cPanel) set HOST=0.0.0.0.');
+  };
+
+  if (isSocket) {
+    server.listen(listenPort, onListening);
+  } else {
+    server.listen(listenPort, listenHost, onListening);
+  }
+
   const shutdown = async () => {
     server.close();
-    await store.close().catch(() => {});
+    const st = await storePromise.catch(() => null);
+    if (st && st.close) await st.close().catch(() => {});
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  return server;
 }
 
-if (require.main === module) start();
+// Hostinger / Passenger / production entry point:
+// Hostinger requires the file directly rather than executing via CLI (require.main !== module).
+// Therefore we start unless explicitly running inside a test environment.
+const isTestEnv = Boolean(
+  process.env.NODE_ENV === 'test' ||
+  process.env.GURUJI_TEST ||
+  process.argv.some(a => a.includes('test') || a.includes('scripts'))
+);
 
-module.exports = { createServer, createHandler, getSharedStore, CONSULTATIONS, POOJAS, SPA_ROUTE_RX, slotStartISO, minutesFromDuration };
+if (!isTestEnv) {
+  start();
+}
+
+module.exports = { createServer, createHandler, getSharedStore, start, CONSULTATIONS, POOJAS, SPA_ROUTE_RX, slotStartISO, minutesFromDuration };

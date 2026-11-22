@@ -2,6 +2,7 @@
 // Runs every scenario twice: against the MongoDB code path (with an in-memory
 // driver stand-in) and against the JSON-file fallback.
 'use strict';
+process.env.NODE_ENV = 'test';
 
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
