@@ -20,6 +20,7 @@ process.env.MONGODB_URI = '';
 process.env.CASHFREE_APP_ID = '';
 process.env.CASHFREE_SECRET_KEY = '';
 process.env.PAYMENT_MODE = 'simulated';
+process.env.SITE_URL = '';
 
 const { createServer } = require('../server');
 const { createStore } = require('../db');
