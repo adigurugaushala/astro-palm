@@ -126,6 +126,75 @@
     }
   </script>
 
+  <!-- Google Analytics (Firebase GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-BW4BXH4YYN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-BW4BXH4YYN');
+  </script>
+
+  <!-- Google Firebase App & Auth SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBCnhuHmyRznPJh4vidByrmujVVtr8Xyp0",
+      authDomain: "palm-56063.firebaseapp.com",
+      projectId: "palm-56063",
+      storageBucket: "palm-56063.firebasestorage.app",
+      messagingSenderId: "889879231444",
+      appId: "1:889879231444:web:9ebdb45e42e35b635cb441",
+      measurementId: "G-BW4BXH4YYN"
+    };
+
+    const fbApp = initializeApp(firebaseConfig);
+    const auth = getAuth(fbApp);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    window.firebaseAuth = auth;
+
+    window.loginWithGoogle = async function() {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        if (user) {
+          const nameInput = document.getElementById('auth-name');
+          const emailInput = document.getElementById('auth-email');
+          if (nameInput) nameInput.value = user.displayName || '';
+          if (emailInput) emailInput.value = user.email || '';
+          if (typeof state !== 'undefined' && state.user) {
+            if (user.displayName) state.user.name = user.displayName;
+            if (user.email) state.user.email = user.email;
+          }
+          if (typeof showVedicToast === 'function') {
+            showVedicToast('Namaste ' + (user.displayName || 'Devotee') + ', signed in with Google!', 'success');
+          }
+        }
+      } catch (err) {
+        if (err.code !== 'auth/popup-closed-by-user') {
+          console.error('[Firebase Auth Error]', err);
+          if (typeof showVedicToast === 'function') {
+            showVedicToast('Google sign-in could not be completed.', 'warn');
+          }
+        }
+      }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.currentFirebaseUser = user;
+        const nameInput = document.getElementById('auth-name');
+        const emailInput = document.getElementById('auth-email');
+        if (nameInput && !nameInput.value && user.displayName) nameInput.value = user.displayName;
+        if (emailInput && !emailInput.value && user.email) emailInput.value = user.email;
+      }
+    });
+  </script>
+
   <!-- Confetti (booking celebration) & jsPDF (report download) -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
@@ -2449,6 +2518,23 @@
           </div>
           <h2 class="font-serif text-2xl font-bold text-ink">Sign In or Create Account</h2>
           <p class="text-xs text-ink-3 mt-1">Quick authentication so you can track your consultation & report.</p>
+        </div>
+
+        <!-- Google 1-Click Sign-In -->
+        <button type="button" onclick="loginWithGoogle()" class="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-line bg-white hover:bg-zinc-50 font-medium text-ink shadow-xs transition text-xs">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span class="font-semibold">Continue with Google</span>
+        </button>
+
+        <div class="relative flex items-center justify-center">
+          <div class="border-t border-line w-full"></div>
+          <span class="bg-white px-3 text-2xs text-ink-3 uppercase whitespace-nowrap">or enter manually</span>
+          <div class="border-t border-line w-full"></div>
         </div>
 
         <!-- Auth Form -->
