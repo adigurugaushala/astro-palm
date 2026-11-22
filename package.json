@@ -12,6 +12,7 @@
     "test": "node --test test/api.test.js test/sessions.test.js",
     "build": "node scripts/build-public.js",
     "db:check": "node scripts/check-db.js",
+    "test:live": "node scripts/test-integrations.js",
     "verify:chart": "node scripts/verify-chart.js",
     "preflight": "node scripts/preflight.js"
   },
