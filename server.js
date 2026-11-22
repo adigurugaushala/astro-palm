@@ -620,7 +620,8 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         ['/reiki-healing', '0.9', 'monthly'], ['/courses', '0.8', 'weekly'], ['/resources', '0.8', 'weekly'],
         ['/faqs', '0.6', 'monthly'], ['/contact', '0.7', 'monthly'], ['/palmistry', '0.7', 'monthly'],
         ['/mantras', '0.6', 'monthly'], ['/book/consultation', '0.7', 'monthly'], ['/book/pooja', '0.7', 'monthly'],
-        ['/privacy-policy', '0.3', 'yearly'], ['/terms', '0.3', 'yearly'], ['/cancellation-refund-policy', '0.3', 'yearly']
+        ['/disclaimer', '0.5', 'yearly'], ['/privacy-policy', '0.4', 'yearly'], ['/terms', '0.4', 'yearly'],
+        ['/cancellation-refund-policy', '0.4', 'yearly'], ['/consent-policy', '0.4', 'yearly'], ['/grievance', '0.4', 'yearly']
       ];
       for (const c of content.serviceCategories || []) pages.push([c.link || `/services/category/${c.id}`, '0.7', 'monthly']);
       for (const x of content.services || []) if (x.published !== false) pages.push([`/services/${x.slug}`, x.core ? '0.9' : '0.6', 'monthly']);
@@ -762,6 +763,48 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       if (note) set.adminNote = note;
       const updated = await store.updateEnquiry(ref, set, { at, event: 'admin_update', status: set.status, note });
       return [200, { success: true, enquiry: updated }];
+    }],
+
+    ['GET', /^\/api\/admin\/consents$/, async (req, m, url) => {
+      requireAdmin(req, 'owner');
+      const q = str(url.searchParams.get('q'), 80);
+      const serviceType = str(url.searchParams.get('serviceType'), 40);
+      const startDate = str(url.searchParams.get('startDate'), 30);
+      const endDate = str(url.searchParams.get('endDate'), 30);
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
+      const consents = typeof store.listConsents === 'function'
+        ? await store.listConsents({ q, serviceType, startDate, endDate }, limit)
+        : [];
+      return [200, { consents }];
+    }],
+
+    ['GET', /^\/api\/admin\/consents\/export$/, async (req) => {
+      requireAdmin(req, 'owner');
+      const consents = typeof store.listConsents === 'function' ? await store.listConsents({}, 5000) : [];
+      const header = 'ID,Timestamp,Customer ID,Name,Email,Mobile,Disclaimer,Terms,Privacy,Service Acknowledgement,Service Type,Source,IP,User Agent\n';
+      const rows = consents.map(c => [
+        c.id || '',
+        c.timestamp || '',
+        c.customerId || '',
+        `"${(c.name || '').replace(/"/g, '""')}"`,
+        c.email || '',
+        c.mobile || '',
+        c.disclaimerAccepted ? 'Yes' : 'No',
+        c.termsAccepted ? 'Yes' : 'No',
+        c.privacyAccepted ? 'Yes' : 'No',
+        c.serviceSpecificAcknowledgement ? 'Yes' : 'No',
+        c.serviceType || 'general',
+        c.consentSource || '',
+        c.ip || '',
+        `"${(c.userAgent || '').replace(/"/g, '""')}"`
+      ].join(',')).join('\n');
+      return [200, {
+        __raw: Buffer.from(header + rows, 'utf8'),
+        type: 'text/csv; charset=utf-8',
+        headers: {
+          'Content-Disposition': `attachment; filename="guruji_consents_${new Date().toISOString().slice(0, 10)}.csv"`
+        }
+      }];
     }],
 
     // Enquiries (contact form, service / course booking requests) -----------
@@ -1376,6 +1419,12 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const email = str(b.email, 160).toLowerCase();
       const password = str(b.password, 100);
 
+      // Mandatory legal consent check
+      const consent = b.consent === true || (b.disclaimerAccepted && b.termsAccepted && b.privacyAccepted);
+      if (!consent) {
+        throw new HttpError(400, 'Legal consent to the Disclaimer, Terms & Conditions and Privacy Policy is required to create an account.');
+      }
+
       if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
       if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
       if (!isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
@@ -1390,9 +1439,30 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         name, mobile, email, passwordHash, provider: 'local'
       });
 
+      // Persist customer legal consent record
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '127.0.0.1';
+      const userAgent = req.headers['user-agent'] || '';
+      let consentRecord = null;
+      if (typeof store.recordConsent === 'function') {
+        consentRecord = await store.recordConsent({
+          customerId: customer.id,
+          name: customer.name,
+          email: customer.email,
+          mobile: customer.mobile,
+          disclaimerAccepted: true,
+          termsAccepted: true,
+          privacyAccepted: true,
+          serviceSpecificAcknowledgement: Boolean(b.serviceAcknowledgement),
+          serviceType: b.serviceType || 'general',
+          consentSource: b.consentSource || 'portal_signup',
+          ip: clientIp,
+          userAgent
+        });
+      }
+
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
-      return [200, { success: true, customer, token }];
+      return [200, { success: true, customer, token, consentId: consentRecord?.id }];
     }],
 
     ['POST', /^\/api\/customer\/login$/, async (req) => {
@@ -1431,6 +1501,26 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const customer = await store.createOrUpdateCustomer({
         name, email, mobile: mobile || '', provider: 'google'
       });
+
+      // Record legal consent for Google auth user
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '127.0.0.1';
+      const userAgent = req.headers['user-agent'] || '';
+      if (typeof store.recordConsent === 'function') {
+        await store.recordConsent({
+          customerId: customer.id,
+          name: customer.name,
+          email: customer.email,
+          mobile: customer.mobile,
+          disclaimerAccepted: true,
+          termsAccepted: true,
+          privacyAccepted: true,
+          serviceSpecificAcknowledgement: Boolean(b.serviceAcknowledgement),
+          serviceType: b.serviceType || 'general',
+          consentSource: 'google_auth',
+          ip: clientIp,
+          userAgent
+        });
+      }
 
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
@@ -1487,7 +1577,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 // Static files
 // ---------------------------------------------------------------------------
 // Page addresses of the single-page site (/about, /services/…, /reiki-healing …) all load index.html
-const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
+const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
 
 function serveStatic(req, res, pathname) {
   let reqPath = pathname === '/' || pathname === '' || SPA_ROUTE_RX.test(pathname) ? '/index.html' : pathname;

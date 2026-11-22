@@ -24,11 +24,11 @@
       "destination": "/api/index"
     },
     {
-      "source": "/(about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)",
+      "source": "/(about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance|search)",
       "destination": "/index.html"
     },
     {
-      "source": "/(about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)/:rest*",
+      "source": "/(about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance|search)/:rest*",
       "destination": "/index.html"
     },
     {

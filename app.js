@@ -1411,10 +1411,22 @@ async function handleAuthSubmit(event) {
   ]);
   if (!ok) return;
 
+  const consentBox = document.getElementById("auth-consent");
+  if (consentBox && !consentBox.checked) {
+    if (typeof showVedicToast === "function") {
+      showVedicToast("Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.", "error");
+    } else {
+      alert("Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.");
+    }
+    consentBox.focus();
+    return;
+  }
+
   const name = document.getElementById("auth-name").value.trim();
   const mobile = document.getElementById("auth-mobile").value.replace(/\D/g, "");
   const email = document.getElementById("auth-email").value.trim().toLowerCase();
   const password = document.getElementById("auth-password") ? document.getElementById("auth-password").value : "";
+  const serviceAck = Boolean(document.getElementById("consult-service-ack")?.checked);
 
   state.user.name = name;
   state.user.mobile = mobile;
@@ -1423,12 +1435,24 @@ async function handleAuthSubmit(event) {
   // Persist slot hold immediately so it cannot be lost
   persistHeldSlot();
 
-  // Securely register or update customer account in DB
+  // Securely register or update customer account in DB with legal consent record
   try {
     const res = await fetch("/api/customer/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, mobile, email, password: password || undefined })
+      body: JSON.stringify({
+        name,
+        mobile,
+        email,
+        password: password || undefined,
+        consent: true,
+        disclaimerAccepted: true,
+        termsAccepted: true,
+        privacyAccepted: true,
+        serviceAcknowledgement: serviceAck,
+        serviceType: 'consultation',
+        consentSource: 'booking_auth'
+      })
     });
     const data = await res.json();
     if (data.ok && data.token) {
@@ -3453,6 +3477,16 @@ window.handleCustomerSignup = async function(e) {
     return;
   }
 
+  const consentBox = document.getElementById("cust-reg-consent");
+  if (consentBox && !consentBox.checked) {
+    if (errEl) {
+      errEl.textContent = "Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.";
+      errEl.classList.remove("hidden");
+    }
+    consentBox.focus();
+    return;
+  }
+
   if (errEl) errEl.classList.add("hidden");
   if (btn) { btn.disabled = true; btn.textContent = "Creating Account..."; }
 
@@ -3460,7 +3494,17 @@ window.handleCustomerSignup = async function(e) {
     const res = await fetch("/api/customer/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, mobile, email, password })
+      body: JSON.stringify({
+        name,
+        mobile,
+        email,
+        password,
+        consent: true,
+        disclaimerAccepted: true,
+        termsAccepted: true,
+        privacyAccepted: true,
+        consentSource: 'portal_signup'
+      })
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || "Registration failed");
@@ -3581,6 +3625,17 @@ window.renderAccountPortal = async function() {
             <label class="block font-semibold text-ink mb-1">Password <span class="text-red-500">*</span></label>
             <input type="password" id="cust-reg-pwd" required minlength="6" placeholder="At least 6 characters" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
           </div>
+
+          <!-- Mandatory Legal Consent Checkbox -->
+          <div class="p-3 bg-amber-50/70 rounded-xl border border-amber-200/90 text-left">
+            <label class="flex items-start gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" id="cust-reg-consent" class="mt-0.5 h-4 w-4 rounded border-amber-400 text-maroon focus:ring-amber-500 shrink-0">
+              <span class="text-2xs sm:text-xs text-ink-2 leading-relaxed">
+                I understand and agree that Guruji Palmistry provides Palmistry, Astrology, Kundali Analysis, Astro-Palmistry, Reiki, Spiritual Guidance, Poojas, Rituals and related services based on traditional, spiritual and interpretive practices. I understand that these services do not guarantee any particular prediction, result or outcome and are not substitutes for medical, psychological, financial, legal or other professional advice. I acknowledge that my decisions and actions remain my responsibility. I have read and agree to the <a href="/disclaimer" onclick="openPolicyModal('disclaimer', event)" class="font-semibold text-maroon underline hover:text-amber-700">Disclaimer</a>, <a href="/terms" onclick="openPolicyModal('terms', event)" class="font-semibold text-maroon underline hover:text-amber-700">Terms &amp; Conditions</a> and <a href="/privacy-policy" onclick="openPolicyModal('privacy-policy', event)" class="font-semibold text-maroon underline hover:text-amber-700">Privacy Policy</a>.
+              </span>
+            </label>
+          </div>
+
           <div id="cust-signup-err" class="hidden text-red-600 text-xs bg-red-50 p-2.5 rounded-xl border border-red-200"></div>
           <button type="submit" id="cust-signup-btn" class="w-full gold-gradient-btn py-3 rounded-xl font-semibold text-xs shadow-md">Create Account</button>
         </form>
@@ -3718,6 +3773,76 @@ window.renderAccountPortal = async function() {
     container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-line text-center text-xs text-red-600">Failed to load account details. <button onclick="renderAccountPortal()" class="underline font-semibold ml-2">Retry</button></div>`;
   }
 };
+
+// ==========================================
+// LEGAL POLICY MODAL CONTROLLER
+// ==========================================
+
+window.openPolicyModal = function(policySlug, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const modal = document.getElementById("policy-modal");
+  if (!modal) return;
+  const titleEl = document.getElementById("policy-modal-title");
+  const subEl = document.getElementById("policy-modal-sub");
+  const bodyEl = document.getElementById("policy-modal-body");
+
+  const content = (typeof GURUJI_CONTENT !== 'undefined' ? GURUJI_CONTENT : (window.GURUJI_CONTENT || {}));
+  const policies = content.policies || {};
+  const p = policies[policySlug];
+
+  if (!p) {
+    if (bodyEl) bodyEl.innerHTML = `<p class="text-xs text-red-600">Policy not found.</p>`;
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  if (titleEl) titleEl.innerText = p.title || 'Legal Document';
+  if (subEl) subEl.innerText = `Version ${p.version || '1.0'} · Updated ${p.updated || 'November 2026'}`;
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <div class="space-y-6 text-ink-2 text-xs sm:text-sm leading-relaxed">
+        <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-2xs text-amber-900 flex items-center gap-2">
+          <i class="fa-solid fa-stamp text-amber-700 text-sm"></i>
+          <span>Official policy document of Guruji Palmistry. Certified compliant with DPDP Act 2023 and Indian Laws.</span>
+        </div>
+        ${p.sections.map(([h, b], i) => `
+          <div class="space-y-1.5 pb-4 ${i > 0 ? 'border-t border-line/60 pt-4' : ''}">
+            <h4 class="font-serif font-bold text-sm sm:text-base text-amber-950 flex items-center gap-2">
+              <span class="w-5 h-5 rounded bg-amber-100 text-amber-900 text-2xs font-bold flex items-center justify-center shrink-0">${i + 1}</span>
+              <span>${escapeHtml(h.replace(/^\d+\.\s*/, ''))}</span>
+            </h4>
+            <div class="whitespace-pre-line text-ink-2 pl-7">${escapeHtml(b)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+};
+
+window.closePolicyModal = function() {
+  const modal = document.getElementById("policy-modal");
+  if (modal) modal.classList.add("hidden");
+  document.body.style.overflow = "";
+};
+
+// Close modal on Escape key or backdrop click
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") {
+    window.closePolicyModal();
+  }
+});
+
+document.addEventListener("click", function(e) {
+  const modal = document.getElementById("policy-modal");
+  if (modal && !modal.classList.contains("hidden") && e.target === modal) {
+    window.closePolicyModal();
+  }
+});
 
 
 

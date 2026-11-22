@@ -647,37 +647,236 @@
   const testimonials = [];
 
   // -------------------------------------------------------------------------
-  // Policies (please have these reviewed before relying on them)
+  // Policies (Legal Disclaimers, Terms, DPDP Act 2023 Privacy, Consents & Grievance)
   // -------------------------------------------------------------------------
+  const POLICY_VERSIONS = {
+    disclaimer: '1.0',
+    terms: '1.0',
+    privacy: '1.0',
+    refund: '1.0',
+    consentPolicy: '1.0',
+    grievance: '1.0'
+  };
+
   const policies = {
+    disclaimer: {
+      title: 'Disclaimer & Legal Notice',
+      version: '1.0',
+      updated: '2026-11-22',
+      badge: 'Legally Binding & Regulatory Disclosure',
+      sections: [
+        [
+          '1. Nature of Services',
+          'Guruji Palmistry provides Palmistry (Hasta Samudrika Shastra), Vedic Astrology (Jyotishya Shastra), Kundali Analysis, Astro-Palmistry Correlation, Reiki Healing, Spiritual Guidance, Japa, Mantras, Poojas, Homams and related spiritual and Vedic services. All services, consultations, materials and communications are rooted in ancient Indian philosophical, scriptural, traditional and spiritual sciences.'
+        ],
+        [
+          '2. Palmistry and Astrology Interpretations',
+          'Interpretations provided through Palmistry, Kundali analysis and Astro-Palmistry are subjective, interpretive evaluations based on traditional Vedic systems, planetary configurations, line patterns, mounts and classical astrological texts. They represent prospective tendencies and spiritual indications rather than definitive, predetermined or unchangeable prophecies.'
+        ],
+        [
+          '3. No Guaranteed Predictions or Outcomes',
+          'No prediction, spiritual reading, ritual, pooja, japa, mantra, remedial measure or consultation guarantees any specific outcome, worldly result, financial gain, career promotion, marriage success, health recovery, child birth or resolution of disputes. Human free will, personal effort (Purushartha), past karmas (Prarabdha) and divine will (Daiva) govern individual life trajectories.'
+        ],
+        [
+          '4. Personal Responsibility',
+          'All decisions, actions, life choices, business commitments, relationship choices, financial investments and medical steps taken by the client before, during or following any consultation or reading remain exclusively and entirely the personal responsibility of the client. Guruji Palmistry and Adiguru Swamiji disclaim all responsibility for personal choices made by devotees.'
+        ],
+        [
+          '5. No Substitute for Professional Advice',
+          'None of the services, readings, reports, conversations or materials provided by Guruji Palmistry constitute medical, psychological, psychiatric, legal, financial, accounting or real estate advice. Seekers must always consult licensed, certified medical doctors for health conditions, licensed attorneys for legal matters, and accredited financial advisors for financial decisions.'
+        ],
+        [
+          '6. Reiki and Spiritual Practices',
+          'Reiki is a traditional, complementary energy balancing and relaxation modality. It does not diagnose, treat, prevent or cure physical illness, mental illness or medical diseases. It is not an alternative to standard medical care. Always follow the guidance and treatment plans prescribed by your licensed healthcare providers.'
+        ],
+        [
+          '7. Poojas, Japas, Homams and Rituals',
+          'All Poojas, Japas, Homams, Shanti rituals and Pitru sevas are conducted in accordance with traditional Vedic Shastras by ordained Vedic purohits with sacred sankalpa. They are acts of devotion, prayer and spiritual alignment. No supernatural, miraculous or guaranteed material outcomes are promised or implied.'
+        ],
+        [
+          '8. Educational Content and Courses',
+          'Courses, study modules, books, audio tracks, mantras and educational resources offered by Guruji Palmistry are designed solely for personal enrichment, spiritual learning and academic study of Hasta Samudrika and Vedic traditions. They do not constitute accredited professional qualifications or guarantees of employment, income or commercial practice.'
+        ],
+        [
+          '9. Testimonials and Individual Experiences',
+          'Testimonials, reviews, case examples, feedback and stories shared on Guruji Palmistry represent individual experiences of specific devotees and seekers. They do not represent typical or guaranteed outcomes for any other person.'
+        ],
+        [
+          '10. Voluntary Participation',
+          'All interactions, bookings, participation in rituals, sharing of birth details, palm photographs and attendance in consultations are undertaken voluntarily by the seeker of their own free will and volition, without any coercion, fear-mongering or duress.'
+        ],
+        [
+          '11. Limitation of Liability',
+          'To the fullest extent permitted by applicable Indian laws, Guruji Palmistry, Adiguru Swamiji, trustees, purohits, staff, associates and affiliates shall not be liable for any direct, indirect, incidental, exemplary, special or consequential damages arising from the use of, or inability to use, our services, website, predictions, rituals or educational content.'
+        ],
+        [
+          '12. Updates to the Disclaimer',
+          'Guruji Palmistry reserves the right to modify, amend or update this Disclaimer at any time. Updates become effective immediately upon posting to this website. Continued use of our website or services signifies your acceptance of the updated terms.'
+        ],
+        [
+          '13. Contact Information & Grievance Redressal',
+          'For inquiries, legal notices, clarifications or grievances regarding this Disclaimer or our services, please contact: Grievance Officer, Guruji Palmistry, Heritage Centre: 2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039, India. Email: support@gurujipalmistry.org. WhatsApp: +91 89776 25078. Registered Establishment Reg No: SEA/MED/ALO/NR/1439866/2026.'
+        ]
+      ]
+    },
     'privacy-policy': {
-      title: 'Privacy Policy', updated: '2026-11-21', sections: [
-        ['Information we collect', 'When you book or enquire we collect your name, mobile number, email address, and the details needed for the service — for example birth details, gotram, palm photos and, if you ask for prasadam, your postal address.'],
-        ['How we use it', 'Only to provide the service you asked for, to contact you about it, and to keep records of bookings and payments. We do not sell your information.'],
-        ['Payments', 'Online payments are processed by Cashfree Payments. We do not see or store your card or bank details.'],
-        ['Storage and security', 'Booking information is stored in a secure database. Access is limited to people who need it to provide your service.'],
-        ['Your choices', 'You may ask us to correct or delete your information by writing to us at the email address below.'],
-        ['Contact', 'Questions about privacy: support@gurujipalmistry.org']
+      title: 'Privacy Policy (DPDP Act 2023 Compliant)',
+      version: '1.0',
+      updated: '2026-11-22',
+      badge: 'DPDP Act 2023 & IT Rules 2011 Compliance',
+      sections: [
+        [
+          '1. Commitment to Privacy & Statutory Compliance',
+          'Guruji Palmistry ("we", "us", "our") is deeply committed to protecting the privacy and personal data of our devotees, seekers and website visitors ("Data Principals"). This Privacy Policy complies with India\'s Digital Personal Data Protection Act, 2023 (DPDP Act 2023), the Information Technology Act, 2000, and the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011.'
+        ],
+        [
+          '2. Categories of Personal Data Collected',
+          'When you interact with our platform, register an account, book a consultation, request a pooja seva or register interest in a course, we collect the following categories of data:\n• Identity & Contact Data: Full name, mobile number (+91 or international country code), and email address.\n• Astrological & Vedic Data: Date of birth, exact time of birth, place of birth (city/state/country), geographic coordinates (latitude and longitude computed solely for planetary chart calculation), Gotram, Nakshatram, and handedness.\n• Palm Photographs: Images of your palms uploaded voluntarily solely for Hasta Samudrika analysis.\n• Ritual / Sankalpa Data: Family members\' names, gotras, and specific prayer intentions for Poojas and Japas.\n• Delivery Address: Postal mailing address (only when physical sacred Prasadam delivery is requested).\n• Technical & Consent Audit Data: IP address, device user-agent, timestamp of consent, and document versions accepted.'
+        ],
+        [
+          '3. Lawful Purpose of Data Processing',
+          'Your personal data is processed strictly for legitimate spiritual and administrative purposes:\n• To compute astrological charts (Kundali), planetary dashas, and analyze palm images for your booked reading.\n• To perform sacred Sankalpa Poojas, Japas and Homams with ordained Vedic purohits.\n• To communicate appointment confirmations, room joining links, and deliver PDF consultation reports.\n• To maintain secure devotee portal accounts and booking history tracking.\n• To comply with applicable statutory laws, tax regulations and audit requirements in India.\nWe NEVER sell, trade, rent or monetize your personal data to any third-party advertisers or marketing brokers.'
+        ],
+        [
+          '4. Payment Security & Financial Data',
+          'All digital payments on Guruji Palmistry are processed directly through Cashfree Payments India Private Limited, a RBI-authorized, PCI-DSS Level 1 compliant payment aggregator. Guruji Palmistry never sees, collects, or stores your credit card numbers, debit card details, CVV codes, UPI PINs, or internet banking login credentials.'
+        ],
+        [
+          '5. Data Principal Rights under DPDP Act 2023',
+          'Under the Digital Personal Data Protection Act, 2023, you have the following enforceable rights:\n• Right to Access: You may request a summary of personal data being processed about you and the processing activities undertaken.\n• Right to Correction and Erasure: You may request correction of inaccurate data or complete erasure of your personal data when no longer necessary for service delivery.\n• Right of Grievance Redressal: You have the right to accessible grievance redressal regarding any data privacy concern.\n• Right to Nominate: You have the right to nominate an individual to exercise your rights in the event of death or incapacity.\nTo exercise any of these rights, write to our designated Grievance Officer at support@gurujipalmistry.org.'
+        ],
+        [
+          '6. Data Storage, Retention & Security Safeguards',
+          'Devotee information is stored in secure, encrypted cloud databases protected by role-based access control, firewall layers, and 256-bit SSL encryption in transit. Personal data is retained only for as long as necessary to fulfill the services requested or meet legal compliance periods, after which it is securely purged or anonymized.'
+        ],
+        [
+          '7. Grievance Redressal Officer Contact Details',
+          'In compliance with Section 11 of the DPDP Act 2023 and Rule 5(9) of the IT Rules 2011, the details of our Data Protection and Grievance Officer are:\nDesignation: Data Protection & Grievance Officer\nOrganisation: Guruji Palmistry (Adiguru Gaushala & Sri Sankara Vidyabharathi Gowsamrakshana Charitable Trust)\nAddress: 2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039, India\nEmail: support@gurujipalmistry.org\nPhone / WhatsApp: +91 89776 25078\nHours: Monday to Saturday, 10:00 AM to 6:00 PM IST\nResolution Timeline: Acknowledgement within 24 hours, resolution within 15 calendar days.'
+        ]
       ]
     },
     terms: {
-      title: 'Terms & Conditions', updated: '2026-11-21', sections: [
-        ['Nature of services', 'Palmistry, astrology, Reiki and spiritual guidance are offered for self-understanding and spiritual practice. They are not a substitute for professional medical, legal, financial or psychological advice.'],
-        ['Reiki', 'Reiki is a complementary wellness practice. It does not diagnose or treat any medical condition. Always follow the advice of a qualified doctor.'],
-        ['Bookings', 'A booking is confirmed only after successful payment, or — for enquiries — after we confirm it with you.'],
-        ['Information you give', 'Readings depend on the accuracy of the details and photos you provide.'],
-        ['Conduct', 'We reserve the right to decline or end a consultation that becomes abusive.'],
-        ['Changes', 'We may update these terms; the version on this page applies.']
+      title: 'Terms & Conditions',
+      version: '1.0',
+      updated: '2026-11-22',
+      badge: 'Service Agreement & Client Code of Conduct',
+      sections: [
+        [
+          '1. Scope of Agreement & Acceptance',
+          'These Terms & Conditions constitute a legally binding agreement between you ("Seeker", "Devotee", or "User") and Guruji Palmistry. By accessing our website, creating a devotee account, booking a consultation, ordering a pooja or enrolling in a course, you unconditionally agree to these Terms and our incorporated Disclaimer and Privacy Policy.'
+        ],
+        [
+          '2. Eligibility & Age Verification',
+          'You must be at least 18 years of age to book paid consultations, poojas or create an account. Bookings for minors (such as child horoscope or naming ceremony analysis) must be initiated and authorized by a parent or legal guardian.'
+        ],
+        [
+          '3. Accuracy of Information Provided',
+          'Astrological computations, palm analyses and pooja sankalpas depend strictly on the precision of data provided. You represent and warrant that the date of birth, time of birth, birth city, gotram and palm images you submit are accurate and authentic to the best of your knowledge.'
+        ],
+        [
+          '4. Booking Slots & Slot Preservation',
+          'Consultation slots selected on the website are held temporarily for a 10-minute reservation window while you complete registration or sign-in. Bookings are confirmed upon successful confirmation from Cashfree Payments. If payment is not completed within the reservation window, the slot is released to other seekers.'
+        ],
+        [
+          '5. Client Conduct & Decorum',
+          'Consultations with Adiguru Swamiji are sacred, spiritual interactions conducted in mutual respect. We maintain zero tolerance for abusive, threatening, obscene, profane, defamatory or disruptive language. Guruji Palmistry reserves the right to terminate any session immediately without refund if client conduct becomes disrespectful.'
+        ],
+        [
+          '6. Intellectual Property & Study Materials',
+          'All course content, palmistry diagrams, lesson modules, written analysis reports, mantras, audio recordings and articles provided by Guruji Palmistry are protected intellectual property. They are for your personal spiritual learning only and may not be reproduced, broadcast, sold, or distributed without prior written consent.'
+        ],
+        [
+          '7. Governing Law & Exclusive Jurisdiction',
+          'These Terms and any dispute arising out of or related to our services shall be governed exclusively by the laws of India. The competent civil courts situated at Hyderabad, Telangana, India shall have exclusive jurisdiction over all legal proceedings.'
+        ]
       ]
     },
     'cancellation-refund-policy': {
-      title: 'Cancellation & Refund Policy', updated: '2026-11-21', sections: [
-        ['Consultations', 'You may reschedule a consultation once, free of charge, by contacting us at least 24 hours before the agreed time. If you cancel before the consultation has started and before any work on your reading, you are eligible for a refund.'],
-        ['Pujas and japa', 'Pujas and japa can be cancelled for a refund up to 48 hours before the scheduled date. After the Sankalpa has been taken or the ritual performed, it cannot be refunded.'],
-        ['Courses', 'Course fees are refundable before the course begins. After the course has started, please contact us.'],
-        ['Failed or duplicate payments', 'If money was deducted but the booking was not confirmed, or you were charged twice, the amount is refunded to the original payment method.'],
-        ['How refunds are paid', 'Approved refunds are made to the original payment method through Cashfree Payments, usually within 5–7 working days.'],
-        ['Contact', 'To cancel or ask about a refund: support@gurujipalmistry.org, with your booking reference.']
+      title: 'Cancellation & Refund Policy',
+      version: '1.0',
+      updated: '2026-11-22',
+      badge: 'Fair, Transparent & Devotee-Centric Policy',
+      sections: [
+        [
+          '1. Consultation Rescheduling & Cancellation',
+          '• Rescheduling: You may reschedule your consultation appointment once, free of charge, by contacting us at least 24 hours prior to your scheduled time slot.\n• Cancellation: If you cancel your consultation at least 24 hours prior to the appointment and before preparation of your astrological chart/reading has commenced, you are eligible for a 100% refund of the consultation fee.'
+        ],
+        [
+          '2. Poojas, Japas, Homams & Sevas',
+          '• Sacred rituals and poojas can be cancelled with a full refund up to 48 hours prior to the scheduled ritual date, allowing us to notify the assigned Vedic purohits.\n• Once the sacred Vedic Sankalpa has been solemnized or the ritual has commenced, pooja bookings become non-refundable as sacred offerings and priest dakshinas are irreversibly committed.'
+        ],
+        [
+          '3. Courses & Structured Study Programs',
+          'Course registration fees are refundable upon written request before the batch commencement date or release of course materials. Once structured lessons or live batch classes have begun, fees are non-refundable.'
+        ],
+        [
+          '4. Digital Reports & Horoscope Documents',
+          'Comprehensive Kundali reports and written palmistry analysis documents prepared specifically for you are personalized intellectual work. Once a digital report has been generated and delivered to your portal or email, it is non-refundable.'
+        ],
+        [
+          '5. Payment Gateway Failures & Duplicate Deductions',
+          'If funds were debited from your bank account or UPI app but your booking did not confirm, or if a technical glitch caused duplicate debits, the payment aggregator (Cashfree) will automatically reconcile and refund the amount to your original payment source within 3–5 business days.'
+        ],
+        [
+          '6. Refund Processing Timeline',
+          'Approved refunds are initiated through Cashfree Payments to the original payment method (Bank Account / UPI / Card / Wallet). The refunded amount typically reflects in your statement within 5 to 7 working days, subject to your bank\'s processing schedule.'
+        ],
+        [
+          '7. Contact for Cancellations & Refund Requests',
+          'To request a cancellation, reschedule or refund, email support@gurujipalmistry.org with your Booking Reference (e.g., GURUJI-PLM-XXXXX) and registered mobile number, or message our temple desk on WhatsApp at +91 89776 25078.'
+        ]
+      ]
+    },
+    'consent-policy': {
+      title: 'Customer Consent & Acknowledgement Policy',
+      version: '1.0',
+      updated: '2026-11-22',
+      badge: 'Informed Consent, Digital Audit & Devotee Rights',
+      sections: [
+        [
+          '1. Principle of Mandatory Informed Consent',
+          'At Guruji Palmistry, customer consent is fundamental to ethical spiritual practice. Before any devotee account is created, consultation booked, or payment processed, clients are presented with a clear, mandatory legal consent checkbox that must be affirmatively checked by the user. Pre-ticked boxes are strictly prohibited.'
+        ],
+        [
+          '2. Exact Consent Statement',
+          'Every registering seeker actively agrees to the following statutory statement:\n"I understand and agree that Guruji Palmistry provides Palmistry, Astrology, Kundali Analysis, Astro-Palmistry, Reiki, Spiritual Guidance, Poojas, Rituals and related services based on traditional, spiritual and interpretive practices. I understand that these services do not guarantee any particular prediction, result or outcome and are not substitutes for medical, psychological, financial, legal or other professional advice. I acknowledge that my decisions and actions remain my responsibility. I have read and agree to the Disclaimer, Terms & Conditions and Privacy Policy."'
+        ],
+        [
+          '3. Service-Specific Acknowledgements',
+          'In addition to general registration consent, seekers acknowledge the specific nature of individual modalities:\n• Palmistry & Astrology: Interpretive Vedic readings with no guaranteed future predictions.\n• Reiki Healing: Complementary relaxation modality that does not diagnose or replace medical healthcare.\n• Poojas & Homams: Sacred spiritual rituals performed with Vedic sankalpa without material outcome guarantees.\n• Courses: Educational spiritual learning with no commercial employment promises.'
+        ],
+        [
+          '4. Digital Consent Audit Trail',
+          'To ensure full legal compliance with the Information Technology Act 2000 and the DPDP Act 2023, Guruji Palmistry maintains an immutable digital consent audit record for every registered user. This record captures:\n• Unique Consent ID and Customer Reference\n• Full Name, Registered Mobile and Verified Email\n• Affirmative consent status for Disclaimer, Terms and Privacy Policy\n• Service-specific acknowledgements granted\n• Exact policy document versions accepted (e.g. v1.0)\n• Client IP address and browser User-Agent header\n• Precise server timestamp in UTC/IST'
+        ],
+        [
+          '5. Right to Withdraw Consent',
+          'Data Principals retain the right to withdraw their consent at any time by writing to support@gurujipalmistry.org. Withdrawal of consent does not affect the lawfulness of processing based on consent before its withdrawal. Upon withdrawal, account access is closed and data is handled in accordance with our deletion policy.'
+        ]
+      ]
+    },
+    grievance: {
+      title: 'Grievance Redressal Policy & Procedure',
+      version: '1.0',
+      updated: '2026-11-22',
+      badge: 'Time-Bound Grievance Mechanism & Escalation Matrix',
+      sections: [
+        [
+          '1. Objective & Redressal Commitment',
+          'Guruji Palmistry is dedicated to maintaining the highest ethical standards in spiritual consultation, pooja services and devotee communication. We believe every seeker deserves attentive, empathetic and transparent resolution of any grievances regarding appointments, payments, reports or data privacy.'
+        ],
+        [
+          '2. Designated Grievance Officer',
+          'In accordance with the Digital Personal Data Protection Act, 2023 and the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, our designated Grievance Redressal Officer is:\n• Officer: Grievance Officer, Guruji Palmistry\n• Registered Entity: Guruji Palmistry (Adiguru Gaushala / Sri Sankara Vidyabharathi Gowsamrakshana Charitable Trust)\n• Physical Address: 2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039, India\n• Official Email: support@gurujipalmistry.org\n• Official WhatsApp / Helpline: +91 89776 25078\n• Working Hours: Monday through Saturday, 10:00 AM – 6:00 PM IST (excluding national holidays)'
+        ],
+        [
+          '3. How to Submit a Grievance',
+          'You may submit your grievance via email to support@gurujipalmistry.org with the subject line "Grievance - [Your Booking ID or Registered Mobile]". Please provide:\n1. Your Full Name and Registered Email/Phone\n2. Order ID / Booking Reference (if applicable)\n3. Clear, chronological description of your concern\n4. Supporting documents, payment receipts or screenshots'
+        ],
+        [
+          '4. Time-Bound Resolution SLA (Service Level Agreement)',
+          '• Acknowledgment: We will formally acknowledge receipt of your grievance within 24 hours of submission and provide a unique ticket reference.\n• Investigation & Review: Our management team and Grievance Officer will investigate the facts and review consultation logs or payment gateway reports.\n• Resolution: We commit to providing a comprehensive written resolution or corrective action within 15 calendar days from the date of receipt, in accordance with DPDP Act mandates.'
+        ]
       ]
     }
   };
@@ -685,7 +884,8 @@
   const GURUJI_CONTENT = {
     version: 1,
     settings, pillars, about, serviceCategories, services, courseTracks, courses,
-    resourceCategories, resourceTypes, articles, faqCategories, testimonials, policies
+    resourceCategories, resourceTypes, articles, faqCategories, testimonials, policies,
+    policyVersions: POLICY_VERSIONS
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = GURUJI_CONTENT;

@@ -593,9 +593,136 @@
   RENDER.policy = ({ policy }) => {
     const p = (C().policies || {})[policy];
     if (!p) return false;
+
+    const allPolicies = [
+      ['disclaimer', 'Disclaimer & Legal Notice', 'fa-shield-halved'],
+      ['terms', 'Terms & Conditions', 'fa-file-contract'],
+      ['privacy-policy', 'Privacy Policy (DPDP Act)', 'fa-user-shield'],
+      ['cancellation-refund-policy', 'Cancellation & Refund', 'fa-rotate-left'],
+      ['consent-policy', 'Customer Consent Policy', 'fa-handshake-angle'],
+      ['grievance', 'Grievance Redressal', 'fa-scale-balanced']
+    ];
+
+    const currentSlug = policy;
+
     return `
-      ${hero({ title: p.title, sub: p.updated ? `Last updated ${formatDate(p.updated)}` : '', crumbs: crumbs([['Home', '/'], [p.title]]) })}
-      <section class="sp-section"><div class="sp-wrap sp-narrow sp-prose">${p.sections.map(([h, t]) => `<h2>${esc(h)}</h2><p>${esc(t)}</p>`).join('')}</div></section>`;
+      ${hero({
+        eyebrow: 'Legal Compliance & Governance',
+        title: p.title,
+        sub: `Version ${esc(p.version || '1.0')} · Last updated ${p.updated ? formatDate(p.updated) : 'November 2026'} · Legally Binding Under Indian Law`,
+        crumbs: crumbs([['Home', '/'], ['Legal', '/disclaimer'], [p.title]])
+      })}
+      <section class="sp-section py-10 sm:py-14 bg-parchment/40">
+        <div class="sp-wrap max-w-7xl">
+          <div class="grid gap-8 lg:grid-cols-[300px_1fr] items-start">
+            
+            <!-- Sidebar: Navigation & Quick Jump -->
+            <aside class="space-y-6 lg:sticky lg:top-24">
+              <div class="sp-panel bg-white border border-line rounded-2xl p-5 shadow-xs space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-line">
+                  <span class="text-xs uppercase tracking-wider font-bold text-amber-900">Legal Documents</span>
+                  <span class="sp-pill sp-pill--green text-2xs font-semibold">Active Suite</span>
+                </div>
+                <nav class="space-y-1">
+                  ${allPolicies.map(([slug, title, icon]) => `
+                    <a href="/${slug}" data-link class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition ${slug === currentSlug ? 'bg-amber-100/80 text-amber-950 font-bold border border-amber-300/80' : 'text-ink-2 hover:bg-zinc-100 hover:text-ink'}">
+                      <i class="fa-solid ${icon} text-amber-700 w-4 text-center"></i>
+                      <span>${esc(title)}</span>
+                    </a>
+                  `).join('')}
+                </nav>
+              </div>
+
+              <!-- Quick Table of Contents -->
+              <div class="sp-panel bg-white border border-line rounded-2xl p-5 shadow-xs space-y-3">
+                <span class="text-xs uppercase tracking-wider font-bold text-ink-3">Sections in this Document</span>
+                <ol class="space-y-1.5 text-xs text-ink-2">
+                  ${p.sections.map(([h], i) => `
+                    <li>
+                      <a href="#section-${i + 1}" class="hover:text-maroon transition block truncate">
+                        ${esc(h)}
+                      </a>
+                    </li>
+                  `).join('')}
+                </ol>
+              </div>
+
+              <!-- Contact & Grievance Box -->
+              <div class="sp-panel bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-200/90 rounded-2xl p-5 shadow-xs text-xs space-y-3">
+                <div class="flex items-center gap-2 text-amber-900 font-bold font-serif text-sm">
+                  <i class="fa-solid fa-scale-balanced text-amber-700"></i>
+                  <span>Grievance Officer</span>
+                </div>
+                <p class="text-ink-2 leading-relaxed">
+                  For legal notices, data privacy requests or service grievances:
+                </p>
+                <div class="space-y-1 text-2xs text-ink font-mono bg-white/80 p-2.5 rounded-lg border border-amber-200">
+                  <div><strong>Email:</strong> <a href="mailto:support@gurujipalmistry.org" class="text-maroon underline">support@gurujipalmistry.org</a></div>
+                  <div><strong>WhatsApp:</strong> <a href="https://wa.me/918977625078" target="_blank" rel="noopener" class="text-maroon underline">+91 89776 25078</a></div>
+                  <div><strong>Reg:</strong> SEA/MED/ALO/NR/1439866/2026</div>
+                </div>
+                <p class="text-2xs text-ink-3">Acknowledgement within 24 hours · Resolution within 15 days.</p>
+              </div>
+
+              <div class="flex gap-2">
+                <button type="button" onclick="window.print()" class="sp-btn-outline w-full text-xs h-10 rounded-xl flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-print"></i> Print Document
+                </button>
+              </div>
+            </aside>
+
+            <!-- Main Document Body -->
+            <main class="sp-panel bg-white border border-line rounded-3xl p-6 sm:p-10 shadow-sm space-y-8">
+              <div class="border-b border-line pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/90 text-amber-900 font-bold text-2xs uppercase tracking-wider border border-amber-300">
+                    <i class="fa-solid fa-stamp text-amber-700"></i> ${esc(p.badge || 'Official Website Policy')}
+                  </span>
+                  <h1 class="font-serif text-2xl sm:text-3xl font-bold text-ink mt-2">${esc(p.title)}</h1>
+                </div>
+                <div class="text-right text-xs text-ink-3 shrink-0">
+                  <div>Effective Date: <strong>${p.updated ? formatDate(p.updated) : '22 Nov 2026'}</strong></div>
+                  <div>Jurisdiction: <strong>Hyderabad, Telangana, India</strong></div>
+                </div>
+              </div>
+
+              <!-- Document Sections -->
+              <div class="space-y-8 divide-y divide-line/70">
+                ${p.sections.map(([heading, body], idx) => `
+                  <article id="section-${idx + 1}" class="${idx > 0 ? 'pt-8' : ''} space-y-3 scroll-mt-28">
+                    <h2 class="font-serif text-lg sm:text-xl font-bold text-amber-950 flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-900 text-xs font-mono font-bold flex items-center justify-center shrink-0">${idx + 1}</span>
+                      <span>${esc(heading.replace(/^\d+\.\s*/, ''))}</span>
+                    </h2>
+                    <div class="text-ink-2 text-sm sm:text-[15px] leading-relaxed whitespace-pre-line pl-9">
+                      ${esc(body)}
+                    </div>
+                  </article>
+                `).join('')}
+              </div>
+
+              <!-- Footer Statement -->
+              <div class="mt-10 p-5 bg-parchment/60 rounded-2xl border border-line text-xs text-ink-3 space-y-2">
+                <div class="font-semibold text-ink">Guruji Palmistry Legal Compliance & Governance</div>
+                <p>
+                  This document forms part of the master terms governing your use of gurujipalmistry.org and all consultation, healing and Vedic ritual services provided thereunder. For questions or certified copies of registration certificates, please contact our administrative desk.
+                </p>
+                <div class="pt-2 flex flex-wrap gap-4 text-maroon font-medium">
+                  <a href="/disclaimer" data-link class="underline hover:text-amber-700">Disclaimer</a>
+                  <a href="/terms" data-link class="underline hover:text-amber-700">Terms &amp; Conditions</a>
+                  <a href="/privacy-policy" data-link class="underline hover:text-amber-700">Privacy Policy</a>
+                  <a href="/cancellation-refund-policy" data-link class="underline hover:text-amber-700">Refund Policy</a>
+                  <a href="/consent-policy" data-link class="underline hover:text-amber-700">Consent Policy</a>
+                  <a href="/grievance" data-link class="underline hover:text-amber-700">Grievance Redressal</a>
+                </div>
+              </div>
+
+            </main>
+
+          </div>
+        </div>
+      </section>
+    `;
   };
 
   // --- Contact & enquiry ---------------------------------------------------
@@ -975,7 +1102,7 @@
     [/^\/resources\/([a-z0-9-]+)$/, 'article', ['slug']],
     [/^\/faqs$/, 'faqs'],
     [/^\/contact$/, 'contact'],
-    [/^\/(privacy-policy|terms|cancellation-refund-policy)$/, 'policy', ['policy']],
+    [/^\/(disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance)$/, 'policy', ['policy']],
     [/^\/palmistry$/, 'palmistry'],
     [/^\/mantras$/, 'mantras'],
     [/^\/book\/consultation$/, 'book-consultation'],
@@ -994,7 +1121,9 @@
   ];
   const STATIC_PATHS = {
     home: '/', about: '/about', services: '/services', reiki: '/reiki-healing', courses: '/courses', resources: '/resources',
-    faqs: '/faqs', contact: '/contact', palmistry: '/palmistry', mantras: '/mantras', 'book-consultation': '/book/consultation',
+    faqs: '/faqs', contact: '/contact', disclaimer: '/disclaimer', 'privacy-policy': '/privacy-policy', terms: '/terms',
+    'cancellation-refund-policy': '/cancellation-refund-policy', 'consent-policy': '/consent-policy', grievance: '/grievance',
+    palmistry: '/palmistry', mantras: '/mantras', 'book-consultation': '/book/consultation',
     'book-pooja': '/book/pooja', 'book-status': '/track', account: '/account', admin: '/admin', search: '/search', guruji: '/guruji',
     'book-payment': '/book/payment', 'book-upload': '/book/upload'
   };
@@ -1002,7 +1131,8 @@
   const NAV_FOR = {
     home: 'home', about: 'about', services: 'services', 'service-category': 'services', 'service-detail': 'services', reiki: 'reiki',
     courses: 'courses', 'course-detail': 'courses', resources: 'resources', article: 'resources', mantras: 'resources', 'mantra-detail': 'resources',
-    palmistry: 'resources', faqs: 'faqs', contact: 'contact', account: 'account', 'book-consultation': 'services', 'book-pooja': 'services'
+    palmistry: 'resources', faqs: 'faqs', contact: 'contact', account: 'account', 'book-consultation': 'services', 'book-pooja': 'services',
+    policy: 'about'
   };
 
   function matchRoute(pathname) {
@@ -2074,6 +2204,26 @@
     } catch (err) { toast(err.message, 'error'); }
   };
 
+  window.adminExportConsents = async function () {
+    try {
+      const headers = {};
+      if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
+      if (ADMIN.token) headers['x-admin-token'] = ADMIN.token;
+      const res = await fetch('/api/admin/consents/export', { headers });
+      if (!res.ok) throw new Error('Failed to export consent records');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `guruji_consent_records_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast('Consent log exported successfully.');
+    } catch (err) { toast(err.message, 'error'); }
+  };
+
   async function adminLoad() {
     const tab = ADMIN.tab;
     const host = $('#adm-body');
@@ -2083,6 +2233,10 @@
         const f = ADMIN.filters[tab] || {};
         const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
         ADMIN.data = await adminFetch(`/api/admin/${tab}${qs ? '?' + qs : ''}`);
+      } else if (tab === 'consents') {
+        const f = ADMIN.filters.consents || {};
+        const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
+        ADMIN.data = await adminFetch(`/api/admin/consents${qs ? '?' + qs : ''}`);
       } else if (tab === 'images') {
         ADMIN.data = await adminFetch('/api/admin/media');
       } else {
@@ -2100,6 +2254,73 @@
   function renderAdminBody() {
     const host = $('#adm-body');
     const tab = ADMIN.tab;
+    if (tab === 'consents') {
+      const rows = ADMIN.data.consents || [];
+      const f = ADMIN.filters.consents || {};
+      host.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <form class="sp-filter flex-1" onsubmit="event.preventDefault(); adminFilter(this)">
+            <div class="sp-filter__search"><i class="fa-solid fa-magnifying-glass"></i><input name="q" value="${esc(f.q || '')}" placeholder="Search name, mobile, email, consent ID…"></div>
+            <select name="serviceType" onchange="adminFilter(this.form)">
+              <option value="">All services</option>
+              <option value="general" ${f.serviceType === 'general' ? 'selected' : ''}>General / Account</option>
+              <option value="consultation" ${f.serviceType === 'consultation' ? 'selected' : ''}>Consultation</option>
+              <option value="pooja" ${f.serviceType === 'pooja' ? 'selected' : ''}>Pooja &amp; Rituals</option>
+              <option value="course" ${f.serviceType === 'course' ? 'selected' : ''}>Courses</option>
+            </select>
+            <button class="sp-btn-outline">Filter</button>
+          </form>
+          <button type="button" class="gold-gradient-btn h-10 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shrink-0 shadow-xs" onclick="adminExportConsents()">
+            <i class="fa-solid fa-file-csv"></i> <span>Export CSV</span>
+          </button>
+        </div>
+        <p class="text-sm text-ink-3 my-3">${rows.length} consent records found (Immutable Audit Trail)</p>
+        <div class="overflow-x-auto bg-white rounded-2xl border border-line shadow-xs">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-amber-50/70 text-amber-950 font-bold border-b border-line uppercase tracking-wider text-[11px]">
+              <tr>
+                <th class="p-3">Timestamp (IST)</th>
+                <th class="p-3">Devotee Name</th>
+                <th class="p-3">Contact Details</th>
+                <th class="p-3 text-center">Consents Granted</th>
+                <th class="p-3">Service</th>
+                <th class="p-3">Source</th>
+                <th class="p-3">IP Address</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line text-ink-2">
+              ${rows.map(c => `
+                <tr class="hover:bg-parchment/40 transition">
+                  <td class="p-3 font-mono text-2xs whitespace-nowrap text-ink-3">
+                    ${esc(c.timestamp ? new Date(c.timestamp).toLocaleString('en-IN') : '—')}
+                  </td>
+                  <td class="p-3 font-semibold text-ink">
+                    ${esc(c.name || 'Anonymous')}
+                    <div class="font-mono text-2xs text-ink-3">${esc(c.id || '')}</div>
+                  </td>
+                  <td class="p-3 whitespace-nowrap">
+                    <div><a href="tel:${esc(c.mobile)}" class="text-maroon hover:underline font-mono">${esc(c.mobile ? '+91 ' + c.mobile : '—')}</a></div>
+                    <div class="text-2xs text-ink-3">${esc(c.email || '—')}</div>
+                  </td>
+                  <td class="p-3 text-center">
+                    <div class="inline-flex items-center gap-1">
+                      <span class="sp-pill sp-pill--green text-2xs" title="Disclaimer, Terms & Privacy Accepted">Legal suite: Yes</span>
+                      ${c.serviceSpecificAcknowledgement ? '<span class="sp-pill sp-pill--gold text-2xs" title="Service Specific Acknowledged">Service: Yes</span>' : ''}
+                    </div>
+                  </td>
+                  <td class="p-3 capitalize">${esc(c.serviceType || 'general')}</td>
+                  <td class="p-3">
+                    <span class="sp-pill sp-pill--muted text-2xs">${esc(c.consentSource || 'portal')}</span>
+                  </td>
+                  <td class="p-3 font-mono text-2xs text-ink-3 whitespace-nowrap">${esc(c.ip || '—')}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="7" class="p-6 text-center text-ink-3">No consent records found.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+      return;
+    }
     if (tab === 'bookings' || tab === 'enquiries') {
       const isB = tab === 'bookings';
       const rows = ADMIN.data[tab] || [];
@@ -2389,7 +2610,9 @@
     }
     const owner = ADMIN.role === 'owner';
     const tabs = [
-      owner && ['bookings', 'Bookings', 'fa-calendar-check'], owner && ['enquiries', 'Enquiries', 'fa-envelope-open-text'],
+      owner && ['bookings', 'Bookings', 'fa-calendar-check'],
+      owner && ['enquiries', 'Enquiries', 'fa-envelope-open-text'],
+      owner && ['consents', 'Consent Records', 'fa-shield-halved'],
       ['services', 'Services & pricing', 'fa-hand'], ['serviceCategories', 'Service categories', 'fa-layer-group'], ['courses', 'Courses', 'fa-graduation-cap'],
       ['articles', 'Articles', 'fa-newspaper'], ['faqCategories', 'FAQs', 'fa-circle-question'], ['testimonials', 'Testimonials', 'fa-quote-left'],
       ['about', 'About Guruji', 'fa-user'], ['pillars', 'Home pillars', 'fa-table-columns'], ['settings', 'Settings & homepage', 'fa-gear'],

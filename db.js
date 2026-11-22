@@ -29,6 +29,7 @@ const CONTENT_FILE = path.join(DATA_DIR, 'content.json');
 const MEDIA_FILE = path.join(DATA_DIR, 'media.json');
 const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const CONSENTS_FILE = path.join(DATA_DIR, 'consents.json');
 
 /** Applies admin list filters (status / type / text) to bookings or enquiries. */
 function filterRecords(list, { status, type, q } = {}) {
@@ -274,6 +275,68 @@ class FileStore {
       return (cleanMobile && m === cleanMobile) || (cleanEmail && e === cleanEmail);
     }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }
+
+  // Customer legal consents
+  async recordConsent(data) {
+    const all = readJson(CONSENTS_FILE, []);
+    const consent = {
+      id: 'cst_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      customerId: data.customerId || '',
+      name: data.name || '',
+      email: (data.email || '').toLowerCase().trim(),
+      mobile: (data.mobile || '').replace(/\D/g, '').slice(-10),
+      disclaimerAccepted: Boolean(data.disclaimerAccepted !== false),
+      termsAccepted: Boolean(data.termsAccepted !== false),
+      privacyAccepted: Boolean(data.privacyAccepted !== false),
+      serviceSpecificAcknowledgement: Boolean(data.serviceSpecificAcknowledgement),
+      serviceType: data.serviceType || 'general',
+      documentVersions: data.documentVersions || {
+        disclaimer: '1.0',
+        terms: '1.0',
+        privacy: '1.0',
+        refund: '1.0',
+        consentPolicy: '1.0',
+        grievance: '1.0'
+      },
+      consentSource: data.consentSource || 'portal_signup',
+      ip: data.ip || '127.0.0.1',
+      userAgent: data.userAgent || '',
+      timestamp: data.timestamp || new Date().toISOString()
+    };
+    all.unshift(consent);
+    writeJson(CONSENTS_FILE, all);
+    return consent;
+  }
+  async listConsents(filter = {}, limit = 100) {
+    let all = readJson(CONSENTS_FILE, []);
+    const { q, serviceType, startDate, endDate } = filter;
+    if (serviceType) {
+      all = all.filter(c => c.serviceType === serviceType);
+    }
+    if (startDate) {
+      all = all.filter(c => c.timestamp >= startDate);
+    }
+    if (endDate) {
+      all = all.filter(c => c.timestamp <= endDate);
+    }
+    if (q) {
+      const clean = q.toLowerCase().trim();
+      all = all.filter(c =>
+        (c.name && c.name.toLowerCase().includes(clean)) ||
+        (c.email && c.email.toLowerCase().includes(clean)) ||
+        (c.mobile && c.mobile.includes(clean)) ||
+        (c.id && c.id.toLowerCase().includes(clean))
+      );
+    }
+    return all.slice(0, limit);
+  }
+  async getConsentHistory(customerId) {
+    if (!customerId) return [];
+    const all = readJson(CONSENTS_FILE, []);
+    const clean = String(customerId).trim().toLowerCase();
+    const mobile = clean.replace(/\D/g, '').slice(-10);
+    return all.filter(c => c.customerId === customerId || c.email === clean || (mobile && c.mobile === mobile));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +362,7 @@ class MongoStore {
     this.media = this.db.collection('media');
     this.messages = this.db.collection('messages');
     this.users = this.db.collection('users');
+    this.consents = this.db.collection('consents');
 
     await Promise.all([
       this.mantras.createIndex({ id: 1 }, { unique: true }),
@@ -315,7 +379,12 @@ class MongoStore {
       this.messages.createIndex({ from: 1, readAt: 1 }),
       this.users.createIndex({ id: 1 }, { unique: true }),
       this.users.createIndex({ email: 1 }),
-      this.users.createIndex({ mobile: 1 })
+      this.users.createIndex({ mobile: 1 }),
+      this.consents.createIndex({ id: 1 }, { unique: true }),
+      this.consents.createIndex({ customerId: 1 }),
+      this.consents.createIndex({ email: 1 }),
+      this.consents.createIndex({ mobile: 1 }),
+      this.consents.createIndex({ timestamp: -1 })
     ]);
     await this.seedMantrasIfEmpty();
     return this;
@@ -391,7 +460,7 @@ class MongoStore {
 
   // Reviews
   async listReviews(limit) {
-    const docs = await this.reviews.find({}).sort({ createdAt: -1 }).limit(limit).toArray();
+    const docs = await this.reviews.find({}).sort({ createdAt: -1, _id: -1 }).limit(limit).toArray();
     return docs.map(stripMongoId);
   }
   async createReview(review) {
@@ -516,6 +585,60 @@ class MongoStore {
     if (cleanEmail) or.push({ 'devotee.email': cleanEmail });
     if (!or.length) return [];
     const docs = await this.bookings.find({ $or: or }).sort({ createdAt: -1 }).toArray();
+    return docs.map(stripMongoId);
+  }
+
+  // Customer legal consents
+  async recordConsent(data) {
+    const consent = {
+      id: 'cst_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      customerId: data.customerId || '',
+      name: data.name || '',
+      email: (data.email || '').toLowerCase().trim(),
+      mobile: (data.mobile || '').replace(/\D/g, '').slice(-10),
+      disclaimerAccepted: Boolean(data.disclaimerAccepted !== false),
+      termsAccepted: Boolean(data.termsAccepted !== false),
+      privacyAccepted: Boolean(data.privacyAccepted !== false),
+      serviceSpecificAcknowledgement: Boolean(data.serviceSpecificAcknowledgement),
+      serviceType: data.serviceType || 'general',
+      documentVersions: data.documentVersions || {
+        disclaimer: '1.0',
+        terms: '1.0',
+        privacy: '1.0',
+        refund: '1.0',
+        consentPolicy: '1.0',
+        grievance: '1.0'
+      },
+      consentSource: data.consentSource || 'portal_signup',
+      ip: data.ip || '127.0.0.1',
+      userAgent: data.userAgent || '',
+      timestamp: data.timestamp || new Date().toISOString()
+    };
+    await this.consents.insertOne({ ...consent });
+    return consent;
+  }
+  async listConsents(filter = {}, limit = 100) {
+    const query = {};
+    if (filter.serviceType) query.serviceType = filter.serviceType;
+    if (filter.startDate || filter.endDate) {
+      query.timestamp = {};
+      if (filter.startDate) query.timestamp.$gte = filter.startDate;
+      if (filter.endDate) query.timestamp.$lte = filter.endDate;
+    }
+    if (filter.q) {
+      const rx = new RegExp(filter.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [{ name: rx }, { email: rx }, { mobile: rx }, { id: rx }];
+    }
+    const docs = await this.consents.find(query).sort({ timestamp: -1 }).limit(limit).toArray();
+    return docs.map(stripMongoId);
+  }
+  async getConsentHistory(customerId) {
+    if (!customerId) return [];
+    const clean = String(customerId).trim().toLowerCase();
+    const mobile = clean.replace(/\D/g, '').slice(-10);
+    const or = [{ customerId }, { email: clean }];
+    if (mobile.length === 10) or.push({ mobile });
+    const docs = await this.consents.find({ $or: or }).sort({ timestamp: -1 }).toArray();
     return docs.map(stripMongoId);
   }
 }

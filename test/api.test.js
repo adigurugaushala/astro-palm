@@ -350,6 +350,67 @@ for (const backend of ['mongodb', 'file']) {
       assert.ok(!xml.includes('/admin'), 'the admin page is not in the sitemap');
     });
 
+    test('customer registration requires mandatory consent and stores consent record', async () => {
+      // 1. Missing consent is rejected with 400
+      const noConsent = await call('POST', '/api/customer/register', {
+        name: 'Suresh Sharma',
+        mobile: '9876543210',
+        email: 'suresh@example.com',
+        password: 'password123'
+      });
+      assert.equal(noConsent.status, 400, 'must reject registration without consent');
+      assert.match(noConsent.body.error, /consent/i);
+
+      // 2. Explicit consent: false is rejected with 400
+      const falseConsent = await call('POST', '/api/customer/register', {
+        name: 'Suresh Sharma',
+        mobile: '9876543210',
+        email: 'suresh@example.com',
+        password: 'password123',
+        consent: false
+      });
+      assert.equal(falseConsent.status, 400);
+
+      // 3. Valid consent: true succeeds with 200 and issues token & consentId
+      const valid = await call('POST', '/api/customer/register', {
+        name: 'Suresh Sharma',
+        mobile: '9876543210',
+        email: 'suresh@example.com',
+        password: 'password123',
+        consent: true,
+        disclaimerAccepted: true,
+        termsAccepted: true,
+        privacyAccepted: true,
+        serviceAcknowledgement: true,
+        serviceType: 'consultation',
+        consentSource: 'portal_signup'
+      });
+      assert.equal(valid.status, 200);
+      assert.ok(valid.body.token);
+      assert.ok(valid.body.consentId);
+      assert.equal(valid.body.customer.name, 'Suresh Sharma');
+
+      // 4. Admin can list consent records
+      const adminConsents = await call('GET', '/api/admin/consents?q=Suresh', null, admin);
+      assert.equal(adminConsents.status, 200);
+      assert.ok(adminConsents.body.consents.length >= 1);
+      const record = adminConsents.body.consents.find(c => c.email === 'suresh@example.com');
+      assert.ok(record);
+      assert.equal(record.disclaimerAccepted, true);
+      assert.equal(record.termsAccepted, true);
+      assert.equal(record.privacyAccepted, true);
+      assert.equal(record.documentVersions.disclaimer, '1.0');
+
+      // 5. Admin can export CSV of consents
+      const csvRes = await fetch(base + '/api/admin/consents/export', { headers: admin });
+      assert.equal(csvRes.status, 200);
+      assert.match(csvRes.headers.get('content-type'), /text\/csv/);
+      const csvText = await csvRes.text();
+      assert.ok(csvText.includes('Suresh Sharma'));
+      assert.ok(csvText.includes('suresh@example.com'));
+      assert.ok(csvText.includes('ID,Timestamp,Customer ID,Name,Email,Mobile'));
+    });
+
     test('unknown routes and methods', async () => {
       assert.equal((await call('GET', '/api/nope')).status, 404);
       assert.equal((await call('DELETE', '/api/reviews')).status, 405);
@@ -359,7 +420,7 @@ for (const backend of ['mongodb', 'file']) {
         assert.equal((await fetch(base + f)).status, 404, `${f} is not downloadable`);
       }
       // page addresses of the single-page site all serve the app
-      for (const p of ['/about', '/services/astro-palmistry-correlation', '/reiki-healing', '/courses', '/resources', '/faqs', '/contact', '/track']) {
+      for (const p of ['/about', '/services/astro-palmistry-correlation', '/reiki-healing', '/courses', '/resources', '/faqs', '/contact', '/track', '/disclaimer', '/terms', '/privacy-policy', '/cancellation-refund-policy', '/consent-policy', '/grievance']) {
         const res = await fetch(base + p);
         assert.equal(res.status, 200, p);
         assert.match(res.headers.get('content-type'), /text\/html/);
