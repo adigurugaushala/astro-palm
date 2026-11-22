@@ -20,6 +20,9 @@ process.env.JITSI_APP_ID = '';
 process.env.JITSI_PRIVATE_KEY = '';
 process.env.JITSI_APP_SECRET = '';
 process.env.JITSI_KID = '';
+process.env.CASHFREE_APP_ID = '';
+process.env.CASHFREE_SECRET_KEY = '';
+process.env.PAYMENT_MODE = 'simulated';
 
 const { createServer, slotStartISO } = require('../server');
 const { createStore } = require('../db');

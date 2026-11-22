@@ -16,7 +16,10 @@ process.env.GURUJI_DATA_DIR = tmp;
 process.env.GURUJI_SEED_FILE = path.join(tmp, 'mantras-data.js');
 process.env.ADMIN_PIN = 'test-pin-4321';
 process.env.RATE_LIMIT_MULTIPLIER = '100';
-delete process.env.MONGODB_URI;
+process.env.MONGODB_URI = '';
+process.env.CASHFREE_APP_ID = '';
+process.env.CASHFREE_SECRET_KEY = '';
+process.env.PAYMENT_MODE = 'simulated';
 
 const { createServer } = require('../server');
 const { createStore } = require('../db');

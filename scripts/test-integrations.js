@@ -1,6 +1,7 @@
 // scripts/test-integrations.js
 // Comprehensive live verification of MongoDB Atlas, Google Firebase,
-// Jitsi as a Service (JaaS 8x8 RS256), and core platform HTTP APIs.
+// Jitsi as a Service (JaaS 8x8 RS256), Cashfree Payments Gateway (Production),
+// and core platform HTTP APIs.
 
 'use strict';
 
@@ -27,6 +28,7 @@ const { MongoClient } = require('mongodb');
 const { createServer } = require('../server');
 const { createStore } = require('../db');
 const { jitsiConfig, newRoomName, sessionWindow, sessionToken } = require('../session');
+const { cashfreeConfig, createCashfree } = require('../payments');
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB || 'guruji';
@@ -60,6 +62,7 @@ async function runTests() {
   let mongoSuccess = false;
   let firebaseSuccess = false;
   let jitsiSuccess = false;
+  let cashfreeSuccess = false;
   let apiSuccess = false;
 
   // ---------------------------------------------------------------------------
@@ -236,9 +239,56 @@ async function runTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // 4. TEST SERVER CORE HTTP APIS (Live End-to-End)
+  // 4. TEST CASHFREE PAYMENTS GATEWAY (Production PG API v2023-08-01)
   // ---------------------------------------------------------------------------
-  console.log('--- 4. Testing Platform Server APIs (Live End-to-End) ---');
+  console.log('--- 4. Testing Cashfree Payments Gateway (Production API) ---');
+  try {
+    const cfCfg = cashfreeConfig();
+    console.log(`[INFO] Cashfree Mode: ${cfCfg.mode.toUpperCase()}`);
+    console.log(`[INFO] App ID: ${cfCfg.appId ? cfCfg.appId.slice(0, 8) + '...' : 'MISSING'}`);
+    console.log(`[INFO] Base URL: ${cfCfg.baseUrl}`);
+    console.log(`[INFO] API Version: ${cfCfg.apiVersion}`);
+
+    if (!cfCfg.enabled) throw new Error('Cashfree credentials are not configured in .env');
+
+    const cf = createCashfree(cfCfg);
+
+    // Create a live test order on Cashfree Production
+    const testOrderId = 'DIAG_' + Date.now().toString(36).toUpperCase();
+    console.log(`[PASS] Creating live verification order: ${testOrderId} (₹1.00)...`);
+    const orderResult = await cf.createOrder({
+      orderId: testOrderId,
+      amount: 1,
+      customer: {
+        phone: '918977625078',
+        name: 'Guruji Devotee Test',
+        email: 'gurujipalmistry@gmail.com'
+      },
+      returnUrl: 'https://gurujipalmistry.org/booking/success?order_id={order_id}',
+      note: 'Live Integration Diagnostic Verification'
+    });
+
+    if (!orderResult.paymentSessionId) throw new Error('No payment_session_id returned by Cashfree');
+    console.log('[PASS] Cashfree POST /orders -> HTTP 200 OK');
+    console.log(`[PASS] Cashfree Payment Session ID: ${orderResult.paymentSessionId.slice(0, 36)}...`);
+
+    // Verify order lookup
+    const orderStatus = await cf.getOrder(testOrderId);
+    if (orderStatus.status !== 'ACTIVE') throw new Error(`Unexpected order status: ${orderStatus.status}`);
+    console.log(`[PASS] Cashfree GET /orders/${testOrderId} -> Verified active:`);
+    console.log(`       - Status: ${orderStatus.status}`);
+    console.log(`       - Amount: ₹${orderStatus.amount} ${orderStatus.currency}`);
+
+    cashfreeSuccess = true;
+    console.log('>>> Cashfree Payments: 🟢 100% OPERATIONAL (Production Mode)\n');
+  } catch (err) {
+    console.error('>>> Cashfree Payments: 🔴 FAILED:', err.message, '\n');
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. TEST PLATFORM SERVER CORE HTTP APIS (Live End-to-End)
+  // ---------------------------------------------------------------------------
+  console.log('--- 5. Testing Platform Server APIs (Live End-to-End) ---');
   let testServer = null;
   let store = null;
   try {
@@ -258,6 +308,8 @@ async function runTests() {
           path: u.pathname + u.search,
           method,
           headers: {
+            'X-Forwarded-Proto': 'https',
+            'X-Forwarded-Host': 'gurujipalmistry.org',
             ...(body ? { 'Content-Type': 'application/json' } : {}),
             ...headers
           }
@@ -276,34 +328,34 @@ async function runTests() {
       });
     }
 
-    // 4.1 Health Check API
+    // 5.1 Health Check API
     const health = await apiCall('/api/health');
     if (health.status !== 200 || !health.json.ok) throw new Error('Health check failed');
-    console.log('[PASS] GET /api/health -> HTTP 200 OK, storage:', health.json.storage);
+    console.log(`[PASS] GET /api/health -> HTTP 200 OK (storage: ${health.json.storage}, payments: ${health.json.payments})`);
 
-    // 4.2 Content API
+    // 5.2 Content API
     const content = await apiCall('/api/content');
     if (content.status !== 200) throw new Error('Content API failed');
     console.log('[PASS] GET /api/content -> HTTP 200 OK (Temple & Guruji content served)');
 
-    // 4.3 Mantras Library API
+    // 5.3 Mantras Library API
     const mantras = await apiCall('/api/mantras');
     if (mantras.status !== 200 || !Array.isArray(mantras.json.mantras)) throw new Error('Mantras API failed');
     console.log(`[PASS] GET /api/mantras -> HTTP 200 OK (${mantras.json.mantras.length} authentic Vedic mantras served across ${mantras.json.categories.length} categories)`);
 
-    // 4.4 Admin Authentication API
+    // 5.4 Admin Authentication API
     const adminVerify = await apiCall('/api/admin/verify', 'POST', null, { 'X-Admin-Pin': process.env.ADMIN_PIN });
     if (adminVerify.status !== 200 || !adminVerify.json.ok) throw new Error('Admin PIN verification failed');
     console.log(`[PASS] POST /api/admin/verify -> HTTP 200 OK (Admin PIN verified, role: ${adminVerify.json.role})`);
 
-    // 4.5 Pooja Slots API (requires a future date in IST)
+    // 5.5 Pooja Slots API (requires a future date in IST)
     const tomorrow = new Date(Date.now() + 86400000);
     const poojaDate = new Date(tomorrow.getTime() + 330 * 60000).toISOString().slice(0, 10);
     const slots = await apiCall(`/api/pooja-slots?date=${poojaDate}`);
     if (slots.status !== 200 || !Array.isArray(slots.json.slots)) throw new Error('Pooja slots failed');
     console.log(`[PASS] GET /api/pooja-slots?date=${poojaDate} -> HTTP 200 OK (${slots.json.slots.length} available slots for tomorrow)`);
 
-    // 4.6 Booking Creation API (Slot 5 minutes from now so consultation window is currently open)
+    // 5.6 Booking Creation API (Slot 5 minutes from now so consultation window is open)
     const slotWhen = new Date(Date.now() + 5 * 60000);
     const slotIst = new Date(slotWhen.getTime() + 330 * 60000);
     const slotIso = slotIst.toISOString().slice(0, 10);
@@ -329,14 +381,24 @@ async function runTests() {
     const orderId = booking.orderId;
     console.log(`[PASS] POST /api/bookings -> HTTP 201 Created (Order ID: ${orderId}, Room: ${booking.roomName})`);
 
-    // 4.7 Video Session API (Test Jitsi Token Delivery over API)
-    // First simulate payment success so booking is confirmed
-    await apiCall(`/api/bookings/${orderId}`, 'PATCH', {
-      event: 'payment_success',
+    // 5.7 Payment API (Creates real Cashfree Payment Session for the booking!)
+    const payInitRes = await apiCall(`/api/bookings/${orderId}/payment`, 'POST', {
       mobile: '918977625078'
     });
+    if (payInitRes.status !== 200 || !payInitRes.json.paymentSessionId) {
+      throw new Error(`Payment session creation failed: HTTP ${payInitRes.status} ${payInitRes.data}`);
+    }
+    console.log(`[PASS] POST /api/bookings/${orderId}/payment -> HTTP 200 OK:`);
+    console.log(`       - Payment Mode: ${payInitRes.json.mode}`);
+    console.log(`       - Cashfree Payment Session: ${payInitRes.json.paymentSessionId.slice(0, 36)}...`);
 
-    // 4.7.1 Devotee Token Call
+    // Mark as paid via Admin API for session testing
+    await apiCall(`/api/admin/bookings/${orderId}`, 'PATCH', {
+      status: 'PAID'
+    }, { 'X-Admin-Pin': process.env.ADMIN_PIN });
+
+    // 5.8 Video Session API (Test Jitsi Token Delivery over API)
+    // 5.8.1 Devotee Token Call
     const devoteeSessionRes = await apiCall(`/api/bookings/${orderId}/session?mobile=918977625078`);
     if (devoteeSessionRes.status !== 200 || !devoteeSessionRes.json.jwt) {
       throw new Error(`Devotee session call failed: HTTP ${devoteeSessionRes.status} ${devoteeSessionRes.data}`);
@@ -349,7 +411,7 @@ async function runTests() {
     console.log(`       - Role: ${devS.role}`);
     console.log(`       - Devotee JaaS RS256 JWT Token: ${devS.jwt.slice(0, 36)}... (${devS.jwt.length} bytes)`);
 
-    // 4.7.2 Guruji (Moderator) Token Call
+    // 5.8.2 Guruji (Moderator) Token Call
     const gurujiSessionRes = await apiCall(`/api/bookings/${orderId}/session`, 'GET', null, {
       'X-Admin-Pin': process.env.GURUJI_PIN
     });
@@ -361,7 +423,7 @@ async function runTests() {
     console.log(`       - Role: ${gurS.role}`);
     console.log(`       - Guruji Moderator JaaS RS256 JWT Token: ${gurS.jwt.slice(0, 36)}... (${gurS.jwt.length} bytes)`);
 
-    // 4.8 Reviews API
+    // 5.9 Reviews API
     const reviews = await apiCall('/api/reviews');
     if (reviews.status !== 200 || !Array.isArray(reviews.json.reviews)) throw new Error('Reviews API failed');
     console.log(`[PASS] GET /api/reviews -> HTTP 200 OK (${reviews.json.reviews.length} devotee reviews)`);
@@ -383,10 +445,11 @@ async function runTests() {
   // ---------------------------------------------------------------------------
   console.log('================================================================');
   console.log('FINAL SYSTEM STATUS:');
-  console.log('MongoDB Atlas:   ', mongoSuccess ? '🟢 100% SUCCESS (Read/Write verified)' : '🔴 FAILED');
-  console.log('Google Firebase: ', firebaseSuccess ? '🟢 100% SUCCESS (Auth & REST API active)' : '🔴 FAILED');
-  console.log('Jitsi JaaS (8x8):', jitsiSuccess ? '🟢 100% SUCCESS (RS256 JWT Signed & Verified)' : '🔴 FAILED');
-  console.log('Core HTTP APIs:  ', apiSuccess ? '🟢 100% SUCCESS (All endpoints responding)' : '🔴 FAILED');
+  console.log('MongoDB Atlas:       ', mongoSuccess ? '🟢 100% SUCCESS (Read/Write verified)' : '🔴 FAILED');
+  console.log('Google Firebase:     ', firebaseSuccess ? '🟢 100% SUCCESS (Auth & REST API active)' : '🔴 FAILED');
+  console.log('Jitsi JaaS (8x8):    ', jitsiSuccess ? '🟢 100% SUCCESS (RS256 JWT Signed & Verified)' : '🔴 FAILED');
+  console.log('Cashfree PG (Prod):  ', cashfreeSuccess ? '🟢 100% SUCCESS (Order Created & Active)' : '🔴 FAILED');
+  console.log('Core Platform APIs:  ', apiSuccess ? '🟢 100% SUCCESS (All endpoints responding)' : '🔴 FAILED');
   console.log('================================================================');
   process.exit(0);
 }
