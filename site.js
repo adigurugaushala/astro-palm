@@ -24,7 +24,7 @@
   // -------------------------------------------------------------------------
   const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const $ = (sel, root = document) => root.querySelector(sel);
-  const priceText = (p) => (Number(p) > 0 ? '₹' + Number(p).toLocaleString('en-IN') : 'Price on request');
+  const priceText = (p) => (window.TEST_ONE_RUPEE && Number(p) > 0 ? '₹1' : Number(p) > 0 ? '₹' + Number(p).toLocaleString('en-IN') : 'Price on request');
   const category = (id) => (C().serviceCategories || []).find(c => c.id === id);
   const servicesIn = (cat) => (C().services || []).filter(s => s.category === cat && s.published !== false);
   const serviceBySlug = (slug) => (C().services || []).find(s => s.slug === slug && s.published !== false);
@@ -2493,10 +2493,20 @@
       fetchJson('/api/content').catch(() => null),
       fetchJson('/api/health').catch(() => null)
     ]);
-    if (health) { SITE.payments = health.payments; SITE.paymentEnv = health.paymentEnv; SITE.serverOnline = true; }
+    if (health) {
+      SITE.payments = health.payments; SITE.paymentEnv = health.paymentEnv; SITE.serverOnline = true;
+      if (health.testOneRupee) {
+        window.TEST_ONE_RUPEE = true;
+        if (typeof applyOneRupeeUI === 'function') applyOneRupeeUI();
+      }
+    }
     refreshPaymentPage();
     if (content && content.content) {
       SITE.content = Object.assign({}, window.GURUJI_CONTENT, content.content);
+      if (content.content.testOneRupee) {
+        window.TEST_ONE_RUPEE = true;
+        if (typeof applyOneRupeeUI === 'function') applyOneRupeeUI();
+      }
       applySettings();
       // Re-render the current content page with the latest edits
       const cur = window.state && state.currentPage;

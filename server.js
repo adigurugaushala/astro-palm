@@ -120,6 +120,11 @@ const POOJA_SLOT_CAPACITY = Math.max(1, Number(process.env.POOJA_SLOT_CAPACITY) 
 const POOJA_BOOKING_WINDOW_DAYS = 90;
 const PENDING_HOLD_MINUTES = 15; // an unpaid booking keeps its slot this long
 
+// Manual testing toggle: prices all services at ₹1 for live PG/UPI testing
+const TEST_ONE_RUPEE = process.env.NODE_ENV !== 'test' && (process.env.TEST_ONE_RUPEE === 'true' || process.env.TEST_ONE_RUPEE === '1');
+if (TEST_ONE_RUPEE) console.log('[server] 🧪 TEST_ONE_RUPEE is active: all services priced at ₹1 for manual testing.');
+
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -351,6 +356,15 @@ function publicContent(content) {
       ? content[k].filter(item => item && item.published !== false)
       : content[k];
   }
+  if (TEST_ONE_RUPEE) {
+    if (Array.isArray(out.services)) {
+      out.services = out.services.map(s => Number(s.price) > 0 ? { ...s, price: 1 } : s);
+    }
+    if (Array.isArray(out.courses)) {
+      out.courses = out.courses.map(c => Number(c.price) > 0 ? { ...c, price: 1 } : c);
+    }
+    out.testOneRupee = true;
+  }
   return out;
 }
 
@@ -385,10 +399,15 @@ async function findConsultation(store, serviceId) {
     (s.consultationId === serviceId || s.slug === serviceId));
   if (svc) {
     if (!(Number(svc.price) > 0)) throw new HttpError(422, 'This service is booked by enquiry — please use the enquiry form');
-    return { id: serviceId, title: svc.title, price: Number(svc.price), duration: svc.duration || '' };
+    const price = TEST_ONE_RUPEE ? 1 : Number(svc.price);
+    return { id: serviceId, title: svc.title, price, duration: svc.duration || '' };
   }
   const legacy = CONSULTATIONS[serviceId];
-  return legacy ? { id: serviceId, ...legacy } : null;
+  if (legacy) {
+    const price = TEST_ONE_RUPEE ? 1 : legacy.price;
+    return { id: serviceId, ...legacy, price };
+  }
+  return null;
 }
 /** Online pooja price: admin-edited service price when set, otherwise the built-in catalogue. */
 async function findPooja(store, poojaId) {
@@ -397,7 +416,8 @@ async function findPooja(store, poojaId) {
   const content = await getContent(store);
   const svc = (content.services || []).find(s => s.poojaId === poojaId);
   if (svc && svc.published === false) return null;
-  const price = svc && Number(svc.price) > 0 ? Number(svc.price) : base.price;
+  const rawPrice = svc && Number(svc.price) > 0 ? Number(svc.price) : base.price;
+  const price = TEST_ONE_RUPEE ? 1 : rawPrice;
   return { id: poojaId, name: base.name, price };
 }
 
@@ -531,7 +551,8 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       ok: true, storage: store.mode, payments: PAYMENT_MODE,
       paymentEnv: PAYMENT_MODE === 'cashfree' ? CASHFREE.mode : undefined,
       paymentsReady: PAYMENT_MODE !== 'cashfree' ? undefined : store.mode !== 'file-temporary',
-      sessions: JITSI.mode, sessionsProductionSafe: JITSI.production
+      sessions: JITSI.mode, sessionsProductionSafe: JITSI.production,
+      testOneRupee: TEST_ONE_RUPEE
     }]],
 
     // Search engines ---------------------------------------------------------
@@ -1157,6 +1178,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         if (!course) throw new HttpError(404, 'Unknown course');
         booking.service = { id: slug, title: course.title, duration: `${outline.lessonCount} lessons` };
         booking.amount = Number(course.price) > 0 ? Number(course.price) : outline.price || 0;
+        if (TEST_ONE_RUPEE && booking.amount > 0) booking.amount = 1;
         booking.course = { slug, lessons: {}, startedAt: nowIso() };
         delete booking.roomName;
         if (booking.amount === 0) {
@@ -1169,7 +1191,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         const svc = await findConsultation(store, str(b.serviceId, 120));
         if (!svc) throw new HttpError(422, 'Unknown consultation service');
         booking.service = { id: svc.id, title: svc.title, duration: svc.duration };
-        booking.amount = svc.price;
+        booking.amount = TEST_ONE_RUPEE ? 1 : svc.price;
         booking.slot = { date: str(b.slot && b.slot.date, 60), time: str(b.slot && b.slot.time, 20) };
         booking.slotStart = slotStartISO(str(b.slot && b.slot.iso, 10), str(b.slot && b.slot.time, 20));
         booking.slotMinutes = minutesFromDuration(svc.duration);
@@ -1179,7 +1201,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         const poojas = (await Promise.all(ids.map(id => findPooja(store, id)))).filter(Boolean);
         if (!poojas.length || poojas.length !== ids.length) throw new HttpError(422, 'Please select at least one valid pooja');
         booking.poojas = poojas;
-        booking.amount = poojas.reduce((s, p) => s + p.price, 0);
+        booking.amount = TEST_ONE_RUPEE ? 1 : poojas.reduce((s, p) => s + p.price, 0);
         booking.service = { id: 'pooja_sevas', title: 'Pooja Seva: ' + poojas.map(p => p.name).join(', '), duration: '45-60 Mins Ritual' };
 
         // Date and time slot of the pooja
@@ -1345,6 +1367,11 @@ function serveStatic(req, res, pathname) {
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': ext === '.html' || fullPath.endsWith('mantras-data.js') ? 'no-cache' : 'public, max-age=3600'
     });
+    if (ext === '.html' && TEST_ONE_RUPEE) {
+      let html = fs.readFileSync(fullPath, 'utf8');
+      html = html.replace('</head>', '<script>window.TEST_ONE_RUPEE = true;</script></head>');
+      return res.end(html);
+    }
     fs.createReadStream(fullPath).pipe(res);
   });
 }

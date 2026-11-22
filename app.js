@@ -700,6 +700,7 @@ function toggleLineDetails(lineId) {
 // ==========================================
 
 function selectConsultationService(serviceId, price, element) {
+  if (window.TEST_ONE_RUPEE) price = 1;
   let title = "Detailed Palm Analysis";
   let duration = "30 Mins";
   if (serviceId === "astrology_correlation") {
@@ -714,7 +715,7 @@ function selectConsultationService(serviceId, price, element) {
   if (managed) {
     title = managed.title;
     duration = managed.duration || duration;
-    if (managed.price > 0) price = managed.price;
+    if (managed.price > 0) price = window.TEST_ONE_RUPEE ? 1 : managed.price;
   }
 
   state.selectedService = {
@@ -1020,6 +1021,7 @@ function setPoojaCardState(card, selected) {
 }
 
 function togglePoojaSelection(poojaId, price, element) {
+  if (window.TEST_ONE_RUPEE) price = 1;
   const poojaNamesMap = {
     'ganapathi_homam': 'Ganapathi Homam',
     'navagraha_shanti': 'Navagraha Shanti',
@@ -1060,7 +1062,13 @@ const TRASH_ICON = '<svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="non
 function updatePoojaSummaryUI() {
   const container = document.getElementById("pooja-selection-item");
   const totalDisplay = document.getElementById("pooja-total-amount");
-  const total = selectedPoojas.reduce((acc, p) => acc + p.price, 0);
+  if (window.TEST_ONE_RUPEE && selectedPoojas.length) {
+    selectedPoojas.forEach(p => p.price = 1);
+  }
+  if (window.TEST_ONE_RUPEE && selectedPoojas.length) {
+    selectedPoojas.forEach(p => p.price = 1);
+  }
+  const total = window.TEST_ONE_RUPEE ? 1 : selectedPoojas.reduce((acc, p) => acc + p.price, 0);
 
   if (container) {
     container.innerHTML = selectedPoojas.length === 0
@@ -1086,6 +1094,7 @@ document.addEventListener("keydown", (e) => {
 });
 // "Book" buttons on the landing page: open the Pooja booking page with that seva selected
 function selectPoojaSeva(poojaId, title, price) {
+  if (window.TEST_ONE_RUPEE) price = 1;
   const ID_ALIASES = { pitru_runa: "pitru_runa_vimochana" };
   poojaId = ID_ALIASES[poojaId] || poojaId;
   removeSelectedPooja();
@@ -1232,7 +1241,10 @@ function proceedToPoojaPayment() {
   state.selectedDate = formatPoojaDate(state.pooja.date);
   state.selectedTime = state.pooja.slot.label;
 
-  const total = selectedPoojas.reduce((acc, p) => acc + p.price, 0);
+  if (window.TEST_ONE_RUPEE && selectedPoojas.length) {
+    selectedPoojas.forEach(p => p.price = 1);
+  }
+  const total = window.TEST_ONE_RUPEE ? 1 : selectedPoojas.reduce((acc, p) => acc + p.price, 0);
   const titles = selectedPoojas.map(p => p.name).join(", ");
 
   const nameInput = document.getElementById("pooja-name");
@@ -3218,5 +3230,51 @@ function confirmDaanDonation() {
   showVedicToast(`Please tell us about the ${currentDaan.title} you wish to offer — we will send the details.`);
   if (typeof navigate === 'function') navigate('/contact'); else showPage('contact');
 }
+
+// ---------------------------------------------------------------------------
+// Manual Testing Support: 1 Rupee Mode
+// ---------------------------------------------------------------------------
+function applyOneRupeeUI() {
+  window.TEST_ONE_RUPEE = true;
+  if (window.state && window.state.selectedService) {
+    window.state.selectedService.price = 1;
+  }
+  if (Array.isArray(window.selectedPoojas)) {
+    window.selectedPoojas.forEach(p => p.price = 1);
+  }
+  const consultFee = document.getElementById("consult-summary-fee");
+  if (consultFee) consultFee.textContent = "₹ 1";
+  const poojaTotal = document.getElementById("pooja-total-amount");
+  if (poojaTotal) poojaTotal.textContent = "₹ 1";
+  const payDisplay = document.getElementById("pay-amount-display");
+  if (payDisplay) payDisplay.textContent = "₹ 1";
+
+  document.querySelectorAll(".pooja-card__price").forEach(el => {
+    el.textContent = "₹ 1";
+  });
+  document.querySelectorAll(".consult-card .text-ink").forEach(el => {
+    if (el.textContent.trim().startsWith("₹")) el.textContent = "₹ 1";
+  });
+  document.querySelectorAll(".text-maroon, .text-gold, .text-ink").forEach(el => {
+    const txt = el.textContent.trim();
+    if (txt === "₹549" || txt === "₹749" || txt === "₹3,100" || txt === "₹5,100" || txt === "₹2,100" || txt === "₹4,100" || txt === "₹ 549" || txt === "₹ 749" || txt === "₹ 3,100" || txt === "₹ 5,100") {
+      el.textContent = "₹ 1";
+    }
+  });
+  document.querySelectorAll("button, a").forEach(el => {
+    if (el.textContent.includes("₹549") || el.textContent.includes("₹749") || el.textContent.includes("₹3,100") || el.textContent.includes("₹5,100") || el.textContent.includes("₹2,100") || el.textContent.includes("₹4,100")) {
+      el.textContent = el.textContent.replace(/₹\s*[0-9,]+/g, "₹1");
+    }
+  });
+}
+window.applyOneRupeeUI = applyOneRupeeUI;
+if (typeof window !== 'undefined' && window.TEST_ONE_RUPEE) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyOneRupeeUI);
+  } else {
+    applyOneRupeeUI();
+  }
+}
+
 
 
