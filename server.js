@@ -44,6 +44,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'gsrikar888@gmail.com')
   .map(s => s.trim().toLowerCase())
   .filter(Boolean);
 const verifiedAdminTokens = new Map();
+const verifiedCustomerTokens = new Map();
 const CASHFREE = cashfreeConfig();
 const JITSI = jitsiConfig();
 // Guruji signs in to his own case area with this PIN; the owner PIN works there too.
@@ -274,6 +275,32 @@ function adminRole(req) {
   }
   return null;
 }
+
+/** Resolves logged-in customer account from session token in header or cookie. */
+function customerFromToken(req) {
+  const token = req.headers['x-customer-token'] || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([a-f0-9]+)/) || [])[1]);
+  if (!token || !verifiedCustomerTokens.has(token)) return null;
+  const entry = verifiedCustomerTokens.get(token);
+  if (Date.now() > entry.expiresAt) {
+    verifiedCustomerTokens.delete(token);
+    return null;
+  }
+  return entry.customer;
+}
+
+function hashPassword(password) {
+  if (!password) return '';
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  if (!stored || !stored.includes(':')) return false;
+  const [salt, hash] = stored.split(':');
+  const check = crypto.scryptSync(password, salt, 64).toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(check));
+}
 /** Staff who may open a case: Guruji, or the owner. */
 function requireGuruji(req) {
   const role = adminRole(req);
@@ -483,6 +510,29 @@ async function notifyOwner(subject, lines) {
     return res.ok;
   } catch (e) {
     console.error('[server] notification e-mail failed:', e.message);
+    return false;
+  }
+}
+
+/** Sends course enquiry registration confirmation to the devotee. */
+async function sendCustomerConfirmation(toEmail, toName, courseTitle, reference) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key || !toEmail) return false;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: process.env.NOTIFY_FROM || 'Guruji Palmistry <onboarding@resend.dev>',
+        to: [toEmail],
+        subject: `Namaste ${toName} — Registration of Interest Received (${courseTitle})`,
+        text: `Namaste ${toName},\n\nThank you for expressing your interest in "${courseTitle}" at Guruji Palmistry.\n\nYour registration reference is: ${reference}.\n\nOur team has received your details and will get in touch with you shortly on your WhatsApp / mobile number with the upcoming batch dates, syllabus outline, fee details and learning schedule.\n\nIf you have any immediate questions, feel free to reach out to us at https://gurujipalmistry.org/contact or via WhatsApp.\n\nWith warm regards,\nAdiguru Swamiji & The Guruji Palmistry Team\nAdiguru Wellness Centre, Uppal, Hyderabad\nhttps://gurujipalmistry.org/`
+      }),
+      signal: AbortSignal.timeout(5000)
+    });
+    return res.ok;
+  } catch (e) {
+    console.error('[server] customer confirmation e-mail failed:', e.message);
     return false;
   }
 }
@@ -755,6 +805,9 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         service ? `Service: ${service.title}` : '', enquiry.consultationType ? `Type: ${enquiry.consultationType}` : '',
         preferredDate ? `Preferred: ${preferredDate} ${enquiry.preferredTime}` : '', mode ? `Mode: ${mode}` : '', message ? `\n${message}` : ''
       ]);
+      if (kind === 'course' && contact.email) {
+        await sendCustomerConfirmation(contact.email, contact.name, service ? service.title : 'PALMISTRY – THE SCIENCE OF PALM READING', enquiry.reference);
+      }
       const { history, ...pub } = enquiry;
       return [201, { success: true, enquiry: pub, emailed }];
     }],
@@ -1244,8 +1297,17 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     ['GET', /^\/api\/bookings\/([A-Z0-9-]+)$/, async (req, [, orderId], url) => {
       rateLimit(req, 'booking-read', 60);
       const booking = await store.getBooking(orderId);
-      // A booking is only shown to someone who also knows the mobile number it was made with
-      if (!booking || booking.devotee.mobile !== normaliseMobile(url.searchParams.get('mobile'))) {
+      const mobileParam = normaliseMobile(url.searchParams.get('mobile'));
+      const emailParam = (url.searchParams.get('email') || '').trim().toLowerCase();
+      const customer = customerFromToken(req);
+
+      const mobileMatches = (mobileParam && booking && booking.devotee && normaliseMobile(booking.devotee.mobile) === mobileParam) ||
+        (customer && customer.mobile && booking && booking.devotee && normaliseMobile(booking.devotee.mobile) === normaliseMobile(customer.mobile));
+      const emailMatches = (emailParam && booking && booking.devotee && booking.devotee.email === emailParam) ||
+        (customer && customer.email && booking && booking.devotee && booking.devotee.email === customer.email);
+
+      // A booking is shown to someone who matches mobile, email, or is logged-in customer or admin
+      if (!booking || (!mobileMatches && !emailMatches && !adminRole(req))) {
         throw new HttpError(404, 'Booking not found');
       }
       let current = booking;
@@ -1305,6 +1367,94 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { success: true, booking: publicBooking(updated) }];
     }],
 
+    // Customer Authentication & Account Management -------------------------
+    ['POST', /^\/api\/customer\/register$/, async (req) => {
+      rateLimit(req, 'customer-auth', 30);
+      const b = await readJsonBody(req);
+      const name = str(b.name, 120);
+      const mobile = normaliseMobile(b.mobile);
+      const email = str(b.email, 160).toLowerCase();
+      const password = str(b.password, 100);
+
+      if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
+      if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
+      if (!isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
+
+      const existing = (await store.findCustomer(email)) || (await store.findCustomer(mobile));
+      if (existing && existing.passwordHash && password && !verifyPassword(password, existing.passwordHash)) {
+        throw new HttpError(409, 'An account already exists with this email or mobile. Please sign in instead.');
+      }
+
+      const passwordHash = password ? hashPassword(password) : (existing ? existing.passwordHash : '');
+      const customer = await store.createOrUpdateCustomer({
+        name, mobile, email, passwordHash, provider: 'local'
+      });
+
+      const token = crypto.randomBytes(32).toString('hex');
+      verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
+      return [200, { success: true, customer, token }];
+    }],
+
+    ['POST', /^\/api\/customer\/login$/, async (req) => {
+      rateLimit(req, 'customer-auth', 30);
+      const b = await readJsonBody(req);
+      const identifier = str(b.identifier || b.emailOrMobile || b.email || b.mobile, 160).trim();
+      const password = str(b.password, 100);
+
+      if (!identifier) throw new HttpError(422, 'Please enter your email or mobile number');
+      const customer = await store.findCustomer(identifier);
+      if (!customer) throw new HttpError(404, 'No account found with this email or mobile number. Please register first.');
+
+      if (customer.passwordHash && password) {
+        if (!verifyPassword(password, customer.passwordHash)) {
+          throw new HttpError(401, 'Incorrect password. Please try again or sign in with Google.');
+        }
+      }
+
+      const { passwordHash, ...safeCustomer } = customer;
+      const token = crypto.randomBytes(32).toString('hex');
+      verifiedCustomerTokens.set(token, { customer: safeCustomer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
+      return [200, { success: true, customer: safeCustomer, token }];
+    }],
+
+    ['POST', /^\/api\/customer\/google-auth$/, async (req) => {
+      rateLimit(req, 'customer-auth', 30);
+      const b = await readJsonBody(req);
+      if (!b.idToken) throw new HttpError(422, 'Google authentication token is required');
+      const user = await verifyFirebaseToken(b.idToken);
+      if (!user || !user.email) throw new HttpError(401, 'Google sign-in could not be verified with Firebase');
+
+      const email = user.email.toLowerCase().trim();
+      const name = str(user.displayName || b.name, 120) || 'Devotee';
+      const mobile = normaliseMobile(b.mobile);
+
+      const customer = await store.createOrUpdateCustomer({
+        name, email, mobile: mobile || '', provider: 'google'
+      });
+
+      const token = crypto.randomBytes(32).toString('hex');
+      verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
+      return [200, { success: true, customer, token, needsMobile: !customer.mobile }];
+    }],
+
+    ['GET', /^\/api\/customer\/me$/, async (req) => {
+      rateLimit(req, 'customer-me', 60);
+      const customer = customerFromToken(req);
+      if (!customer) throw new HttpError(401, 'Not signed in');
+      return [200, { ok: true, customer }];
+    }],
+
+    ['GET', /^\/api\/customer\/bookings$/, async (req, _, url) => {
+      rateLimit(req, 'customer-bookings', 60);
+      const customer = customerFromToken(req);
+      const mobile = normaliseMobile(url.searchParams.get('mobile')) || (customer && customer.mobile);
+      const email = (url.searchParams.get('email') || (customer && customer.email) || '').trim().toLowerCase();
+      if (!mobile && !email) throw new HttpError(401, 'Please sign in or provide your phone/email to view your bookings');
+
+      const bookings = await store.listCustomerBookings(mobile, email);
+      return [200, { bookings: bookings.map(publicBooking) }];
+    }],
+
     // Reviews ----------------------------------------------------------------
     ['GET', /^\/api\/reviews$/, async () => [200, { reviews: await store.listReviews(50) }]],
 
@@ -1337,7 +1487,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 // Static files
 // ---------------------------------------------------------------------------
 // Page addresses of the single-page site (/about, /services/…, /reiki-healing …) all load index.html
-const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
+const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|privacy-policy|terms|cancellation-refund-policy|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
 
 function serveStatic(req, res, pathname) {
   let reqPath = pathname === '/' || pathname === '' || SPA_ROUTE_RX.test(pathname) ? '/index.html' : pathname;

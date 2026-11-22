@@ -117,7 +117,7 @@
     const status = { open: ['Enrolling now', 'sp-pill--green'], enquire: ['Register interest', 'sp-pill--gold'], upcoming: ['Coming soon', 'sp-pill--muted'] }[c.status] || ['', ''];
     const track = (C().courseTracks || []).find(t => t.id === c.track) || {};
     return `
-    <article class="sp-card sp-card--course">
+    <article class="sp-card sp-card--course ${c.track === 'palmistry' ? 'sp-card--flagship' : ''}">
       <a href="/courses/${esc(c.slug)}" data-link class="sp-card__media sp-card__media--short" tabindex="-1" aria-hidden="true"><img src="${esc(c.image || track.image || '/assets/svc/guidance.svg')}" alt="" loading="lazy"></a>
       <div class="sp-card__body">
         <div class="flex items-center gap-2 flex-wrap"><span class="sp-pill ${status[1]}">${status[0]}</span><span class="sp-card__cat">${esc(c.mode)}</span></div>
@@ -125,7 +125,10 @@
         <p class="sp-card__text">${esc(c.overview)}</p>
         <div class="sp-card__foot">
           <span class="sp-price ${Number(c.price) > 0 ? '' : 'sp-price--muted'}">${Number(c.price) > 0 ? priceText(c.price) : 'Fee on enquiry'}</span>
-          <a href="/courses/${esc(c.slug)}" data-link class="sp-link">Course details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="openCourseRegisterModal('${esc(c.slug)}', '${esc(c.title)}')" class="gold-gradient-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs">Register Interest</button>
+            <a href="/courses/${esc(c.slug)}" data-link class="sp-link">Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+          </div>
         </div>
       </div>
     </article>`;
@@ -450,12 +453,12 @@
     return `
       ${hero({ eyebrow: 'Courses & Training', title: 'Learn from Guruji', sub: 'Structured courses in palmistry and Reiki, with more on Vedic astrology, mantra and Sanatana Dharma to come.', image: '/assets/svc/course-palmistry.webp', crumbs: crumbs([['Home', '/'], ['Courses']]) })}
       ${tracks.map((t, i) => {
-      const list = (C().courses || []).filter(c => c.track === t.id && c.published !== false);
+      const list = (C().courses || []).filter(c => c.track === t.id && c.published !== false && (t.id !== 'palmistry' || c.slug === 'palmistry-science-of-palm-reading'));
       if (!list.length) return '';
       return `<section class="sp-section ${i % 2 ? 'sp-section--tint' : ''}" id="${esc(t.id)}">
           <div class="sp-wrap">
             ${sectionHead('', t.title, t.note)}
-            <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${list.map(courseCard).join('')}</div>
+            <div class="${t.id === 'palmistry' ? 'max-w-xl mx-auto' : 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3'}">${list.map(courseCard).join('')}</div>
           </div>
         </section>`;
     }).join('')}
@@ -486,7 +489,7 @@
                 <div><dt>Instructor</dt><dd>${esc(c.instructor)}</dd></div>
                 <div><dt>Certificate</dt><dd>${esc(c.certificate || '—')}</dd></div>
               </dl>
-              <a href="/contact?kind=course&service=${encodeURIComponent(c.slug)}" data-link class="gold-gradient-btn w-full h-12 rounded-xl mt-4">${cta}</a>
+              <button type="button" onclick="openCourseRegisterModal('${esc(c.slug)}', '${esc(c.title)}')" class="gold-gradient-btn w-full h-12 rounded-xl mt-4 font-semibold text-sm shadow-md">${cta}</button>
             </div>
           </aside>
         </div>
@@ -679,6 +682,104 @@
           </aside>
         </div>
       </section>`;
+  };
+
+  RENDER.account = () => {
+    setTimeout(() => {
+      if (typeof window.renderAccountPortal === 'function') {
+        window.renderAccountPortal();
+      }
+    }, 0);
+    return `
+      ${hero({ eyebrow: 'Devotee Portal', title: 'My Account', sub: 'Access your consultation bookings, pooja sevas, reports and account profile.', crumbs: crumbs([['Home', '/'], ['My Account']]) })}
+      <section class="sp-section">
+        <div class="sp-wrap max-w-4xl" id="account-portal-container">
+          <div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-2xl text-maroon"></i><p class="text-xs text-ink-3 mt-2">Loading account portal...</p></div>
+        </div>
+      </section>
+    `;
+  };
+
+  window.openCourseRegisterModal = function (slug, title) {
+    const modal = document.getElementById('course-register-modal');
+    if (!modal) return;
+    const titleEl = document.getElementById('course-reg-title');
+    const slugEl = document.getElementById('course-reg-slug');
+    if (titleEl && title) titleEl.innerText = title;
+    if (slugEl && slug) slugEl.value = slug;
+    const errEl = document.getElementById('course-reg-error');
+    if (errEl) errEl.classList.add('hidden');
+    const succEl = document.getElementById('course-reg-success');
+    if (succEl) succEl.classList.add('hidden');
+    const formEl = document.getElementById('course-register-form');
+    if (formEl) formEl.classList.remove('hidden');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closeCourseRegisterModal = function () {
+    const modal = document.getElementById('course-register-modal');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  };
+
+  window.handleCourseRegisterSubmit = async function (e) {
+    e.preventDefault();
+    const btn = document.getElementById('course-reg-btn');
+    const errEl = document.getElementById('course-reg-error');
+    const name = (document.getElementById('course-reg-name')?.value || '').trim();
+    const email = (document.getElementById('course-reg-email')?.value || '').trim();
+    const mobile = (document.getElementById('course-reg-mobile')?.value || '').replace(/\D/g, '');
+    const mode = (document.querySelector('input[name="course-reg-mode"]:checked')?.value || 'Online');
+    const message = (document.getElementById('course-reg-message')?.value || '').trim();
+    const slug = document.getElementById('course-reg-slug')?.value || 'palmistry-science-of-palm-reading';
+    const title = document.getElementById('course-reg-title')?.innerText || 'PALMISTRY – THE SCIENCE OF PALM READING';
+
+    if (name.length < 2) {
+      if (errEl) { errEl.innerText = 'Please enter your full name.'; errEl.classList.remove('hidden'); }
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (errEl) { errEl.innerText = 'Please enter a valid email address.'; errEl.classList.remove('hidden'); }
+      return;
+    }
+    if (mobile.length !== 10) {
+      if (errEl) { errEl.innerText = 'Please enter a valid 10-digit mobile number.'; errEl.classList.remove('hidden'); }
+      return;
+    }
+
+    if (errEl) errEl.classList.add('hidden');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…'; }
+
+    try {
+      const res = await fetch('/api/enquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'course',
+          name,
+          email,
+          phone: mobile,
+          service: slug,
+          serviceTitle: title,
+          mode,
+          message: `Preferred Mode: ${mode}. ${message}`,
+          website: '' // honeypot
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to submit registration');
+
+      document.getElementById('course-register-form')?.classList.add('hidden');
+      document.getElementById('course-reg-success')?.classList.remove('hidden');
+      if (typeof showVedicToast === 'function') {
+        showVedicToast('Namaste ' + name + ', your interest has been registered!', 'success');
+      }
+    } catch (err) {
+      if (errEl) { errEl.innerText = err.message || 'Error submitting registration. Please try again.'; errEl.classList.remove('hidden'); }
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> <span>Submit Registration</span>'; }
+    }
   };
 
   window.submitEnquiry = async function (e) {
@@ -882,6 +983,7 @@
     [/^\/book\/(?:details|payment)$/, 'book-consultation'],
     [/^\/book\/upload$/, 'book-status'],
     [/^\/track$/, 'book-status'],
+    [/^\/account$/, 'account'],
     [/^\/admin$/, 'admin'],
     [/^\/guruji$/, 'guruji'],
     [/^\/guruji\/([A-Z0-9-]+)$/, 'guruji', ['slug']],
@@ -893,14 +995,14 @@
   const STATIC_PATHS = {
     home: '/', about: '/about', services: '/services', reiki: '/reiki-healing', courses: '/courses', resources: '/resources',
     faqs: '/faqs', contact: '/contact', palmistry: '/palmistry', mantras: '/mantras', 'book-consultation': '/book/consultation',
-    'book-pooja': '/book/pooja', 'book-status': '/track', admin: '/admin', search: '/search', guruji: '/guruji',
+    'book-pooja': '/book/pooja', 'book-status': '/track', account: '/account', admin: '/admin', search: '/search', guruji: '/guruji',
     'book-payment': '/book/payment', 'book-upload': '/book/upload'
   };
   const ALIASES = { 'resource-reiki': ['reiki', {}], 'resource-articles': ['resources', {}], 'resource-astrology': ['resources', { query: { category: 'astrology' } }] };
   const NAV_FOR = {
     home: 'home', about: 'about', services: 'services', 'service-category': 'services', 'service-detail': 'services', reiki: 'reiki',
     courses: 'courses', 'course-detail': 'courses', resources: 'resources', article: 'resources', mantras: 'resources', 'mantra-detail': 'resources',
-    palmistry: 'resources', faqs: 'faqs', contact: 'contact', 'book-consultation': 'services', 'book-pooja': 'services'
+    palmistry: 'resources', faqs: 'faqs', contact: 'contact', account: 'account', 'book-consultation': 'services', 'book-pooja': 'services'
   };
 
   function matchRoute(pathname) {

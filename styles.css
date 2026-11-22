@@ -787,15 +787,34 @@ textarea:focus {
 .text-gold-deep { color: #a86d18; }
 
 /* Pillars */
-.sp-pillar { display: flex; flex-direction: column; gap: .3rem; padding: 1.2rem; border-radius: var(--radius-lg); border: 1px solid rgb(var(--c-line)); background: rgb(var(--c-paper)); transition: transform var(--dur) var(--ease-out), box-shadow var(--dur); }
-.sp-pillar:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
-.sp-pillar i { font-size: 1.35rem; margin-bottom: .3rem; }
-.sp-pillar__title { font-family: var(--font-display); letter-spacing: .08em; font-weight: 600; font-size: 1rem; text-transform: uppercase; }
-.sp-pillar__text { font-size: .88rem; color: rgb(var(--c-ink-2)); }
-.sp-pillar--0 { background: #fdf3e7; } .sp-pillar--0 i, .sp-pillar--0 .sp-pillar__title { color: #8a4b1e; }
-.sp-pillar--1 { background: #eef4ea; } .sp-pillar--1 i, .sp-pillar--1 .sp-pillar__title { color: #41632f; }
-.sp-pillar--2 { background: #f8ecf1; } .sp-pillar--2 i, .sp-pillar--2 .sp-pillar__title { color: #8b2447; }
-.sp-pillar--3 { background: #eef1f4; } .sp-pillar--3 i, .sp-pillar--3 .sp-pillar__title { color: #35506b; }
+.sp-pillars-wrap { padding: 4rem 0; background: linear-gradient(180deg, rgba(250,245,236,0.6) 0%, rgba(243,235,220,0.4) 100%); }
+.sp-pillar {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.65rem;
+  padding: 2.2rem 1.85rem; border-radius: 1.5rem;
+  border: 1px solid rgba(177, 139, 88, 0.24);
+  background: #ffffff;
+  box-shadow: 0 4px 20px -4px rgba(44, 18, 20, 0.06);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s, border-color 0.28s;
+  min-height: 230px; position: relative; overflow: hidden;
+}
+.sp-pillar:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 36px -8px rgba(120, 29, 34, 0.16);
+  border-color: rgba(177, 139, 88, 0.6);
+}
+.sp-pillar-icon-box {
+  width: 58px; height: 58px; border-radius: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.75rem; margin-bottom: 0.5rem;
+  transition: transform 0.25s ease;
+}
+.sp-pillar:hover .sp-pillar-icon-box { transform: scale(1.08); }
+.sp-pillar__title { font-family: var(--font-serif); letter-spacing: 0.01em; font-weight: 700; font-size: 1.35rem; color: rgb(var(--c-night)); line-height: 1.25; }
+.sp-pillar__text { font-family: var(--font-sans); font-size: 0.95rem; color: rgb(var(--c-ink-2)); line-height: 1.55; }
+.sp-pillar--0 { background: #fffcf8; } .sp-pillar--0 .sp-pillar-icon-box { background: rgba(245, 184, 90, 0.25); color: #8a4b1e; }
+.sp-pillar--1 { background: #fbfdf9; } .sp-pillar--1 .sp-pillar-icon-box { background: rgba(65, 99, 47, 0.18); color: #355325; }
+.sp-pillar--2 { background: #fffafb; } .sp-pillar--2 .sp-pillar-icon-box { background: rgba(139, 36, 71, 0.15); color: #781d22; }
+.sp-pillar--3 { background: #f9fbfd; } .sp-pillar--3 .sp-pillar-icon-box { background: rgba(53, 80, 107, 0.18); color: #233a52; }
 .sp-feature-img { width: 100%; border-radius: var(--radius-xl); border: 1px solid rgb(var(--c-line)); box-shadow: var(--shadow-card); }
 
 /* Booking sidebar */

@@ -28,6 +28,7 @@ const ENQUIRIES_FILE = path.join(DATA_DIR, 'enquiries.json');
 const CONTENT_FILE = path.join(DATA_DIR, 'content.json');
 const MEDIA_FILE = path.join(DATA_DIR, 'media.json');
 const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 /** Applies admin list filters (status / type / text) to bookings or enquiries. */
 function filterRecords(list, { status, type, q } = {}) {
@@ -227,6 +228,52 @@ class FileStore {
     writeJson(MEDIA_FILE, all);
     return true;
   }
+
+  // Customer accounts
+  async createOrUpdateCustomer(data) {
+    const all = readJson(USERS_FILE, []);
+    const mobile = (data.mobile || '').replace(/\D/g, '').slice(-10);
+    const email = (data.email || '').toLowerCase().trim();
+    const now = new Date().toISOString();
+    let idx = all.findIndex(u => (email && u.email === email) || (mobile && u.mobile === mobile));
+    if (idx !== -1) {
+      all[idx] = { ...all[idx], ...data, mobile: mobile || all[idx].mobile, email: email || all[idx].email, updatedAt: now };
+    } else {
+      const user = {
+        id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name: data.name || '',
+        mobile,
+        email,
+        passwordHash: data.passwordHash || '',
+        provider: data.provider || 'local',
+        createdAt: now,
+        updatedAt: now
+      };
+      all.unshift(user);
+      idx = 0;
+    }
+    writeJson(USERS_FILE, all);
+    const { passwordHash, ...safe } = all[idx];
+    return safe;
+  }
+  async findCustomer(identifier) {
+    if (!identifier) return null;
+    const all = readJson(USERS_FILE, []);
+    const clean = String(identifier).trim().toLowerCase();
+    const mobile = clean.replace(/\D/g, '').slice(-10);
+    const user = all.find(u => (u.email && u.email === clean) || (mobile && u.mobile === mobile) || u.id === identifier);
+    return user || null;
+  }
+  async listCustomerBookings(mobile, email) {
+    const allBookings = readJson(BOOKINGS_FILE, []);
+    const cleanMobile = mobile ? String(mobile).replace(/\D/g, '').slice(-10) : '';
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    return allBookings.filter(b => {
+      const m = b.devotee && b.devotee.mobile ? b.devotee.mobile.replace(/\D/g, '').slice(-10) : '';
+      const e = b.devotee && b.devotee.email ? b.devotee.email.trim().toLowerCase() : '';
+      return (cleanMobile && m === cleanMobile) || (cleanEmail && e === cleanEmail);
+    }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +298,7 @@ class MongoStore {
     this.content = this.db.collection('content');
     this.media = this.db.collection('media');
     this.messages = this.db.collection('messages');
+    this.users = this.db.collection('users');
 
     await Promise.all([
       this.mantras.createIndex({ id: 1 }, { unique: true }),
@@ -264,7 +312,10 @@ class MongoStore {
       this.content.createIndex({ section: 1 }, { unique: true }),
       this.media.createIndex({ id: 1 }, { unique: true }),
       this.messages.createIndex({ orderId: 1, at: 1 }),
-      this.messages.createIndex({ from: 1, readAt: 1 })
+      this.messages.createIndex({ from: 1, readAt: 1 }),
+      this.users.createIndex({ id: 1 }, { unique: true }),
+      this.users.createIndex({ email: 1 }),
+      this.users.createIndex({ mobile: 1 })
     ]);
     await this.seedMantrasIfEmpty();
     return this;
@@ -413,6 +464,60 @@ class MongoStore {
     return docs.map(({ _id, data, ...m }) => m);
   }
   async deleteMedia(id) { return (await this.media.deleteOne({ id })).deletedCount > 0; }
+
+  // Customer accounts
+  async createOrUpdateCustomer(data) {
+    const mobile = (data.mobile || '').replace(/\D/g, '').slice(-10);
+    const email = (data.email || '').toLowerCase().trim();
+    const now = new Date().toISOString();
+    const query = [];
+    if (email) query.push({ email });
+    if (mobile) query.push({ mobile });
+    const existing = query.length ? await this.users.findOne({ $or: query }) : null;
+    if (existing) {
+      const update = { ...data, updatedAt: now };
+      if (mobile) update.mobile = mobile;
+      if (email) update.email = email;
+      await this.users.updateOne({ _id: existing._id }, { $set: update });
+      const updated = await this.users.findOne({ _id: existing._id });
+      const { passwordHash, ...safe } = stripMongoId(updated);
+      return safe;
+    } else {
+      const user = {
+        id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name: data.name || '',
+        mobile,
+        email,
+        passwordHash: data.passwordHash || '',
+        provider: data.provider || 'local',
+        createdAt: now,
+        updatedAt: now
+      };
+      await this.users.insertOne({ ...user });
+      const { passwordHash, ...safe } = user;
+      return safe;
+    }
+  }
+  async findCustomer(identifier) {
+    if (!identifier) return null;
+    const clean = String(identifier).trim().toLowerCase();
+    const mobile = clean.replace(/\D/g, '').slice(-10);
+    const or = [{ id: identifier }];
+    if (clean.includes('@')) or.push({ email: clean });
+    if (mobile.length === 10) or.push({ mobile });
+    const doc = await this.users.findOne({ $or: or });
+    return doc ? stripMongoId(doc) : null;
+  }
+  async listCustomerBookings(mobile, email) {
+    const cleanMobile = mobile ? String(mobile).replace(/\D/g, '').slice(-10) : '';
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const or = [];
+    if (cleanMobile) or.push({ 'devotee.mobile': { $regex: cleanMobile + '$' } });
+    if (cleanEmail) or.push({ 'devotee.email': cleanEmail });
+    if (!or.length) return [];
+    const docs = await this.bookings.find({ $or: or }).sort({ createdAt: -1 }).toArray();
+    return docs.map(stripMongoId);
+  }
 }
 
 /** Admin list filter → Mongo query. Text search is a case-insensitive "contains" on a few fields. */

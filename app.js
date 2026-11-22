@@ -45,8 +45,50 @@ const state = {
   reviewRating: 5
 };
 
+// =========================================================================
+// SLOT PERSISTENCE ENGINE (Protects devotee appointment slot across reloads & auth)
+// =========================================================================
+function persistHeldSlot() {
+  try {
+    sessionStorage.setItem("guruji_held_slot", JSON.stringify({
+      service: state.selectedService,
+      date: state.selectedDate,
+      time: state.selectedTime,
+      dateISO: state.selectedDateISO,
+      handedness: state.handedness,
+      timestamp: Date.now()
+    }));
+  } catch (e) {}
+}
+
+function restoreHeldSlot() {
+  try {
+    const raw = sessionStorage.getItem("guruji_held_slot");
+    if (!raw) return;
+    const held = JSON.parse(raw);
+    if (!held || Date.now() - (held.timestamp || 0) > 45 * 60 * 1000) return;
+    if (held.service) state.selectedService = held.service;
+    if (held.date) state.selectedDate = held.date;
+    if (held.time) state.selectedTime = held.time;
+    if (held.dateISO) state.selectedDateISO = held.dateISO;
+    if (held.handedness) state.handedness = held.handedness;
+
+    const authSlotInfo = document.getElementById("auth-slot-held-info");
+    if (authSlotInfo) authSlotInfo.innerText = `${state.selectedDate} at ${state.selectedTime}`;
+    const timeDisplay = document.getElementById("consult-summary-time");
+    if (timeDisplay) timeDisplay.innerText = `${state.selectedDate}, ${state.selectedTime}`;
+    const failSlotTime = document.getElementById("fail-slot-time");
+    if (failSlotTime) failSlotTime.innerText = `${state.selectedDate} at ${state.selectedTime}`;
+    const payTitle = document.getElementById("pay-service-title");
+    if (payTitle && state.selectedService?.title) payTitle.innerText = state.selectedService.title;
+    const payAmount = document.getElementById("pay-amount-display");
+    if (payAmount && state.selectedService?.price) payAmount.innerText = `₹ ${state.selectedService.price}`;
+  } catch (e) {}
+}
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
+  restoreHeldSlot();
   renderReviews();
   loadSavedReviews();
   renderLinesAccordion();
@@ -241,17 +283,28 @@ async function trackBooking(event, { quiet = false } = {}) {
   // Bookings look like GURUJI-PJA-ABC12F3, enquiries like GPE-ABC12F3
   const isEnquiry = /^GPE-[A-Z0-9]{4,}$/.test(orderEl.value);
   VALIDATORS.orderId = (v) => /^(GURUJI-[A-Z]{3}|GPE)-[A-Z0-9]{4,}$/.test(v.trim().toUpperCase());
+  
+  const contactVal = (document.getElementById("track-mobile")?.value || "").trim();
+  const isEmail = contactVal.includes("@");
+  
+  VALIDATORS.contact = (v) => {
+    const val = v.trim();
+    if (val.includes("@")) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    const digits = val.replace(/\D/g, "");
+    return digits.length === 10 || (digits.length === 12 && digits.startsWith("91"));
+  };
+
   if (!validateFields([
     { id: "track-order", rule: "orderId", msg: "Enter the reference from your confirmation, e.g. GURUJI-PJA-ABC12F3 or GPE-ABC12F3." },
-    { id: "track-mobile", rule: "mobile", msg: "Enter the 10-digit mobile number you booked with." }
+    { id: "track-mobile", rule: "contact", msg: "Enter the 10-digit mobile number or email address you booked with." }
   ])) return;
 
   const btn = document.getElementById("track-submit");
   if (!quiet) setButtonLoading(btn, true, "Checking…");
   try {
-    const mobile = document.getElementById("track-mobile").value;
     const path = isEnquiry ? "/api/enquiries/" : "/api/bookings/";
-    const data = await api(`${path}${encodeURIComponent(orderEl.value)}?mobile=${encodeURIComponent(mobile)}`);
+    const queryParam = isEmail ? `email=${encodeURIComponent(contactVal.toLowerCase())}` : `mobile=${encodeURIComponent(contactVal.replace(/\D/g, ""))}`;
+    const data = await api(`${path}${encodeURIComponent(orderEl.value)}?${queryParam}`);
     if (!data) { if (!quiet) showVedicToast("Tracking needs an internet connection to Guruji's server.", "error"); return; }
     if (isEnquiry) {
       renderTrackedEnquiry(data.enquiry);
@@ -262,7 +315,7 @@ async function trackBooking(event, { quiet = false } = {}) {
   } catch (err) {
     if (!quiet) {
       document.getElementById("track-result").classList.add("hidden");
-      showVedicToast(/not found/i.test(err.message) ? "Nothing matches that reference and mobile number." : err.message, "error");
+      showVedicToast(/not found/i.test(err.message) ? "Nothing matches that reference and contact details." : err.message, "error");
     }
   } finally {
     if (!quiet) setButtonLoading(btn, false);
@@ -1349,7 +1402,7 @@ function selectTimeSlot(slotTime) {
 // DEVOTEE AUTH CONTROLLER (PRESERVES SLOT!)
 // ==========================================
 
-function handleAuthSubmit(event) {
+async function handleAuthSubmit(event) {
   event.preventDefault();
   const ok = validateFields([
     { id: "auth-name", rule: "name", msg: "Please enter your full name." },
@@ -1358,14 +1411,39 @@ function handleAuthSubmit(event) {
   ]);
   if (!ok) return;
 
-  state.user.name = document.getElementById("auth-name").value;
-  state.user.mobile = document.getElementById("auth-mobile").value;
-  state.user.email = document.getElementById("auth-email").value;
+  const name = document.getElementById("auth-name").value.trim();
+  const mobile = document.getElementById("auth-mobile").value.replace(/\D/g, "");
+  const email = document.getElementById("auth-email").value.trim().toLowerCase();
+  const password = document.getElementById("auth-password") ? document.getElementById("auth-password").value : "";
 
-  // Update header display name
+  state.user.name = name;
+  state.user.mobile = mobile;
+  state.user.email = email;
+
+  // Persist slot hold immediately so it cannot be lost
+  persistHeldSlot();
+
+  // Securely register or update customer account in DB
+  try {
+    const res = await fetch("/api/customer/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, mobile, email, password: password || undefined })
+    });
+    const data = await res.json();
+    if (data.ok && data.token) {
+      localStorage.setItem("guruji_cust_token", data.token);
+      if (data.customer) {
+        state.user.customerId = data.customer.id;
+      }
+    }
+  } catch (e) {
+    console.warn("[Customer Account Register]", e);
+  }
 
   // Sync to birth details form
-  document.getElementById("devotee-fullname").value = state.user.name;
+  const devName = document.getElementById("devotee-fullname");
+  if (devName) devName.value = state.user.name;
 
   // Move directly to payment without losing slot
   showPage("book-payment");
@@ -3275,6 +3353,372 @@ if (typeof window !== 'undefined' && window.TEST_ONE_RUPEE) {
     applyOneRupeeUI();
   }
 }
+
+// =========================================================================
+// DEVOTEE ACCOUNT PORTAL CONTROLLER
+// =========================================================================
+window.toggleAuthTab = function(tab) {
+  const signinForm = document.getElementById("cust-signin-form");
+  const signupForm = document.getElementById("cust-signup-form");
+  const tabSignin = document.getElementById("tab-btn-signin");
+  const tabSignup = document.getElementById("tab-btn-signup");
+  if (!signinForm || !signupForm) return;
+
+  if (tab === 'signup') {
+    signinForm.classList.add("hidden");
+    signupForm.classList.remove("hidden");
+    tabSignup.classList.add("border-maroon", "text-maroon");
+    tabSignup.classList.remove("border-transparent", "text-ink-3");
+    tabSignin.classList.remove("border-maroon", "text-maroon");
+    tabSignin.classList.add("border-transparent", "text-ink-3");
+  } else {
+    signupForm.classList.add("hidden");
+    signinForm.classList.remove("hidden");
+    tabSignin.classList.add("border-maroon", "text-maroon");
+    tabSignin.classList.remove("border-transparent", "text-ink-3");
+    tabSignup.classList.remove("border-maroon", "text-maroon");
+    tabSignup.classList.add("border-transparent", "text-ink-3");
+  }
+};
+
+window.handleCustomerLogin = async function(e) {
+  e.preventDefault();
+  const idEl = document.getElementById("cust-login-id");
+  const pwdEl = document.getElementById("cust-login-pwd");
+  const errEl = document.getElementById("cust-login-err");
+  const btn = document.getElementById("cust-login-btn");
+  if (!idEl || !pwdEl) return;
+
+  const identifier = idEl.value.trim();
+  const password = pwdEl.value;
+
+  if (!identifier || !password) {
+    if (errEl) { errEl.textContent = "Please enter your mobile/email and password."; errEl.classList.remove("hidden"); }
+    return;
+  }
+
+  if (errEl) errEl.classList.add("hidden");
+  if (btn) { btn.disabled = true; btn.textContent = "Signing In..."; }
+
+  try {
+    const res = await fetch("/api/customer/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "Login failed");
+
+    localStorage.setItem("guruji_cust_token", data.token);
+    if (data.customer && typeof state !== 'undefined' && state.user) {
+      state.user.name = data.customer.name || state.user.name;
+      state.user.email = data.customer.email || state.user.email;
+      state.user.mobile = data.customer.mobile || state.user.mobile;
+      state.user.customerId = data.customer.id;
+    }
+    if (typeof showVedicToast === "function") {
+      showVedicToast(`Namaste ${data.customer.name}, welcome back!`, "success");
+    }
+    renderAccountPortal();
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message || "Invalid credentials. Please try again."; errEl.classList.remove("hidden"); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Sign In"; }
+  }
+};
+
+window.handleCustomerSignup = async function(e) {
+  e.preventDefault();
+  const name = (document.getElementById("cust-reg-name")?.value || "").trim();
+  const mobile = (document.getElementById("cust-reg-mobile")?.value || "").replace(/\D/g, "");
+  const email = (document.getElementById("cust-reg-email")?.value || "").trim().toLowerCase();
+  const password = document.getElementById("cust-reg-pwd")?.value || "";
+  const errEl = document.getElementById("cust-signup-err");
+  const btn = document.getElementById("cust-signup-btn");
+
+  if (name.length < 2) {
+    if (errEl) { errEl.textContent = "Please enter your full name."; errEl.classList.remove("hidden"); }
+    return;
+  }
+  if (mobile.length !== 10) {
+    if (errEl) { errEl.textContent = "Please enter a valid 10-digit mobile number."; errEl.classList.remove("hidden"); }
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (errEl) { errEl.textContent = "Please enter a valid email address."; errEl.classList.remove("hidden"); }
+    return;
+  }
+  if (password.length < 6) {
+    if (errEl) { errEl.textContent = "Password must be at least 6 characters."; errEl.classList.remove("hidden"); }
+    return;
+  }
+
+  if (errEl) errEl.classList.add("hidden");
+  if (btn) { btn.disabled = true; btn.textContent = "Creating Account..."; }
+
+  try {
+    const res = await fetch("/api/customer/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, mobile, email, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "Registration failed");
+
+    localStorage.setItem("guruji_cust_token", data.token);
+    if (data.customer && typeof state !== 'undefined' && state.user) {
+      state.user.name = data.customer.name;
+      state.user.email = data.customer.email;
+      state.user.mobile = data.customer.mobile;
+      state.user.customerId = data.customer.id;
+    }
+    if (typeof showVedicToast === "function") {
+      showVedicToast(`Namaste ${data.customer.name}, your account is created!`, "success");
+    }
+    renderAccountPortal();
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message || "Failed to create account."; errEl.classList.remove("hidden"); }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Create Account"; }
+  }
+};
+
+window.handleCustomerLogout = function() {
+  localStorage.removeItem("guruji_cust_token");
+  if (typeof showVedicToast === "function") {
+    showVedicToast("You have signed out of your account.", "info");
+  }
+  renderAccountPortal();
+};
+
+window.fillAndTrack = function(orderId, contact) {
+  setTimeout(() => {
+    const orderInput = document.getElementById("track-order");
+    const contactInput = document.getElementById("track-mobile");
+    if (orderInput && orderId) orderInput.value = orderId;
+    if (contactInput && contact) contactInput.value = contact;
+    if (typeof trackBooking === "function") trackBooking(null);
+  }, 100);
+};
+
+window.resumeHeldBooking = function() {
+  restoreHeldSlot();
+  if (typeof showPage === "function") {
+    showPage("book-payment");
+  }
+};
+
+window.renderAccountPortal = async function() {
+  const container = document.getElementById("account-portal-container") || document.getElementById("page-account");
+  if (!container) return;
+
+  const token = localStorage.getItem("guruji_cust_token");
+  if (!token) {
+    container.innerHTML = `
+      <div class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-line shadow-lg space-y-6">
+        <div class="text-center space-y-1">
+          <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-xl mb-2">
+            <i class="fa-regular fa-user"></i>
+          </div>
+          <h2 class="font-serif text-2xl font-bold text-night-2">Devotee Account</h2>
+          <p class="text-xs text-ink-3">Sign in or create an account to view your consultations, pooja bookings and reports.</p>
+        </div>
+
+        <!-- Google Continue -->
+        <button type="button" onclick="loginWithGoogle()" class="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-line bg-white hover:bg-zinc-50 font-medium text-ink shadow-xs transition text-xs">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span class="font-semibold">Continue with Google</span>
+        </button>
+
+        <div class="relative flex items-center justify-center">
+          <div class="border-t border-line w-full"></div>
+          <span class="bg-white px-3 text-2xs text-ink-3 uppercase whitespace-nowrap">or with password</span>
+          <div class="border-t border-line w-full"></div>
+        </div>
+
+        <div class="flex border-b border-line text-xs font-semibold">
+          <button type="button" onclick="toggleAuthTab('signin')" id="tab-btn-signin" class="flex-1 py-2.5 text-center border-b-2 border-maroon text-maroon">Sign In</button>
+          <button type="button" onclick="toggleAuthTab('signup')" id="tab-btn-signup" class="flex-1 py-2.5 text-center border-b-2 border-transparent text-ink-3 hover:text-ink">Create Account</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <form id="cust-signin-form" onsubmit="handleCustomerLogin(event)" class="space-y-4 text-xs">
+          <div>
+            <label class="block font-semibold text-ink mb-1">Mobile Number or Email</label>
+            <input type="text" id="cust-login-id" required placeholder="98765 43210 or devotee@example.com" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">Password</label>
+            <input type="password" id="cust-login-pwd" required placeholder="Your password" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
+          </div>
+          <div id="cust-login-err" class="hidden text-red-600 text-xs bg-red-50 p-2.5 rounded-xl border border-red-200"></div>
+          <button type="submit" id="cust-login-btn" class="w-full crimson-gradient-btn py-3 rounded-xl font-medium text-xs shadow-md">Sign In</button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form id="cust-signup-form" onsubmit="handleCustomerSignup(event)" class="space-y-4 text-xs hidden">
+          <div>
+            <label class="block font-semibold text-ink mb-1">Full Name <span class="text-red-500">*</span></label>
+            <input type="text" id="cust-reg-name" required placeholder="Your full name" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">Mobile Number (WhatsApp updates) <span class="text-red-500">*</span></label>
+            <div class="flex">
+              <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-line bg-zinc-50 text-ink-3 text-xs font-semibold">+91</span>
+              <input type="tel" id="cust-reg-mobile" required inputmode="numeric" maxlength="11" placeholder="98765 43210" class="w-full px-3.5 py-2.5 rounded-r-xl border border-line focus:border-maroon focus:outline-none text-ink">
+            </div>
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">Email Address <span class="text-red-500">*</span></label>
+            <input type="email" id="cust-reg-email" required placeholder="you@example.com" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
+          </div>
+          <div>
+            <label class="block font-semibold text-ink mb-1">Password <span class="text-red-500">*</span></label>
+            <input type="password" id="cust-reg-pwd" required minlength="6" placeholder="At least 6 characters" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
+          </div>
+          <div id="cust-signup-err" class="hidden text-red-600 text-xs bg-red-50 p-2.5 rounded-xl border border-red-200"></div>
+          <button type="submit" id="cust-signup-btn" class="w-full gold-gradient-btn py-3 rounded-xl font-semibold text-xs shadow-md">Create Account</button>
+        </form>
+
+        <div class="text-center pt-2 border-t border-line">
+          <a href="/track" data-link class="text-xs text-maroon hover:underline">Quick track a consultation with Booking ID →</a>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `<div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-2xl text-maroon"></i><p class="text-xs text-ink-3 mt-2">Loading your account...</p></div>`;
+
+  try {
+    const res = await fetch("/api/customer/me", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      localStorage.removeItem("guruji_cust_token");
+      renderAccountPortal();
+      return;
+    }
+
+    const cust = data.customer;
+    const bRes = await fetch("/api/customer/bookings", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const bData = await bRes.json();
+    const bookings = (bData.ok && bData.bookings) ? bData.bookings : [];
+
+    let slotResumeHtml = "";
+    const rawSlot = sessionStorage.getItem("guruji_held_slot");
+    if (rawSlot) {
+      try {
+        const held = JSON.parse(rawSlot);
+        if (held && Date.now() - (held.timestamp || 0) < 45 * 60 * 1000) {
+          slotResumeHtml = `
+            <div class="bg-gradient-to-r from-amber-50 to-amber-100/60 border border-amber-300 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-2xs font-bold uppercase"><i class="fa-solid fa-calendar-check"></i> Reserved Slot</span>
+                <div class="font-serif font-bold text-night-2 text-base mt-1">${held.service?.title || 'Consultation'} on ${held.date} at ${held.time}</div>
+                <div class="text-xs text-ink-3">Your appointment slot is safely held. Continue to payment.</div>
+              </div>
+              <button type="button" onclick="resumeHeldBooking()" class="gold-gradient-btn px-5 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap shadow-sm">
+                Continue to Payment →
+              </button>
+            </div>
+          `;
+        }
+      } catch (e) {}
+    }
+
+    container.innerHTML = `
+      <div class="space-y-6">
+        ${slotResumeHtml}
+
+        <!-- Profile Card -->
+        <div class="bg-white p-6 sm:p-7 rounded-3xl border border-line shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 flex items-center justify-center text-2xl font-bold font-serif shadow-xs">
+              ${(cust.name || 'D').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 class="font-serif text-xl sm:text-2xl font-bold text-night-2">${cust.name || 'Devotee'}</h2>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3 mt-0.5">
+                <span><i class="fa-solid fa-phone text-2xs text-amber-700"></i> +91 ${cust.mobile || '—'}</span>
+                <span>•</span>
+                <span><i class="fa-solid fa-envelope text-2xs text-amber-700"></i> ${cust.email || '—'}</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" onclick="handleCustomerLogout()" class="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs font-semibold text-zinc-600 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-arrow-right-from-bracket text-2xs"></i> Sign Out
+          </button>
+        </div>
+
+        <!-- Bookings Section -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-serif text-lg font-bold text-night-2 flex items-center gap-2">
+              <i class="fa-regular fa-calendar-check text-maroon"></i> Your Consultations &amp; Sevas (${bookings.length})
+            </h3>
+            <a href="/services/astro-palmistry-correlation" data-link class="text-xs text-maroon font-semibold hover:underline">
+              + Book New Consultation
+            </a>
+          </div>
+
+          ${bookings.length === 0 ? `
+            <div class="bg-white p-8 rounded-2xl border border-line text-center space-y-3">
+              <div class="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-regular fa-folder-open"></i>
+              </div>
+              <p class="text-sm text-ink-2">You don't have any consultation bookings yet.</p>
+              <a href="/services" data-link class="inline-block gold-gradient-btn px-5 py-2.5 rounded-xl text-xs font-semibold">Explore Services</a>
+            </div>
+          ` : `
+            <div class="grid gap-4">
+              ${bookings.map(b => {
+                const isPaid = b.status !== 'PENDING' && b.status !== 'FAILED';
+                const statusBadge = isPaid ? '<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-2xs font-bold">Confirmed</span>' : '<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-2xs font-bold">Pending Payment</span>';
+                return `
+                  <div class="bg-white p-5 sm:p-6 rounded-2xl border border-line shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="space-y-1.5">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-mono text-2xs font-bold px-2 py-0.5 rounded bg-night text-cream">${b.orderId}</span>
+                        ${statusBadge}
+                        <span class="text-2xs text-ink-3">${b.created ? new Date(b.created).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
+                      </div>
+                      <h4 class="font-serif text-base font-bold text-night-2">${b.service?.title || 'Vedic Consultation'}</h4>
+                      <p class="text-xs text-ink-3">
+                        <i class="fa-regular fa-clock text-amber-600 mr-1"></i> Slot: <strong>${b.slot?.date || '—'} at ${b.slot?.time || '—'}</strong>
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2 self-end md:self-center">
+                      <a href="/track" onclick="fillAndTrack('${b.orderId}', '${cust.mobile || cust.email}')" data-link class="px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-maroon border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-magnifying-glass-location text-2xs"></i> Track Details
+                      </a>
+                      ${b.reportPdfUrl ? `
+                        <a href="${b.reportPdfUrl}" target="_blank" download class="gold-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs">
+                          <i class="fa-solid fa-download text-2xs"></i> Download Report
+                        </a>
+                      ` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-line text-center text-xs text-red-600">Failed to load account details. <button onclick="renderAccountPortal()" class="underline font-semibold ml-2">Retry</button></div>`;
+  }
+};
+
 
 
 
