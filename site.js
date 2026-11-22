@@ -189,7 +189,7 @@
           <div class="space-y-4">
             <figure class="sp-portrait">
               <img src="${esc(a.portrait)}" alt="Portrait of ${esc(a.name)}">
-              <figcaption><strong>${esc(a.name)}</strong>${a.alsoKnownAs ? `<span>Also known as ${esc(a.alsoKnownAs)}</span>` : ''}${a.role ? `<span>${esc(a.role)}</span>` : ''}</figcaption>
+              <figcaption><strong>${esc(a.name)}</strong></figcaption>
             </figure>
             <div class="sp-panel bg-amber-50/70 border border-amber-300 text-center space-y-2 p-4 rounded-2xl shadow-xs">
               <div class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100/90 px-3 py-1 rounded-full border border-amber-300">
@@ -205,7 +205,6 @@
           <div class="space-y-6">
             ${block(sec('journey'))}
             ${sec('approach') ? `<blockquote class="sp-quote"><p class="text-lg italic font-serif leading-relaxed text-amber-900">${esc(sec('approach').body)}</p><cite class="mt-2 block font-sans font-semibold text-xs tracking-wider uppercase text-amber-800">— ${esc(sec('approach').title)}</cite></blockquote>` : ''}
-            ${(a.highlights || []).length ? `<ul class="sp-chips">${a.highlights.map(h => `<li>${esc(h)}</li>`).join('')}</ul>` : ''}
           </div>
         </div>
       </section>
@@ -227,9 +226,9 @@
         <div class="sp-wrap">
           ${sectionHead('Service directory', 'All service categories')}
           <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">${cats.map(c => {
-            const href = c.link || `/services/category/${c.id}`;
-            const list = servicesIn(c.id).slice(0, 4).map(s => s.title.replace(/ —.*$/, '')).join(', ');
-            return `
+      const href = c.link || `/services/category/${c.id}`;
+      const list = servicesIn(c.id).slice(0, 4).map(s => s.title.replace(/ —.*$/, '')).join(', ');
+      return `
             <a href="${href}" data-link class="sp-cat">
               <span class="sp-cat__media"><img src="${esc(c.image)}" alt="" loading="lazy"></span>
               <span class="sp-cat__body">
@@ -238,7 +237,7 @@
                 <span class="sp-cat__list">${esc(list)}</span>
               </span>
             </a>`;
-          }).join('')}</div>
+    }).join('')}</div>
         </div>
       </section>
       <section class="sp-section">
@@ -259,8 +258,22 @@
     if (!c) return false;
     if (c.link && c.link !== `/services/category/${cat}`) { setTimeout(() => navigate(c.link, { replace: true }), 0); return ''; }
     const list = servicesIn(cat);
+    const purohitBanner = c.purohitBanner ? `
+      <section class="sp-section pt-0 pb-4">
+        <div class="sp-wrap">
+          <div class="sp-panel bg-gradient-to-br from-amber-50/90 to-orange-50/60 border border-amber-300 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xs">
+            <div class="inline-flex items-center gap-2 text-xs font-bold text-amber-900 bg-amber-200/80 px-3.5 py-1 rounded-full border border-amber-300">
+              <i class="fa-solid fa-om text-amber-800"></i> ${esc(c.purohitBanner.eyebrow || 'Traditional Observance')}
+            </div>
+            <h2 class="font-serif text-2xl sm:text-3xl font-bold text-amber-950">${esc(c.purohitBanner.title)}</h2>
+            ${(c.purohitBanner.paragraphs || []).map(p => `<p class="sp-text leading-relaxed text-ink-2 text-base">${esc(p)}</p>`).join('')}
+            ${c.purohitBanner.highlight ? `<div class="p-4 rounded-2xl bg-amber-100/90 border border-amber-300 text-amber-950 font-serif text-lg font-bold text-center italic shadow-2xs">${esc(c.purohitBanner.highlight)}</div>` : ''}
+          </div>
+        </div>
+      </section>` : '';
     return `
       ${hero({ eyebrow: 'Services', title: c.title, sub: c.intro, image: c.image, crumbs: crumbs([['Home', '/'], ['Services', '/services'], [c.title]]) })}
+      ${purohitBanner}
       <section class="sp-section">
         <div class="sp-wrap grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${list.map(s => serviceCard(s)).join('')}</div>
       </section>
@@ -294,6 +307,56 @@
           </div>` : ''}
         </div>
       </section>` : '';
+
+    const sectionsHtml = (s.sections || []).map((sec, idx) => `
+      <section class="sp-section ${idx % 2 === 1 ? 'sp-section--tint' : ''}">
+        <div class="sp-wrap space-y-6">
+          <div class="text-center max-w-3xl mx-auto space-y-2">
+            ${sec.eyebrow ? `<p class="sp-eyebrow sp-eyebrow--maroon font-bold uppercase tracking-wider text-xs">${esc(sec.eyebrow)}</p>` : ''}
+            ${sec.title ? `<h2 class="sp-h2 font-serif text-3xl sm:text-4xl font-bold text-amber-950">${esc(sec.title)}</h2>` : ''}
+            ${sec.subtitle ? `<p class="sp-lead text-ink-2 mt-2">${esc(sec.subtitle)}</p>` : ''}
+          </div>
+
+          ${sec.paragraphs ? `
+            <div class="max-w-3xl mx-auto space-y-4">
+              ${sec.paragraphs.map(p => `<p class="sp-text text-base sm:text-lg leading-relaxed text-ink-2">${p}</p>`).join('')}
+            </div>` : ''}
+
+          ${sec.columns ? `
+            <div class="grid gap-6 md:grid-cols-2 mt-8">
+              ${sec.columns.map(col => `
+                <div class="sp-panel bg-cream-1/80 border border-amber-200/80 rounded-2xl p-6 shadow-xs">
+                  <h3 class="font-serif text-xl font-bold text-amber-950 mb-4 border-b border-amber-200/60 pb-2">${esc(col.title)}</h3>
+                  <ul class="sp-ticks space-y-2.5">${(col.items || []).map(it => `<li>${esc(it)}</li>`).join('')}</ul>
+                </div>
+              `).join('')}
+            </div>` : ''}
+
+          ${sec.chipsTitle || sec.chips ? `
+            <div class="sp-panel bg-amber-50/70 border border-amber-300/80 rounded-2xl p-6 text-center space-y-3 mt-6">
+              ${sec.chipsTitle ? `<h3 class="font-serif text-sm font-bold text-amber-950 uppercase tracking-wider">${esc(sec.chipsTitle)}</h3>` : ''}
+              ${sec.chips ? `<div class="flex flex-wrap items-center justify-center gap-2 pt-1">${sec.chips.map(c => `<span class="inline-block bg-white/95 border border-amber-300 text-amber-900 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-2xs">${esc(c)}</span>`).join('')}</div>` : ''}
+            </div>` : ''}
+
+          ${sec.steps ? `
+            <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-${sec.stepsCols || (sec.steps.length > 4 ? '3' : '2')} mt-8">
+              ${sec.steps.map(st => `
+                <div class="sp-panel bg-cream-1/90 border border-amber-200/90 rounded-2xl p-6 shadow-xs relative hover:border-amber-400 transition-colors">
+                  <div class="font-serif text-3xl font-extrabold text-amber-400/90 mb-1">${esc(st.num)}</div>
+                  <h3 class="font-serif text-lg font-bold text-amber-950 mb-2">${esc(st.title)}</h3>
+                  <p class="sp-text text-sm leading-relaxed text-ink-2">${esc(st.text)}</p>
+                </div>
+              `).join('')}
+            </div>` : ''}
+
+          ${sec.highlight ? `
+            <div class="p-6 rounded-2xl bg-gradient-to-r from-amber-100/90 via-amber-50 to-amber-100/90 border border-amber-300 text-center text-amber-950 font-serif text-xl font-bold italic shadow-xs max-w-3xl mx-auto mt-6">
+              ${esc(sec.highlight)}
+            </div>` : ''}
+        </div>
+      </section>
+    `).join('');
+
     return `
       <section class="sp-section sp-detail-top">
         <div class="sp-wrap">
@@ -321,6 +384,7 @@
           </div>
         </div>
       </section>
+      ${s.sections && s.sections.length ? sectionsHtml : `
       <section class="sp-section">
         <div class="sp-wrap grid gap-6 lg:grid-cols-3">
           <div class="sp-panel"><h2 class="sp-h3">${s.core ? 'What it covers' : 'Benefits &amp; purpose'}</h2><ul class="sp-ticks">${(s.benefits || []).map(b => `<li>${esc(b)}</li>`).join('')}</ul></div>
@@ -329,7 +393,7 @@
         </div>
         ${s.deliverables ? `<div class="sp-wrap mt-6"><div class="sp-panel sp-panel--gold"><h2 class="sp-h3">What you receive</h2><ul class="sp-ticks sp-ticks--cols">${s.deliverables.map(d => `<li>${esc(d)}</li>`).join('')}</ul></div></div>` : ''}
       </section>
-      ${parts}
+      ${parts}`}
       ${related.length ? `<section class="sp-section"><div class="sp-wrap">${sectionHead('', 'Related services')}<div class="grid gap-6 md:grid-cols-3">${related.map(r => serviceCard(r, { compact: true })).join('')}</div></div></section>` : ''}
       ${ctaBand()}`;
   };
@@ -339,8 +403,10 @@
     const faq = (C().faqCategories || []).find(f => f.id === 'reiki');
     const reikiCourses = (C().courses || []).filter(c => c.track === 'reiki' && c.published !== false);
     return `
-      ${hero({ eyebrow: 'Reiki Healing', title: 'Reiki — rest, balance and relaxation', sub: 'A gentle, hands-on or distance practice that many people find deeply relaxing. Offered as a complementary wellness practice alongside — never instead of — medical care.', image: '/assets/svc/reiki.svg', crumbs: crumbs([['Home', '/'], ['Reiki Healing']]),
-        extra: `<div class="flex flex-col sm:flex-row gap-3 mt-6"><button type="button" onclick="bookService('reiki-individual-session')" class="gold-gradient-btn h-12 px-6 rounded-full">Book a Reiki Session</button><a href="#reiki-sessions" class="h-12 px-6 rounded-full border border-cream/40 text-cream hover:border-gold hover:text-gold flex items-center justify-center font-medium">See sessions &amp; packages</a></div>` })}
+      ${hero({
+      eyebrow: 'Reiki Healing', title: 'Reiki — rest, balance and relaxation', sub: 'A gentle, hands-on or distance practice that many people find deeply relaxing. Offered as a complementary wellness practice alongside — never instead of — medical care.', image: '/assets/svc/reiki.svg', crumbs: crumbs([['Home', '/'], ['Reiki Healing']]),
+      extra: `<div class="flex flex-col sm:flex-row gap-3 mt-6"><button type="button" onclick="bookService('reiki-individual-session')" class="gold-gradient-btn h-12 px-6 rounded-full">Book a Reiki Session</button><a href="#reiki-sessions" class="h-12 px-6 rounded-full border border-cream/40 text-cream hover:border-gold hover:text-gold flex items-center justify-center font-medium">See sessions &amp; packages</a></div>`
+    })}
       <section class="sp-section">
         <div class="sp-wrap grid gap-6 md:grid-cols-3">
           <div class="sp-panel"><h2 class="sp-h3">What is Reiki?</h2><p class="sp-text">Reiki is a Japanese practice in which the practitioner places their hands lightly on, or just above, the body in a series of positions. It is usually received lying down and fully clothed, in a quiet room — or at a distance, at an agreed time.</p></div>
@@ -384,15 +450,15 @@
     return `
       ${hero({ eyebrow: 'Courses & Training', title: 'Learn from Guruji', sub: 'Structured courses in palmistry and Reiki, with more on Vedic astrology, mantra and Sanatana Dharma to come.', image: '/assets/svc/course-palmistry.webp', crumbs: crumbs([['Home', '/'], ['Courses']]) })}
       ${tracks.map((t, i) => {
-        const list = (C().courses || []).filter(c => c.track === t.id && c.published !== false);
-        if (!list.length) return '';
-        return `<section class="sp-section ${i % 2 ? 'sp-section--tint' : ''}" id="${esc(t.id)}">
+      const list = (C().courses || []).filter(c => c.track === t.id && c.published !== false);
+      if (!list.length) return '';
+      return `<section class="sp-section ${i % 2 ? 'sp-section--tint' : ''}" id="${esc(t.id)}">
           <div class="sp-wrap">
             ${sectionHead('', t.title, t.note)}
             <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${list.map(courseCard).join('')}</div>
           </div>
         </section>`;
-      }).join('')}
+    }).join('')}
       ${(() => { const f = (C().faqCategories || []).find(x => x.id === 'courses'); return f ? `<section class="sp-section"><div class="sp-wrap sp-narrow">${sectionHead('Questions', 'Courses FAQs')}${faqList(f.items, 'course-faq')}</div></section>` : ''; })()}
       ${ctaBand('Interested in a course?', 'Register your interest and we will contact you with dates, fees and the format of the next batch.')}`;
   };
@@ -782,10 +848,10 @@
           ${sectionHead('Why Guruji Palmistry', 'Guidance, not fear. Awareness, not dependency.')}
           <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             ${[['fa-scale-balanced', 'Two sciences, one view', 'Palmistry and astrology read together, with clear explanation of where they agree.'],
-               ['fa-heart', 'No fear-based predictions', 'Practical, honest guidance — never pressure to buy remedies.'],
-               ['fa-lock', 'Private & secure', 'Your details are used only for your service. Payments by Cashfree.'],
-               ['fa-route', 'From reading to practice', 'Japa, puja, Reiki and courses to support what you learn.']]
-              .map(([ic, t, d]) => `<div class="sp-why"><i class="fa-solid ${ic}" aria-hidden="true"></i><h3>${t}</h3><p>${d}</p></div>`).join('')}
+      ['fa-heart', 'No fear-based predictions', 'Practical, honest guidance — never pressure to buy remedies.'],
+      ['fa-lock', 'Private & secure', 'Your details are used only for your service. Payments by Cashfree.'],
+      ['fa-route', 'From reading to practice', 'Japa, puja, Reiki and courses to support what you learn.']]
+        .map(([ic, t, d]) => `<div class="sp-why"><i class="fa-solid ${ic}" aria-hidden="true"></i><h3>${t}</h3><p>${d}</p></div>`).join('')}
           </div>
         </div>
       </section>
@@ -1569,7 +1635,7 @@
     const headers = auth.pin ? { 'x-admin-pin': auth.pin } : {};
     fetchJson(`/api/bookings/${encodeURIComponent(orderId)}/session/joined`, {
       method: 'POST', headers, body: auth.mobile ? { mobile: auth.mobile } : {}
-    }).catch(() => {});
+    }).catch(() => { });
 
     api.addEventListener('videoConferenceLeft', () => leaveSession(orderId));
     api.addEventListener('readyToClose', () => leaveSession(orderId));
@@ -1786,55 +1852,71 @@
   };
 
   const SCHEMAS = {
-    services: { label: 'Services', key: 'slug', title: 'title', fields: [
-      ['title', 'Title', 'text'], ['slug', 'URL slug', 'text'], ['category', 'Category', 'select', () => (C().serviceCategories || []).map(c => [c.id, c.title])],
-      ['short', 'Short description', 'textarea'], ['intro', 'Introduction', 'textarea'], ['description', 'Description', 'textarea'],
-      ['benefits', 'Benefits / purpose (one per line)', 'lines'], ['requiredInfo', 'Information required (one per line — empty uses the category list)', 'lines'],
-      ['deliverables', 'What the client receives (one per line)', 'lines'], ['duration', 'Duration', 'text'],
-      ['price', 'Price in ₹ (empty = price on request)', 'number'],
-      ['bookingType', 'How it is booked', 'select', () => [['enquiry', 'Enquiry form'], ['consultation', 'Pay online (consultation flow)'], ['pooja', 'Pooja booking (date & slot)']]],
-      ['consultationId', 'Consultation id (palmistry_reading / astrology_correlation / combined_consultation)', 'text'], ['poojaId', 'Pooja id (for pooja booking)', 'text'],
-      ['image', 'Image', 'image'], ['core', 'Core consultation', 'bool'], ['featured', 'Featured on home', 'bool'], ['published', 'Published', 'bool']
-    ], blank: () => ({ slug: '', category: 'palmistry', title: 'New service', short: '', intro: '', description: '', benefits: [], duration: '', price: null, bookingType: 'enquiry', published: false }) },
-    courses: { label: 'Courses', key: 'slug', title: 'title', fields: [
-      ['title', 'Title', 'text'], ['slug', 'URL slug', 'text'], ['track', 'Track', 'select', () => (C().courseTracks || []).map(t => [t.id, t.title])],
-      ['overview', 'Overview', 'textarea'], ['curriculum', 'Curriculum (one per line)', 'lines'], ['outcomes', 'Learning outcomes (one per line)', 'lines'],
-      ['duration', 'Duration', 'text'], ['mode', 'Online / offline', 'text'], ['instructor', 'Instructor', 'text'], ['price', 'Fee in ₹ (empty = on enquiry)', 'number'],
-      ['certificate', 'Certificate', 'text'], ['status', 'Status', 'select', () => [['open', 'Enrolling now'], ['enquire', 'Register interest'], ['upcoming', 'Coming soon']]],
-      ['image', 'Image', 'image'], ['featured', 'Featured on home', 'bool'], ['published', 'Published', 'bool']
-    ], blank: () => ({ slug: '', track: 'palmistry', title: 'New course', overview: '', curriculum: [], outcomes: [], duration: '', mode: 'Online & offline', instructor: 'Guruji', price: null, certificate: '', status: 'enquire', published: false }) },
-    articles: { label: 'Articles', key: 'slug', title: 'title', fields: [
-      ['title', 'Title', 'text'], ['slug', 'URL slug', 'text'], ['category', 'Category', 'select', () => (C().resourceCategories || []).map(c => [c.id, c.title])],
-      ['type', 'Resource type', 'select', () => (C().resourceTypes || []).map(t => [t, t])], ['excerpt', 'Summary', 'textarea'],
-      ['body', 'Article text (blank line between paragraphs)', 'paras'], ['date', 'Date', 'date'], ['author', 'Author', 'text'],
-      ['image', 'Image', 'image'], ['videoUrl', 'YouTube link (optional)', 'text'], ['pdfUrl', 'PDF link (optional)', 'text'],
-      ['featured', 'Featured', 'bool'], ['published', 'Published', 'bool']
-    ], blank: () => ({ slug: '', category: 'palmistry', type: 'Articles & Blogs', title: 'New article', excerpt: '', body: [], date: new Date().toISOString().slice(0, 10), author: 'Guruji Palmistry', published: false }) },
-    testimonials: { label: 'Testimonials', key: null, title: 'name', fields: [
-      ['name', 'Name', 'text'], ['location', 'Location', 'text'], ['text', 'Testimonial', 'textarea'], ['published', 'Published', 'bool']
-    ], blank: () => ({ name: '', location: '', text: '', published: false }) },
-    faqCategories: { label: 'FAQs', key: 'id', title: 'title', fields: [
-      ['title', 'Topic title', 'text'], ['id', 'Topic id', 'text'], ['items', 'Questions — one per line as: Question || Answer', 'pairs']
-    ], blank: () => ({ id: 'new-topic', title: 'New topic', items: [] }) },
-    serviceCategories: { label: 'Service categories', key: 'id', title: 'title', fields: [
-      ['title', 'Title', 'text'], ['id', 'Id', 'text'], ['tagline', 'Tagline', 'text'], ['intro', 'Introduction', 'textarea'],
-      ['howItWorks', 'How it works (one step per line)', 'lines'], ['requiredInfo', 'Information required (one per line)', 'lines'],
-      ['image', 'Image', 'image'], ['icon', 'Icon (Font Awesome name, e.g. fa-hand)', 'text'], ['link', 'Custom page link (optional)', 'text']
-    ], blank: () => ({ id: 'new-category', title: 'New category', tagline: '', intro: '', howItWorks: [], requiredInfo: [], image: '', icon: 'fa-star' }) },
+    services: {
+      label: 'Services', key: 'slug', title: 'title', fields: [
+        ['title', 'Title', 'text'], ['slug', 'URL slug', 'text'], ['category', 'Category', 'select', () => (C().serviceCategories || []).map(c => [c.id, c.title])],
+        ['short', 'Short description', 'textarea'], ['intro', 'Introduction', 'textarea'], ['description', 'Description', 'textarea'],
+        ['benefits', 'Benefits / purpose (one per line)', 'lines'], ['requiredInfo', 'Information required (one per line — empty uses the category list)', 'lines'],
+        ['deliverables', 'What the client receives (one per line)', 'lines'], ['duration', 'Duration', 'text'],
+        ['price', 'Price in ₹ (empty = price on request)', 'number'],
+        ['bookingType', 'How it is booked', 'select', () => [['enquiry', 'Enquiry form'], ['consultation', 'Pay online (consultation flow)'], ['pooja', 'Pooja booking (date & slot)']]],
+        ['consultationId', 'Consultation id (palmistry_reading / astrology_correlation / combined_consultation)', 'text'], ['poojaId', 'Pooja id (for pooja booking)', 'text'],
+        ['image', 'Image', 'image'], ['core', 'Core consultation', 'bool'], ['featured', 'Featured on home', 'bool'], ['published', 'Published', 'bool']
+      ], blank: () => ({ slug: '', category: 'palmistry', title: 'New service', short: '', intro: '', description: '', benefits: [], duration: '', price: null, bookingType: 'enquiry', published: false })
+    },
+    courses: {
+      label: 'Courses', key: 'slug', title: 'title', fields: [
+        ['title', 'Title', 'text'], ['slug', 'URL slug', 'text'], ['track', 'Track', 'select', () => (C().courseTracks || []).map(t => [t.id, t.title])],
+        ['overview', 'Overview', 'textarea'], ['curriculum', 'Curriculum (one per line)', 'lines'], ['outcomes', 'Learning outcomes (one per line)', 'lines'],
+        ['duration', 'Duration', 'text'], ['mode', 'Online / offline', 'text'], ['instructor', 'Instructor', 'text'], ['price', 'Fee in ₹ (empty = on enquiry)', 'number'],
+        ['certificate', 'Certificate', 'text'], ['status', 'Status', 'select', () => [['open', 'Enrolling now'], ['enquire', 'Register interest'], ['upcoming', 'Coming soon']]],
+        ['image', 'Image', 'image'], ['featured', 'Featured on home', 'bool'], ['published', 'Published', 'bool']
+      ], blank: () => ({ slug: '', track: 'palmistry', title: 'New course', overview: '', curriculum: [], outcomes: [], duration: '', mode: 'Online & offline', instructor: 'Guruji', price: null, certificate: '', status: 'enquire', published: false })
+    },
+    articles: {
+      label: 'Articles', key: 'slug', title: 'title', fields: [
+        ['title', 'Title', 'text'], ['slug', 'URL slug', 'text'], ['category', 'Category', 'select', () => (C().resourceCategories || []).map(c => [c.id, c.title])],
+        ['type', 'Resource type', 'select', () => (C().resourceTypes || []).map(t => [t, t])], ['excerpt', 'Summary', 'textarea'],
+        ['body', 'Article text (blank line between paragraphs)', 'paras'], ['date', 'Date', 'date'], ['author', 'Author', 'text'],
+        ['image', 'Image', 'image'], ['videoUrl', 'YouTube link (optional)', 'text'], ['pdfUrl', 'PDF link (optional)', 'text'],
+        ['featured', 'Featured', 'bool'], ['published', 'Published', 'bool']
+      ], blank: () => ({ slug: '', category: 'palmistry', type: 'Articles & Blogs', title: 'New article', excerpt: '', body: [], date: new Date().toISOString().slice(0, 10), author: 'Guruji Palmistry', published: false })
+    },
+    testimonials: {
+      label: 'Testimonials', key: null, title: 'name', fields: [
+        ['name', 'Name', 'text'], ['location', 'Location', 'text'], ['text', 'Testimonial', 'textarea'], ['published', 'Published', 'bool']
+      ], blank: () => ({ name: '', location: '', text: '', published: false })
+    },
+    faqCategories: {
+      label: 'FAQs', key: 'id', title: 'title', fields: [
+        ['title', 'Topic title', 'text'], ['id', 'Topic id', 'text'], ['items', 'Questions — one per line as: Question || Answer', 'pairs']
+      ], blank: () => ({ id: 'new-topic', title: 'New topic', items: [] })
+    },
+    serviceCategories: {
+      label: 'Service categories', key: 'id', title: 'title', fields: [
+        ['title', 'Title', 'text'], ['id', 'Id', 'text'], ['tagline', 'Tagline', 'text'], ['intro', 'Introduction', 'textarea'],
+        ['howItWorks', 'How it works (one step per line)', 'lines'], ['requiredInfo', 'Information required (one per line)', 'lines'],
+        ['image', 'Image', 'image'], ['icon', 'Icon (Font Awesome name, e.g. fa-hand)', 'text'], ['link', 'Custom page link (optional)', 'text']
+      ], blank: () => ({ id: 'new-category', title: 'New category', tagline: '', intro: '', howItWorks: [], requiredInfo: [], image: '', icon: 'fa-star' })
+    },
     pillars: { label: 'Home pillars', key: null, title: 'title', fields: [['title', 'Title', 'text'], ['text', 'Text', 'text'], ['icon', 'Icon', 'text'], ['link', 'Link', 'text']], blank: () => ({ title: '', text: '', icon: 'fa-star', link: '/' }) }
   };
   const OBJECT_SECTIONS = {
-    settings: { label: 'Settings & homepage', fields: [
-      ['hero.title', 'Homepage heading', 'text'], ['hero.subtitle', 'Homepage subtitle', 'textarea'],
-      ['phone', 'Phone (shown on site)', 'text'], ['whatsapp', 'WhatsApp number with country code (e.g. 919876543210)', 'text'],
-      ['email', 'Email', 'text'], ['address', 'Address (optional)', 'textarea'], ['mapEmbedUrl', 'Google Maps embed URL (optional)', 'text'],
-      ['social.instagram', 'Instagram URL', 'text'], ['social.youtube', 'YouTube URL', 'text'], ['social.facebook', 'Facebook URL', 'text']
-    ] },
-    about: { label: 'About Guruji', fields: [
-      ['name', 'Name', 'text'], ['alsoKnownAs', 'Also known as', 'text'], ['role', 'Role / title', 'text'], ['portrait', 'Portrait', 'image'],
-      ['intro', 'Introduction', 'textarea'], ['highlights', 'Highlights (one per line)', 'lines'],
-      ['sections', 'Page sections — one per block: Title || Text (use ;; to separate list items)', 'sections']
-    ] }
+    settings: {
+      label: 'Settings & homepage', fields: [
+        ['hero.title', 'Homepage heading', 'text'], ['hero.subtitle', 'Homepage subtitle', 'textarea'],
+        ['phone', 'Phone (shown on site)', 'text'], ['whatsapp', 'WhatsApp number with country code (e.g. 919876543210)', 'text'],
+        ['email', 'Email', 'text'], ['address', 'Address (optional)', 'textarea'], ['mapEmbedUrl', 'Google Maps embed URL (optional)', 'text'],
+        ['social.instagram', 'Instagram URL', 'text'], ['social.youtube', 'YouTube URL', 'text'], ['social.facebook', 'Facebook URL', 'text']
+      ]
+    },
+    about: {
+      label: 'About Guruji', fields: [
+        ['name', 'Name', 'text'], ['alsoKnownAs', 'Also known as', 'text'], ['role', 'Role / title', 'text'], ['portrait', 'Portrait', 'image'],
+        ['intro', 'Introduction', 'textarea'], ['highlights', 'Highlights (one per line)', 'lines'],
+        ['sections', 'Page sections — one per block: Title || Text (use ;; to separate list items)', 'sections']
+      ]
+    }
   };
   const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
   const setPath = (o, p, v) => { const ks = p.split('.'); let x = o; ks.slice(0, -1).forEach(k => { if (x[k] == null || typeof x[k] !== 'object') x[k] = {}; x = x[k]; }); x[ks[ks.length - 1]] = v; };
@@ -1925,24 +2007,24 @@
           <div class="sp-filter__search"><i class="fa-solid fa-magnifying-glass"></i><input name="q" value="${esc(f.q || '')}" placeholder="Search name, mobile, reference…"></div>
           <select name="status" onchange="adminFilter(this.form)"><option value="">All statuses</option>${ADMIN.data.statuses.map(s => `<option ${f.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
           ${isB ? `<select name="type" onchange="adminFilter(this.form)"><option value="">All types</option><option value="consultation" ${f.type === 'consultation' ? 'selected' : ''}>Consultation</option><option value="pooja" ${f.type === 'pooja' ? 'selected' : ''}>Pooja</option></select>`
-                : `<select name="kind" onchange="adminFilter(this.form)"><option value="">All kinds</option>${['booking', 'course', 'contact'].map(k => `<option ${f.kind === k ? 'selected' : ''}>${k}</option>`).join('')}</select>`}
+          : `<select name="kind" onchange="adminFilter(this.form)"><option value="">All kinds</option>${['booking', 'course', 'contact'].map(k => `<option ${f.kind === k ? 'selected' : ''}>${k}</option>`).join('')}</select>`}
           <button class="sp-btn-outline">Filter</button>
         </form>
         <p class="text-sm text-ink-3 my-3">${rows.length} ${tab}</p>
         <div class="adm-records">${rows.map(r => {
-          const ref = isB ? r.orderId : r.reference;
-          const who = isB ? r.devotee : r.contact;
-          const what = isB ? (r.service && r.service.title) : (r.service ? r.service.title : r.kind);
-          const when = isB ? (r.poojaDate ? `${r.poojaDate} · ${(r.poojaSlot || {}).label || ''}` : r.slot ? `${r.slot.date || ''} ${r.slot.time || ''}` : '') : [r.preferredDate, r.preferredTime].filter(Boolean).join(' · ');
-          const details = isB ? [
-            who.email && `Email: ${who.email}`, who.gotram && `Gotram: ${who.gotram}`, who.dob && `DOB: ${who.dob}`, who.tob && `TOB: ${who.tob}`, who.pob && `POB: ${who.pob}`,
-            who.questions && `Questions: ${who.questions}`, r.handedness && `Hand: ${r.handedness}`,
-            (who.lat != null && who.lon != null) && `Birth co-ordinates: ${who.lat}, ${who.lon}`,
-            r.prasadam && r.prasadam.deliver && r.prasadam.address && `Prasadam to: ${Object.values(r.prasadam.address).filter(Boolean).join(', ')}`,
-            r.payment && `Payment: ${r.payment.provider} · ${r.payment.status}${r.payment.gatewayOrderId ? ' · ' + r.payment.gatewayOrderId : ''}`,
-            r.photos && r.photos.length && `Photos: ${r.photos.length} (names only)`
-          ] : [who.email && `Email: ${who.email}`, r.consultationType && `Type: ${r.consultationType}`, r.mode && `Mode: ${r.mode}`, r.message && `Message: ${r.message}`, `WhatsApp OK: ${who.whatsapp ? 'yes' : 'no'}`];
-          return `
+            const ref = isB ? r.orderId : r.reference;
+            const who = isB ? r.devotee : r.contact;
+            const what = isB ? (r.service && r.service.title) : (r.service ? r.service.title : r.kind);
+            const when = isB ? (r.poojaDate ? `${r.poojaDate} · ${(r.poojaSlot || {}).label || ''}` : r.slot ? `${r.slot.date || ''} ${r.slot.time || ''}` : '') : [r.preferredDate, r.preferredTime].filter(Boolean).join(' · ');
+            const details = isB ? [
+              who.email && `Email: ${who.email}`, who.gotram && `Gotram: ${who.gotram}`, who.dob && `DOB: ${who.dob}`, who.tob && `TOB: ${who.tob}`, who.pob && `POB: ${who.pob}`,
+              who.questions && `Questions: ${who.questions}`, r.handedness && `Hand: ${r.handedness}`,
+              (who.lat != null && who.lon != null) && `Birth co-ordinates: ${who.lat}, ${who.lon}`,
+              r.prasadam && r.prasadam.deliver && r.prasadam.address && `Prasadam to: ${Object.values(r.prasadam.address).filter(Boolean).join(', ')}`,
+              r.payment && `Payment: ${r.payment.provider} · ${r.payment.status}${r.payment.gatewayOrderId ? ' · ' + r.payment.gatewayOrderId : ''}`,
+              r.photos && r.photos.length && `Photos: ${r.photos.length} (names only)`
+            ] : [who.email && `Email: ${who.email}`, r.consultationType && `Type: ${r.consultationType}`, r.mode && `Mode: ${r.mode}`, r.message && `Message: ${r.message}`, `WhatsApp OK: ${who.whatsapp ? 'yes' : 'no'}`];
+            return `
           <details class="adm-record">
             <summary>
               <span class="font-mono text-xs">${esc(ref)}</span>
@@ -1963,7 +2045,7 @@
               </form>
             </div>
           </details>`;
-        }).join('') || '<p class="sp-text">Nothing here yet.</p>'}</div>`;
+          }).join('') || '<p class="sp-text">Nothing here yet.</p>'}</div>`;
       return;
     }
     if (tab === 'images') {
@@ -2247,7 +2329,7 @@
         <div class="sp-panel">
           <h3 class="sp-h3">${roomOpen ? 'Your consultation room' : 'Your consultation'}</h3>
           ${when ? `<p class="sp-text">${when.toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'short' })}.${roomOpen ? ' The room opens ten minutes before.' : ''}</p>`
-                 : '<p class="sp-text">We will confirm your appointment time with you.</p>'}
+        : '<p class="sp-text">We will confirm your appointment time with you.</p>'}
           ${roomOpen ? '<p class="session-countdown" data-track-countdown></p>' : '<p class="sp-text">The session is over. Guruji\'s written reading is below once it is ready.</p>'}
           <div class="flex flex-wrap gap-3 mt-2">
             ${roomOpen ? `<a href="/session/${esc(b.orderId)}" data-link class="gold-gradient-btn h-11 px-5 rounded-xl" data-join-link><i class="fa-solid fa-video" aria-hidden="true"></i> Join session</a>` : ''}
@@ -2433,9 +2515,9 @@
             <div class="sp-panel">
               <h2 class="sp-h3">Palm photos</h2>
               ${(c.photos || []).length
-                ? `<ul class="case-photos">${c.photos.map(p => `<li><span>${esc(p.name)}</span><small>slot ${p.slot} · ${Math.round((p.size || 0) / 1024)} KB</small></li>`).join('')}</ul>
+        ? `<ul class="case-photos">${c.photos.map(p => `<li><span>${esc(p.name)}</span><small>slot ${p.slot} · ${Math.round((p.size || 0) / 1024)} KB</small></li>`).join('')}</ul>
                    <p class="text-xs text-ink-3 mt-2">The devotee's photos are listed by name here. Ask for them on WhatsApp or by email until file storage is connected.</p>`
-                : '<p class="sp-text">No photos uploaded yet.</p>'}
+        : '<p class="sp-text">No photos uploaded yet.</p>'}
             </div>
 
             <div class="sp-panel" data-case-chart>

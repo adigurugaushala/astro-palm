@@ -53,8 +53,8 @@
   // -------------------------------------------------------------------------
   const about = {
     name: 'Adiguru Swamiji',
-    alsoKnownAs: 'Satish Mokkapati (Mokkapati Satish Kumar)',
-    role: 'Spiritual Guide & Founder',
+    alsoKnownAs: '',
+    role: '',
     tagline: 'Beyond Prediction. Towards Self-Discovery.',
     portrait: '/assets/adiguru_swamiji_portrait.jpg',
     intro: 'Adiguru Swamiji is a spiritual seeker whose journey spans over 25 years of corporate leadership and a deeper pursuit of life’s purpose. Guided by an inclination towards spirituality since childhood and transformed by experiences, travels, service, and his meeting with Gopal Baba, he now shares insights from Palmistry, Astrology, and Conscious Living. His endeavour is to help individuals move beyond prediction towards awareness, understanding, and self-discovery.',
@@ -109,16 +109,26 @@
       requiredInfo: ['Date of birth', 'Exact time of birth (as accurate as possible)', 'Place of birth (city, state, country)', 'Questions or areas of focus']
     },
     {
-      id: 'japa-mantra', title: 'Japa & Mantra', tagline: 'Personal and planetary mantra services',
+      id: 'japa-mantra', title: 'Japa & Mantra', tagline: 'Traditional Japa and Mantra observances by experienced Purohits',
       image: '/assets/svc/japa.webp', icon: 'fa-om',
-      intro: 'Japa is the disciplined repetition of a mantra with Sankalpa (a stated intention). Japa can be performed for an individual graha, the Navagraha, or a chosen deity, on your behalf or with you.',
+      intro: 'Guruji Palmistry facilitates traditional Japa and Mantra observances by engaging experienced Purohits/Brahmins to undertake the prescribed prayers and rituals on behalf of devotees.',
+      purohitBanner: {
+        eyebrow: 'Traditional Japa & Mantra Observances',
+        title: 'Japa Performed by Experienced Purohits',
+        paragraphs: [
+          'Guruji Palmistry facilitates traditional Japa and Mantra observances by engaging experienced Purohits/Brahmins to undertake the prescribed prayers and rituals on behalf of devotees.',
+          'The devotee is required to provide the relevant Gothra, names and Tithi details, along with the Sankalpa or purpose for which the Japa is intended. Based on these details, the appropriate Mantra and prescribed observance are arranged.',
+          'The Japa is conducted with reverence to tradition, adherence to the prescribed count and a sincere devotional intention.'
+        ],
+        highlight: 'You provide the Sankalpa. We arrange the Japa. The Mantra becomes an offering.'
+      },
       howItWorks: ['Send an enquiry with your intention and details.', 'Guruji suggests the mantra, count and number of days.', 'Sankalpa is taken in your name and gotram; japa is performed.', 'You receive confirmation on completion.'],
       requiredInfo: ['Full name', 'Gotram (if known)', 'Nakshatra / Rashi (if known)', 'Purpose of the japa']
     },
     {
-      id: 'puja-rituals', title: 'Puja & Graha Shanti', tagline: 'Traditional spiritual rituals and pujas',
+      id: 'puja-rituals', title: 'Puja & Graha Shanti', tagline: 'Traditional worship, sacred rituals and Graha Shanti observances',
       image: '/assets/svc/puja.webp', icon: 'fa-fire',
-      intro: 'Pujas, homams and abhishekams performed according to tradition, with Sankalpa in your name. Some can be booked and paid online; others are arranged after a short consultation.',
+      intro: 'Traditional worship, sacred rituals and Graha Shanti observances performed by experienced Purohits on your behalf, with Sankalpa in your name, guided by faith, tradition and devotion.',
       howItWorks: ['Choose the puja and date (or send an enquiry).', 'Share names and gotram for the Sankalpa.', 'The ritual is performed on the chosen date and slot.', 'Prasadam can be posted to your address.'],
       requiredInfo: ['Names of the family members for the Sankalpa', 'Gotram', 'Preferred date', 'Postal address if prasadam is required']
     },
@@ -183,8 +193,69 @@
       ['Lagna and the Lagna lord', 'Placement and strength of each Graha', 'All twelve Bhavas (houses)', 'Rashis, Nakshatras and Yogas', 'Mahadasha / Antardasha periods', 'Major transits and life themes'],
       {
         core: true, featured: true, consultationId: 'astrology_correlation', bookingType: 'consultation', price: 549, duration: '30 minutes', image: '/assets/svc/astrology.svg',
-        description: 'Your Kundali is cast from your date, time and place of birth. Guruji studies the Lagna and its lord, the placement and strength of the Grahas, the twelve Bhavas, Rashis and Nakshatras, important Yogas, the running Mahadasha and Antardasha, and the major transits — and explains what they indicate for the areas of life you ask about.',
-        deliverables: ['Consultation call with Guruji', 'Summary of chart highlights and current Dasha', 'Suggested practices where appropriate']
+        tagline: 'Your Chart. Your Journey. Your Understanding.',
+        intro: 'A Kundali is more than a chart of planetary positions at the time of birth. It is a framework through which Vedic Astrology interprets an individual’s personality, tendencies, life themes, strengths, challenges and important periods in life.',
+        description: 'At Guruji Palmistry, we go beyond isolated planetary interpretations. We examine the Kundali as a whole, bringing together the Lagna, Bhavas, planetary placements, combinations, Dashas and transits to understand how different aspects of life may connect and unfold. Our approach is to understand the individual behind the chart—not merely interpret individual planets or make isolated predictions.',
+        deliverables: ['Full Kundali chart casting & evaluation', 'Comprehensive analysis across all life dimensions', 'Mahadasha, Antardasha & transit timeline assessment', 'Consultation call with Guruji', 'Summary of key life themes and guidance'],
+        sections: [
+          {
+            id: 'why',
+            eyebrow: 'Why a Comprehensive Kundali Analysis?',
+            title: 'A Framework for Understanding Your Journey',
+            paragraphs: [
+              'A Kundali is more than a chart of planetary positions at the time of birth. It is a framework through which Vedic Astrology interprets an individual’s personality, tendencies, life themes, strengths, challenges and important periods in life.',
+              'At Guruji Palmistry, we go beyond isolated planetary interpretations. We examine the Kundali as a whole, bringing together the Lagna, Bhavas, planetary placements, combinations, Dashas and transits to understand how different aspects of life may connect and unfold.',
+              'Our approach is to understand the individual behind the chart—not merely interpret individual planets or make isolated predictions.'
+            ]
+          },
+          {
+            id: 'what',
+            eyebrow: 'Detailed Analysis',
+            title: 'What Do We Analyse?',
+            stepsCols: 3,
+            steps: [
+              { num: '01', title: 'Lagna & Personality', text: 'Ascendant, Lagna Lord, personality, temperament, individuality, approach to life and inherent tendencies.' },
+              { num: '02', title: 'Grahas & Influences', text: 'Planetary placements, strengths, weaknesses, interactions, aspects and influences within the Kundali.' },
+              { num: '03', title: 'Bhavas, Rashis & Nakshatras', text: 'The twelve houses, zodiac signs, Nakshatras and their significance across different areas of life.' },
+              { num: '04', title: 'Yogas & Combinations', text: 'Significant combinations, Yogas and planetary relationships that may influence the overall interpretation.' },
+              { num: '05', title: 'Dasha & Life Periods', text: 'Mahadasha, Antardasha and relevant planetary periods to understand changing life themes and phases.' },
+              { num: '06', title: 'Transits & Timing', text: 'Relevant planetary transits and their relationship to the natal chart and ongoing Dasha periods.' }
+            ]
+          },
+          {
+            id: 'holistic',
+            eyebrow: 'Life Dimensions',
+            title: 'A Holistic View of Your Life',
+            paragraphs: [
+              'Our analysis explores various dimensions of life, including Personality & Mind, Career & Profession, Business & Wealth, Marriage & Relationships, Family & Children, Property & Assets, Health & Well-being, Spirituality & Life Purpose, strengths, challenges, opportunities and significant life phases.'
+            ],
+            chipsTitle: 'Life Areas Examined Across the Chart',
+            chips: ['Personality & Mind', 'Career & Profession', 'Business & Wealth', 'Marriage & Relationships', 'Family & Children', 'Property & Assets', 'Health & Well-being', 'Spirituality & Life Purpose', 'Strengths & Opportunities', 'Life Phases']
+          },
+          {
+            id: 'how',
+            eyebrow: 'Our Methodology',
+            title: 'How Do We Conduct the Analysis?',
+            stepsCols: 3,
+            steps: [
+              { num: '01', title: 'Casting & Establishing the Kundali', text: 'We begin with your date, exact time and place of birth to establish the birth chart and its foundational elements.' },
+              { num: '02', title: 'Understanding the Chart as a Whole', text: 'We examine the Lagna, Bhavas, Grahas, Rashis, Nakshatras, planetary strengths and significant combinations to understand the overall chart dynamics.' },
+              { num: '03', title: 'Life-Area Analysis', text: 'We interpret the chart across personality, career, wealth, relationships, family, property, health, spirituality and other relevant life aspects.' },
+              { num: '04', title: 'Dasha & Timeline Assessment', text: 'We examine Mahadasha, Antardasha and relevant transits to understand the timing and progression of significant life themes and phases.' },
+              { num: '05', title: 'Strengths, Challenges & Guidance', text: 'We identify supportive factors, challenging patterns, opportunities and areas for awareness, with practical perspectives and traditional guidance where appropriate.' },
+              { num: '06', title: 'Comprehensive Summary', text: 'We bring the findings together into an overall assessment, highlighting key life themes, significant periods, strengths, challenges and the broader direction of the chart.' }
+            ]
+          },
+          {
+            id: 'conclusion',
+            eyebrow: 'Perspective',
+            title: 'Your Chart. Your Journey. Your Understanding.',
+            paragraphs: [
+              'Every Kundali is unique, and every life unfolds differently. Our aim is to study the chart in its entirety, understand the interrelationships between planetary influences and life themes, and provide a structured perspective that helps you reflect on your journey with greater awareness.'
+            ],
+            highlight: 'Not just predictions about your life, but an understanding of the patterns, possibilities and periods that shape your journey.'
+          }
+        ]
       }),
     S('astrology', 'astro-palmistry-correlation', 'Astro-Palmistry Correlation',
       'Two Ancient Sciences. One Integrated Perspective.',
@@ -194,25 +265,72 @@
         tagline: 'Two Ancient Sciences. One Integrated Perspective.',
         intro: 'Astrology reveals life patterns through planetary configuration at birth, while palmistry reveals them through the physical characteristics of the hand. This report examines where these indications align, complement, or differ.',
         description: 'Astro-Palmistry Correlation combines a Comprehensive Kundali Analysis with a Detailed Palm Analysis and then compares the two, area by area. Where both sciences point the same way, the indication is stronger; where they differ, Guruji explains how to read the difference.',
-        reportParts: [
-          { title: 'Part 1 — Kundali Analysis', items: ['Lagna and its lord', 'Planetary placements', 'All twelve Bhavas', 'Grahas and their strengths', 'Rashis and Nakshatras', 'Yogas', 'Mahadasha and Antardasha', 'Major transits', 'Life themes'] },
-          { title: 'Part 2 — Palm Analysis', items: ['Hand shape', 'Fingers and fingertips', 'Mounts', 'Major lines', 'Minor lines', 'Special marks', 'Hand characteristics', 'Changes and patterns'] },
-          { title: 'Part 3 — Correlation', items: ['Area-by-area comparison of the two readings (table below)'] }
+        sections: [
+          {
+            id: 'why',
+            eyebrow: 'Section 1 — WHY',
+            title: 'Why Correlate Astrology & Palmistry?',
+            paragraphs: [
+              'Astrology offers a perspective through planetary configurations at birth, while Palmistry offers insights through the characteristics, lines, mounts and markings of the hand.',
+              'When studied independently, each provides its own interpretation. When examined together, they offer an opportunity to explore life patterns through two complementary disciplines.',
+              'At Guruji Palmistry, correlation is about looking beyond a single perspective—identifying where both systems reinforce each other, where one adds context to the other, and where their indications differ.'
+            ]
+          },
+          {
+            id: 'what',
+            eyebrow: 'Section 2 — WHAT',
+            title: 'What Do We Analyse?',
+            subtitle: 'Our integrated report brings together two comprehensive studies:',
+            columns: [
+              {
+                title: 'Comprehensive Kundali Analysis',
+                items: [
+                  'Lagna, Grahas and planetary placements',
+                  'Bhavas, Rashis and Nakshatras',
+                  'Planetary strengths, Yogas and combinations',
+                  'Mahadasha, Antardasha and transits',
+                  'Major life themes and tendencies'
+                ]
+              },
+              {
+                title: 'Detailed Palm Analysis',
+                items: [
+                  'Shape and structure of the hand',
+                  'Fingers and fingertips',
+                  'Mounts',
+                  'Major and minor lines',
+                  'Special marks, signs and formations'
+                ]
+              }
+            ],
+            chipsTitle: 'Life aspects covered in the correlation',
+            chips: [
+              'Health & Vitality', 'Wealth', 'Education', 'Career', 'Business', 'Marriage', 'Relationships', 'Children', 'Siblings', 'Travel', 'Personality', 'Spiritual Inclination', 'Life Direction'
+            ]
+          },
+          {
+            id: 'how',
+            eyebrow: 'Section 3 — HOW',
+            title: 'How Do We Correlate?',
+            stepsCols: 2,
+            steps: [
+              { num: '01', title: 'Independent Analysis', text: 'We first study the Kundali and the palm independently to understand the indications presented by each discipline.' },
+              { num: '02', title: 'Area-by-Area Comparison', text: 'We compare both analyses across individual aspects of life, examining how planetary indications relate to palm features and markings.' },
+              { num: '03', title: 'Convergence & Divergence', text: 'We identify where the two systems align, complement one another, or offer different perspectives, without forcing them to agree.' },
+              { num: '04', title: 'Integrated Interpretation', text: 'The findings are synthesized into a unified report, bringing together both perspectives to offer a more comprehensive understanding of the individual’s life themes and tendencies.' }
+            ]
+          },
+          {
+            id: 'closing',
+            eyebrow: 'Section 4 — Closing statement',
+            title: 'Two Sciences. One Integrated Perspective.',
+            paragraphs: [
+              'Astrology reveals through the planetary map of birth. Palmistry reveals through the map of the hand. Our Astro-Palmistry Correlation brings both together to explore the patterns of life with greater depth, context and perspective.'
+            ],
+            highlight: 'Not two separate readings, but one integrated study.'
+          }
         ],
-        correlation: [
-          ['Personality & temperament', 'Lagna, Moon sign, Lagna lord', 'Hand shape, fingers, thumb'],
-          ['Health & vitality', 'Lagna, 6th / 8th Bhava, Sun & Moon', 'Life line, hand texture, nails'],
-          ['Education & intelligence', '4th / 5th Bhava, Mercury, Jupiter', 'Head line, Mercury finger'],
-          ['Career & profession', '10th Bhava, its lord, Saturn', 'Fate line, Sun line, mounts'],
-          ['Wealth & prosperity', '2nd / 11th Bhava, Jupiter, Venus', 'Sun line, Mercury mount, signs'],
-          ['Marriage & relationships', '7th Bhava, Venus, Navamsa', 'Heart line, marriage lines'],
-          ['Children', '5th Bhava, Jupiter', 'Children lines, Mount of Venus'],
-          ['Siblings', '3rd Bhava, Mars', 'Lines near the Mount of Mars'],
-          ['Travel & relocation', '3rd / 9th / 12th Bhava, Rahu', 'Travel lines, Mount of Moon'],
-          ['Spiritual inclination', '9th / 12th Bhava, Ketu, Jupiter', 'Mystic cross, Jupiter mount'],
-          ['Life periods & timing', 'Mahadasha / Antardasha, transits', 'Timing along the major lines']
-        ],
-        deliverables: ['Kundali analysis', 'Palm analysis', 'Correlation table across eleven areas of life', 'Consultation call with Guruji', 'Written combined report']
+        deliverables: ['Kundali analysis', 'Palm analysis', 'Correlation across thirteen areas of life', 'Consultation call with Guruji', 'Written combined report']
       }),
 
     // --- Palmistry ---------------------------------------------------------
@@ -366,74 +484,74 @@
     A('which-hand-is-read-in-palmistry', 'palmistry', 'Palmistry Learning Guides', 'Which Hand Is Read in Palmistry?',
       'Left or right? Why a palmist looks at both hands, and what each one shows.',
       ['A common first question is whether the left or the right hand is read. In practice, a careful palmist studies both.',
-       'The dominant hand — the one you write with — is usually taken to show how you are living and developing now. The non-dominant hand is taken to show inborn tendencies. Comparing the two shows how a person has grown into, or away from, their natural patterns.',
-       'Traditional Indian practice sometimes reads the right hand for men and the left for women. Many modern practitioners, including Guruji, prefer to read both hands for everyone and then compare them.',
-       'When you book a reading, please send clear photos of both palms, taken in good daylight, with the fingers slightly apart.'],
+        'The dominant hand — the one you write with — is usually taken to show how you are living and developing now. The non-dominant hand is taken to show inborn tendencies. Comparing the two shows how a person has grown into, or away from, their natural patterns.',
+        'Traditional Indian practice sometimes reads the right hand for men and the left for women. Many modern practitioners, including Guruji, prefer to read both hands for everyone and then compare them.',
+        'When you book a reading, please send clear photos of both palms, taken in good daylight, with the fingers slightly apart.'],
       { featured: true, date: '2026-11-12', image: '/assets/articles/article_which_hand_read.jpg' }),
     A('can-palm-lines-change', 'palmistry', 'Articles & Blogs', 'Can Palm Lines Change Over Time?',
       'Palm lines are not fixed. Here is what tends to change, and what it means for a reading.',
       ['Yes — the finer lines on the hand can change over months and years, and even the major lines can lengthen, fade or develop branches.',
-       'This is one reason palmistry is best used as a description of tendencies rather than a fixed prediction. The hand reflects how a person is living; as habits and circumstances change, some lines change with them.',
-       'Comparing photos of your hands taken a few years apart can be an interesting exercise. In a follow-up reading Guruji often looks at what has changed since the last consultation.'],
+        'This is one reason palmistry is best used as a description of tendencies rather than a fixed prediction. The hand reflects how a person is living; as habits and circumstances change, some lines change with them.',
+        'Comparing photos of your hands taken a few years apart can be an interesting exercise. In a follow-up reading Guruji often looks at what has changed since the last consultation.'],
       { date: '2026-11-08', image: '/assets/articles/article_can_lines_change.jpg' }),
     A('the-four-major-lines', 'palmistry', 'Palmistry Learning Guides', 'The Four Major Lines of the Palm',
       'A beginner’s guide to the Life, Head, Heart and Fate lines — where they are and what they describe.',
       ['Life line — curves around the base of the thumb, enclosing the Mount of Venus. It is read for vitality and the general course of life; its length is not a measure of lifespan.',
-       'Head line — begins between the thumb and index finger and runs across the palm. It is read for thinking style, concentration and decision-making.',
-       'Heart line — runs below the fingers, from the edge of the palm under the little finger towards the index or middle finger. It is read for emotional nature and relationships.',
-       'Fate line — runs vertically up the centre of the palm towards the middle finger. It is read for career, responsibility and the direction of life. Not everyone has a clear fate line.',
-       'A good reading always considers these lines together with the shape of the hand, the fingers and the mounts.'],
+        'Head line — begins between the thumb and index finger and runs across the palm. It is read for thinking style, concentration and decision-making.',
+        'Heart line — runs below the fingers, from the edge of the palm under the little finger towards the index or middle finger. It is read for emotional nature and relationships.',
+        'Fate line — runs vertically up the centre of the palm towards the middle finger. It is read for career, responsibility and the direction of life. Not everyone has a clear fate line.',
+        'A good reading always considers these lines together with the shape of the hand, the fingers and the mounts.'],
       { featured: true, date: '2026-11-15', image: '/assets/articles/article_four_major_lines.jpg' }),
     A('what-is-mahadasha', 'astrology', 'Astrology Guides', 'What Are Mahadasha and Antardasha?',
       'The Vimshottari Dasha system explained simply — how Vedic astrology divides life into planetary periods.',
       ['Vedic astrology divides life into periods, each ruled by one of the nine Grahas. The most widely used system is the Vimshottari Dasha, a cycle of 120 years.',
-       'A Mahadasha is a major period ruled by one planet — for example, Venus rules a 20-year Mahadasha and the Sun a 6-year one. Each Mahadasha is divided into Antardashas (sub-periods) of all nine planets.',
-       'Which Mahadasha you are born into depends on the Nakshatra of the Moon at birth. That is why an accurate birth time matters.',
-       'During a reading, the running Mahadasha and Antardasha help explain why certain themes become prominent at certain times of life.'],
+        'A Mahadasha is a major period ruled by one planet — for example, Venus rules a 20-year Mahadasha and the Sun a 6-year one. Each Mahadasha is divided into Antardashas (sub-periods) of all nine planets.',
+        'Which Mahadasha you are born into depends on the Nakshatra of the Moon at birth. That is why an accurate birth time matters.',
+        'During a reading, the running Mahadasha and Antardasha help explain why certain themes become prominent at certain times of life.'],
       { featured: true, date: '2026-11-10', image: '/assets/articles/article_mahadasha_cycles.jpg' }),
     A('is-exact-birth-time-necessary', 'astrology', 'Astrology Guides', 'Is the Exact Birth Time Necessary?',
       'Why birth time matters for a Kundali, and what can be done when it is not known.',
       ['The Lagna (ascendant) changes roughly every two hours, and the Moon’s position and the Dasha balance also depend on the time of birth. An accurate time therefore makes a large difference to a Kundali.',
-       'If you only know an approximate time, share the range — Guruji can work with it and will explain which conclusions are less certain.',
-       'If the time is not known at all, Prashna (horary) astrology or palmistry can be used instead, or alongside the chart.'],
+        'If you only know an approximate time, share the range — Guruji can work with it and will explain which conclusions are less certain.',
+        'If the time is not known at all, Prashna (horary) astrology or palmistry can be used instead, or alongside the chart.'],
       { date: '2026-11-05', image: '/assets/articles/article_exact_birth_time.jpg' }),
     A('reiki-complementary-practice', 'reiki-wellness', 'Spiritual Practices', 'Reiki as a Complementary Wellness Practice',
       'What Reiki is, what a session is like, and why it complements — never replaces — medical care.',
       ['Reiki is a Japanese relaxation practice in which the practitioner places their hands lightly on, or just above, the body in a series of positions. Many people find it deeply relaxing.',
-       'A session usually takes place lying down and fully clothed, in a quiet room. Distance sessions are also offered, in which you rest at home at an agreed time.',
-       'Reiki is a complementary practice. It is not a medical treatment, does not diagnose any condition, and should never be used in place of advice or treatment from a qualified doctor. If you are unwell, please continue to follow your doctor’s advice.'],
+        'A session usually takes place lying down and fully clothed, in a quiet room. Distance sessions are also offered, in which you rest at home at an agreed time.',
+        'Reiki is a complementary practice. It is not a medical treatment, does not diagnose any condition, and should never be used in place of advice or treatment from a qualified doctor. If you are unwell, please continue to follow your doctor’s advice.'],
       { featured: true, date: '2026-11-14', image: '/assets/articles/article_reiki_complementary.jpg' }),
     A('how-to-begin-japa', 'mantras-spirituality', 'Graha & Mantra Reference', 'How to Begin a Daily Japa Practice',
       'Choosing a mantra, using a mala and keeping a steady daily count.',
       ['Japa is the repetition of a mantra with attention. A simple daily practice is more valuable than an ambitious one that is soon abandoned.',
-       'Choose a time and a place — early morning is traditional. Sit comfortably, take a moment to settle, and state your Sankalpa (intention) silently.',
-       'A mala has 108 beads plus the guru bead (Meru). Move one bead per repetition and do not cross the Meru; turn the mala around to begin another round.',
-       'Begin with one mala a day and stay with it. If you would like a mantra chosen for you, see our Mantra Guidance service, or browse the Mantras & Stotras library.'],
+        'Choose a time and a place — early morning is traditional. Sit comfortably, take a moment to settle, and state your Sankalpa (intention) silently.',
+        'A mala has 108 beads plus the guru bead (Meru). Move one bead per repetition and do not cross the Meru; turn the mala around to begin another round.',
+        'Begin with one mala a day and stay with it. If you would like a mantra chosen for you, see our Mantra Guidance service, or browse the Mantras & Stotras library.'],
       { date: '2026-11-03', image: '/assets/articles/article_how_begin_japa.jpg' }),
     A('what-is-sankalpa', 'puja-ritual', 'Articles & Blogs', 'What Is Sankalpa?',
       'The formal statement of intention at the start of every puja and japa.',
       ['Sankalpa is the resolve made at the start of a ritual. It states who is performing it (name and gotram), where and when (by the Panchanga), and for what purpose.',
-       'When a puja is performed on your behalf, the priest takes the Sankalpa in your name and gotram. This is why we ask for these details when you book.',
-       'If you do not know your gotram, tell us — it is traditional to use the Kashyapa gotram in that case, and the priest will guide you.'],
+        'When a puja is performed on your behalf, the priest takes the Sankalpa in your name and gotram. This is why we ask for these details when you book.',
+        'If you do not know your gotram, tell us — it is traditional to use the Kashyapa gotram in that case, and the priest will guide you.'],
       { date: '2026-11-02', image: '/assets/articles/article_what_is_sankalpa.jpg' }),
     A('a-simple-breath-meditation', 'meditation', 'Spiritual Practices', 'A Simple Ten-Minute Breath Meditation',
       'An easy daily meditation for beginners.',
       ['Sit comfortably with the spine upright. Close your eyes and let the breath be natural.',
-       'Bring your attention to the breath at the nostrils. Notice the cool air coming in and the warm air going out.',
-       'When the mind wanders — it will — gently bring it back to the breath, without judging yourself.',
-       'Start with ten minutes a day. Consistency matters more than length.'],
+        'Bring your attention to the breath at the nostrils. Notice the cool air coming in and the warm air going out.',
+        'When the mind wanders — it will — gently bring it back to the breath, without judging yourself.',
+        'Start with ten minutes a day. Consistency matters more than length.'],
       { date: '2026-10-28', image: '/assets/articles/article_breath_meditation.jpg' }),
     A('dharma-in-daily-life', 'sanatana-dharma', 'Articles & Blogs', 'Dharma in Daily Life',
       'What dharma means in practical, everyday terms.',
       ['Dharma is often translated as duty or righteousness, but it is better understood as acting in harmony with one’s nature, role and responsibilities.',
-       'In daily life this can be as simple as doing one’s work honestly, caring for family and elders, and keeping a small daily practice of prayer or reflection.',
-       'The Shastras describe dharma as something that sustains — a life lived in dharma supports both the individual and those around them.'],
+        'In daily life this can be as simple as doing one’s work honestly, caring for family and elders, and keeping a small daily practice of prayer or reflection.',
+        'The Shastras describe dharma as something that sustains — a life lived in dharma supports both the individual and those around them.'],
       { date: '2026-10-25', image: '/assets/articles/article_dharma_daily_life.jpg' }),
     A('self-awareness-through-palmistry-and-astrology', 'self-development', 'Articles & Blogs', 'Self-Awareness Through Palmistry and Astrology',
       'Using a reading as a mirror for growth rather than a forecast to fear.',
       ['The most useful readings leave you with a clearer picture of your own tendencies — what comes naturally, and where you tend to struggle.',
-       'Used this way, palmistry and astrology support self-awareness. They can suggest where to put effort, which periods suit which kinds of action, and which patterns are worth changing.',
-       'At Guruji Palmistry our approach is guidance, not fear; awareness, not dependency.'],
+        'Used this way, palmistry and astrology support self-awareness. They can suggest where to put effort, which periods suit which kinds of action, and which patterns are worth changing.',
+        'At Guruji Palmistry our approach is guidance, not fear; awareness, not dependency.'],
       { date: '2026-10-20', image: '/assets/articles/article_self_awareness.jpg' })
   ];
 
@@ -441,57 +559,71 @@
   // FAQs (by topic)
   // -------------------------------------------------------------------------
   const faqCategories = [
-    { id: 'palmistry', title: 'Palmistry FAQs', items: [
-      ['What is palmistry?', 'Palmistry (Hasta Samudrika Shastra) is the traditional study of the hand — its shape, fingers, mounts, lines and marks — to understand temperament, strengths and the themes of different life periods.'],
-      ['Can palm lines change over time?', 'Yes. The finer lines can change over months and years, and the major lines can lengthen, fade or branch. This is why we treat a reading as a description of tendencies, not a fixed fate.'],
-      ['Which hand is read?', 'Both. The dominant hand shows how you are living now and the other hand shows inborn tendencies; comparing them is part of the reading.'],
-      ['Does palmistry predict the future?', 'Palmistry describes tendencies and possibilities. It can indicate periods and themes, but your choices and efforts shape the outcome. We never make fear-based predictions.'],
-      ['How long is a consultation?', 'A Detailed Palm Analysis consultation is about 30 minutes; the Astro-Palmistry Correlation is about 45 minutes.'],
-      ['Can I get a reading online?', 'Yes. Upload clear photos of both palms after booking and the consultation takes place by phone or video call.']
-    ]},
-    { id: 'astrology', title: 'Astrology FAQs', items: [
-      ['What information is required for horoscope analysis?', 'Your date of birth, the exact time of birth, and the place of birth (city, state, country).'],
-      ['Is exact birth time necessary?', 'It matters a great deal, because the Lagna changes roughly every two hours. If you only know an approximate time, share the range; if it is unknown, Prashna astrology or palmistry can be used.'],
-      ['What is Mahadasha and Antardasha?', 'They are the major and sub-periods of the Vimshottari Dasha system, each ruled by one of the nine Grahas. They help explain why certain themes become prominent at certain times.'],
-      ['What is Prashna astrology?', 'Horary astrology — a chart cast for the moment a question is asked. It is useful for a specific question, or when birth details are not available.'],
-      ['What are planetary remedies?', 'Traditional practices such as japa, puja, charity (daan) and disciplined conduct associated with a Graha. We suggest remedies only where they are genuinely indicated, and never as a condition of the reading.']
-    ]},
-    { id: 'japa-mantra', title: 'Japa & Mantra FAQs', items: [
-      ['What is Sankalpa?', 'The formal statement of intention made at the start of a japa or puja — who it is for (name and gotram), when, and for what purpose.'],
-      ['How do you select a planetary Japa?', 'From your birth chart — usually the Graha whose period is running or which is weak or afflicted. Guruji explains the reasoning.'],
-      ['Can Japa be done for another person?', 'Yes. Japa can be performed with Sankalpa in another person’s name and gotram, for example for a family member.'],
-      ['How many repetitions are prescribed?', 'It depends on the mantra and the purpose. Traditional counts are often multiples of 108; Guruji advises the count and number of days.']
-    ]},
-    { id: 'puja', title: 'Puja & Ritual FAQs', items: [
-      ['Do I need to attend in person?', 'No. Pujas can be performed on your behalf with Sankalpa in your name. You are welcome to attend where the venue allows.'],
-      ['Will I receive confirmation of completion?', 'Yes. You can see the status of your booking on the Track Status page, and we confirm when the puja has been performed.'],
-      ['What if I don’t know my gotram?', 'Choose “I don’t know my gotram”. Traditionally the Kashyapa gotram is used in that case.'],
-      ['Can prasadam be posted to me?', 'Yes — tick the prasadam option when booking and give your postal address.']
-    ]},
-    { id: 'reiki', title: 'Reiki FAQs', items: [
-      ['What is Reiki?', 'A Japanese relaxation practice in which the practitioner places their hands lightly on, or just above, the body. Many people find it deeply relaxing.'],
-      ['What happens during a Reiki session?', 'You lie down or sit, fully clothed, in a quiet space while the practitioner works through a series of hand positions. There is a short conversation before and after.'],
-      ['Is Reiki a religion?', 'No. Reiki is not a religion and does not require any belief. People of all faiths practise it.'],
-      ['Can Reiki be done remotely?', 'Yes — distance sessions take place at an agreed time while you rest at home.'],
-      ['How long is a session?', 'An individual session is about 45–60 minutes; an extended session about 90 minutes.'],
-      ['How many sessions might someone choose?', 'Some people have a single session; others prefer a package of 3 or 5 sessions. There is no obligation.'],
-      ['Can Reiki replace medical treatment?', 'No. Reiki is a complementary wellness practice. It does not diagnose or treat any medical condition and must never replace advice or treatment from a qualified doctor.']
-    ]},
-    { id: 'courses', title: 'Courses FAQs', items: [
-      ['Do I need prior knowledge?', 'Not for the introductory and foundation courses. Advanced modules assume you have completed the foundation course or have equivalent knowledge.'],
-      ['Are courses online or offline?', 'Most courses are offered both online and offline; the course page shows the mode for each.'],
-      ['Will study material be provided?', 'Yes, course notes are provided for each module.'],
-      ['Will I receive a certificate?', 'A certificate of completion is given where the course page says so.'],
-      ['How is practical training conducted?', 'Through supervised practice readings — on hand photos online, or in person at workshops.'],
-      ['Is there a support system after the course?', 'Yes — students can bring questions to follow-up sessions.']
-    ]},
-    { id: 'booking', title: 'Booking & Payment FAQs', items: [
-      ['How do I book?', 'Choose a service and press Book Now. Services with a listed price can be paid online; for others, send an enquiry and we will contact you to confirm details and price.'],
-      ['Which payment methods are accepted?', 'Online payments are processed securely by Cashfree Payments — UPI, cards, net banking and wallets.'],
-      ['Is my booking confirmed immediately?', 'A paid booking is confirmed once the payment gateway confirms the payment. An enquiry is confirmed only after we contact you.'],
-      ['How do I check my booking status?', 'Use Track Status in the header with your booking reference and mobile number.'],
-      ['Can I cancel or reschedule?', 'Please see our Cancellation & Refund Policy, and contact us as early as possible.']
-    ]}
+    {
+      id: 'palmistry', title: 'Palmistry FAQs', items: [
+        ['What is palmistry?', 'Palmistry (Hasta Samudrika Shastra) is the traditional study of the hand — its shape, fingers, mounts, lines and marks — to understand temperament, strengths and the themes of different life periods.'],
+        ['Can palm lines change over time?', 'Yes. The finer lines can change over months and years, and the major lines can lengthen, fade or branch. This is why we treat a reading as a description of tendencies, not a fixed fate.'],
+        ['Which hand is read?', 'Both. The dominant hand shows how you are living now and the other hand shows inborn tendencies; comparing them is part of the reading.'],
+        ['Does palmistry predict the future?', 'Palmistry describes tendencies and possibilities. It can indicate periods and themes, but your choices and efforts shape the outcome. We never make fear-based predictions.'],
+        ['How long is a consultation?', 'A Detailed Palm Analysis consultation is about 30 minutes; the Astro-Palmistry Correlation is about 45 minutes.'],
+        ['Can I get a reading online?', 'Yes. Upload clear photos of both palms after booking and the consultation takes place by phone or video call.']
+      ]
+    },
+    {
+      id: 'astrology', title: 'Astrology FAQs', items: [
+        ['What information is required for horoscope analysis?', 'Your date of birth, the exact time of birth, and the place of birth (city, state, country).'],
+        ['Is exact birth time necessary?', 'It matters a great deal, because the Lagna changes roughly every two hours. If you only know an approximate time, share the range; if it is unknown, Prashna astrology or palmistry can be used.'],
+        ['What is Mahadasha and Antardasha?', 'They are the major and sub-periods of the Vimshottari Dasha system, each ruled by one of the nine Grahas. They help explain why certain themes become prominent at certain times.'],
+        ['What is Prashna astrology?', 'Horary astrology — a chart cast for the moment a question is asked. It is useful for a specific question, or when birth details are not available.'],
+        ['What are planetary remedies?', 'Traditional practices such as japa, puja, charity (daan) and disciplined conduct associated with a Graha. We suggest remedies only where they are genuinely indicated, and never as a condition of the reading.']
+      ]
+    },
+    {
+      id: 'japa-mantra', title: 'Japa & Mantra FAQs', items: [
+        ['What is Sankalpa?', 'The formal statement of intention made at the start of a japa or puja — who it is for (name and gotram), when, and for what purpose.'],
+        ['How do you select a planetary Japa?', 'From your birth chart — usually the Graha whose period is running or which is weak or afflicted. Guruji explains the reasoning.'],
+        ['Can Japa be done for another person?', 'Yes. Japa can be performed with Sankalpa in another person’s name and gotram, for example for a family member.'],
+        ['How many repetitions are prescribed?', 'It depends on the mantra and the purpose. Traditional counts are often multiples of 108; Guruji advises the count and number of days.']
+      ]
+    },
+    {
+      id: 'puja', title: 'Puja & Ritual FAQs', items: [
+        ['Do I need to attend in person?', 'No. Pujas can be performed on your behalf with Sankalpa in your name. You are welcome to attend where the venue allows.'],
+        ['Will I receive confirmation of completion?', 'Yes. You can see the status of your booking on the Track Status page, and we confirm when the puja has been performed.'],
+        ['What if I don’t know my gotram?', 'Choose “I don’t know my gotram”. Traditionally the Kashyapa gotram is used in that case.'],
+        ['Can prasadam be posted to me?', 'Yes — tick the prasadam option when booking and give your postal address.']
+      ]
+    },
+    {
+      id: 'reiki', title: 'Reiki FAQs', items: [
+        ['What is Reiki?', 'A Japanese relaxation practice in which the practitioner places their hands lightly on, or just above, the body. Many people find it deeply relaxing.'],
+        ['What happens during a Reiki session?', 'You lie down or sit, fully clothed, in a quiet space while the practitioner works through a series of hand positions. There is a short conversation before and after.'],
+        ['Is Reiki a religion?', 'No. Reiki is not a religion and does not require any belief. People of all faiths practise it.'],
+        ['Can Reiki be done remotely?', 'Yes — distance sessions take place at an agreed time while you rest at home.'],
+        ['How long is a session?', 'An individual session is about 45–60 minutes; an extended session about 90 minutes.'],
+        ['How many sessions might someone choose?', 'Some people have a single session; others prefer a package of 3 or 5 sessions. There is no obligation.'],
+        ['Can Reiki replace medical treatment?', 'No. Reiki is a complementary wellness practice. It does not diagnose or treat any medical condition and must never replace advice or treatment from a qualified doctor.']
+      ]
+    },
+    {
+      id: 'courses', title: 'Courses FAQs', items: [
+        ['Do I need prior knowledge?', 'Not for the introductory and foundation courses. Advanced modules assume you have completed the foundation course or have equivalent knowledge.'],
+        ['Are courses online or offline?', 'Most courses are offered both online and offline; the course page shows the mode for each.'],
+        ['Will study material be provided?', 'Yes, course notes are provided for each module.'],
+        ['Will I receive a certificate?', 'A certificate of completion is given where the course page says so.'],
+        ['How is practical training conducted?', 'Through supervised practice readings — on hand photos online, or in person at workshops.'],
+        ['Is there a support system after the course?', 'Yes — students can bring questions to follow-up sessions.']
+      ]
+    },
+    {
+      id: 'booking', title: 'Booking & Payment FAQs', items: [
+        ['How do I book?', 'Choose a service and press Book Now. Services with a listed price can be paid online; for others, send an enquiry and we will contact you to confirm details and price.'],
+        ['Which payment methods are accepted?', 'Online payments are processed securely by Cashfree Payments — UPI, cards, net banking and wallets.'],
+        ['Is my booking confirmed immediately?', 'A paid booking is confirmed once the payment gateway confirms the payment. An enquiry is confirmed only after we contact you.'],
+        ['How do I check my booking status?', 'Use Track Status in the header with your booking reference and mobile number.'],
+        ['Can I cancel or reschedule?', 'Please see our Cancellation & Refund Policy, and contact us as early as possible.']
+      ]
+    }
   ];
 
   // -------------------------------------------------------------------------
@@ -503,30 +635,36 @@
   // Policies (please have these reviewed before relying on them)
   // -------------------------------------------------------------------------
   const policies = {
-    'privacy-policy': { title: 'Privacy Policy', updated: '2026-11-21', sections: [
-      ['Information we collect', 'When you book or enquire we collect your name, mobile number, email address, and the details needed for the service — for example birth details, gotram, palm photos and, if you ask for prasadam, your postal address.'],
-      ['How we use it', 'Only to provide the service you asked for, to contact you about it, and to keep records of bookings and payments. We do not sell your information.'],
-      ['Payments', 'Online payments are processed by Cashfree Payments. We do not see or store your card or bank details.'],
-      ['Storage and security', 'Booking information is stored in a secure database. Access is limited to people who need it to provide your service.'],
-      ['Your choices', 'You may ask us to correct or delete your information by writing to us at the email address below.'],
-      ['Contact', 'Questions about privacy: support@gurujipalmistry.org']
-    ]},
-    terms: { title: 'Terms & Conditions', updated: '2026-11-21', sections: [
-      ['Nature of services', 'Palmistry, astrology, Reiki and spiritual guidance are offered for self-understanding and spiritual practice. They are not a substitute for professional medical, legal, financial or psychological advice.'],
-      ['Reiki', 'Reiki is a complementary wellness practice. It does not diagnose or treat any medical condition. Always follow the advice of a qualified doctor.'],
-      ['Bookings', 'A booking is confirmed only after successful payment, or — for enquiries — after we confirm it with you.'],
-      ['Information you give', 'Readings depend on the accuracy of the details and photos you provide.'],
-      ['Conduct', 'We reserve the right to decline or end a consultation that becomes abusive.'],
-      ['Changes', 'We may update these terms; the version on this page applies.']
-    ]},
-    'cancellation-refund-policy': { title: 'Cancellation & Refund Policy', updated: '2026-11-21', sections: [
-      ['Consultations', 'You may reschedule a consultation once, free of charge, by contacting us at least 24 hours before the agreed time. If you cancel before the consultation has started and before any work on your reading, you are eligible for a refund.'],
-      ['Pujas and japa', 'Pujas and japa can be cancelled for a refund up to 48 hours before the scheduled date. After the Sankalpa has been taken or the ritual performed, it cannot be refunded.'],
-      ['Courses', 'Course fees are refundable before the course begins. After the course has started, please contact us.'],
-      ['Failed or duplicate payments', 'If money was deducted but the booking was not confirmed, or you were charged twice, the amount is refunded to the original payment method.'],
-      ['How refunds are paid', 'Approved refunds are made to the original payment method through Cashfree Payments, usually within 5–7 working days.'],
-      ['Contact', 'To cancel or ask about a refund: support@gurujipalmistry.org, with your booking reference.']
-    ]}
+    'privacy-policy': {
+      title: 'Privacy Policy', updated: '2026-11-21', sections: [
+        ['Information we collect', 'When you book or enquire we collect your name, mobile number, email address, and the details needed for the service — for example birth details, gotram, palm photos and, if you ask for prasadam, your postal address.'],
+        ['How we use it', 'Only to provide the service you asked for, to contact you about it, and to keep records of bookings and payments. We do not sell your information.'],
+        ['Payments', 'Online payments are processed by Cashfree Payments. We do not see or store your card or bank details.'],
+        ['Storage and security', 'Booking information is stored in a secure database. Access is limited to people who need it to provide your service.'],
+        ['Your choices', 'You may ask us to correct or delete your information by writing to us at the email address below.'],
+        ['Contact', 'Questions about privacy: support@gurujipalmistry.org']
+      ]
+    },
+    terms: {
+      title: 'Terms & Conditions', updated: '2026-11-21', sections: [
+        ['Nature of services', 'Palmistry, astrology, Reiki and spiritual guidance are offered for self-understanding and spiritual practice. They are not a substitute for professional medical, legal, financial or psychological advice.'],
+        ['Reiki', 'Reiki is a complementary wellness practice. It does not diagnose or treat any medical condition. Always follow the advice of a qualified doctor.'],
+        ['Bookings', 'A booking is confirmed only after successful payment, or — for enquiries — after we confirm it with you.'],
+        ['Information you give', 'Readings depend on the accuracy of the details and photos you provide.'],
+        ['Conduct', 'We reserve the right to decline or end a consultation that becomes abusive.'],
+        ['Changes', 'We may update these terms; the version on this page applies.']
+      ]
+    },
+    'cancellation-refund-policy': {
+      title: 'Cancellation & Refund Policy', updated: '2026-11-21', sections: [
+        ['Consultations', 'You may reschedule a consultation once, free of charge, by contacting us at least 24 hours before the agreed time. If you cancel before the consultation has started and before any work on your reading, you are eligible for a refund.'],
+        ['Pujas and japa', 'Pujas and japa can be cancelled for a refund up to 48 hours before the scheduled date. After the Sankalpa has been taken or the ritual performed, it cannot be refunded.'],
+        ['Courses', 'Course fees are refundable before the course begins. After the course has started, please contact us.'],
+        ['Failed or duplicate payments', 'If money was deducted but the booking was not confirmed, or you were charged twice, the amount is refunded to the original payment method.'],
+        ['How refunds are paid', 'Approved refunds are made to the original payment method through Cashfree Payments, usually within 5–7 working days.'],
+        ['Contact', 'To cancel or ask about a refund: support@gurujipalmistry.org, with your booking reference.']
+      ]
+    }
   };
 
   const GURUJI_CONTENT = {
