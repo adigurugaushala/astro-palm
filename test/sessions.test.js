@@ -15,10 +15,11 @@ process.env.GURUJI_SEED_FILE = path.join(tmp, 'mantras-data.js');
 process.env.ADMIN_PIN = 'owner-pin-0001';
 process.env.GURUJI_PIN = 'guruji-pin-0002';
 process.env.RATE_LIMIT_MULTIPLIER = '100';
-delete process.env.MONGODB_URI;
-delete process.env.JITSI_APP_ID;
-delete process.env.JITSI_PRIVATE_KEY;
-delete process.env.JITSI_APP_SECRET;
+process.env.MONGODB_URI = '';
+process.env.JITSI_APP_ID = '';
+process.env.JITSI_PRIVATE_KEY = '';
+process.env.JITSI_APP_SECRET = '';
+process.env.JITSI_KID = '';
 
 const { createServer, slotStartISO } = require('../server');
 const { createStore } = require('../db');
