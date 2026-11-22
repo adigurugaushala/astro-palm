@@ -1780,9 +1780,14 @@
   // -------------------------------------------------------------------------
   // Admin dashboard
   // -------------------------------------------------------------------------
-  const ADMIN = { pin: '', role: '', tab: 'bookings', data: null, editing: null, filters: {} };
+  const ADMIN = { pin: '', token: '', role: '', email: '', tab: 'bookings', data: null, editing: null, filters: {} };
   try { const saved = JSON.parse(sessionStorage.getItem('guruji_admin') || 'null'); if (saved) Object.assign(ADMIN, saved); } catch (e) { /* ignore */ }
-  const adminFetch = (url, opts = {}) => fetchJson(url, Object.assign({}, opts, { headers: { 'x-admin-pin': ADMIN.pin } }));
+  const adminFetch = (url, opts = {}) => {
+    const headers = Object.assign({}, opts.headers);
+    if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
+    if (ADMIN.token) headers['x-admin-token'] = ADMIN.token;
+    return fetchJson(url, Object.assign({}, opts, { headers }));
+  };
 
   const SCHEMAS = {
     services: { label: 'Services', key: 'slug', title: 'title', fields: [
@@ -2108,33 +2113,97 @@
     if (!confirm('Delete this image? Pages that use it will show no image.')) return;
     try { await adminFetch('/api/admin/media/' + id, { method: 'DELETE' }); adminLoad(); } catch (err) { toast(err.message, 'error'); }
   };
-  window.adminTab = (tab) => { ADMIN.tab = tab; ADMIN.editing = null; sessionStorage.setItem('guruji_admin', JSON.stringify({ pin: ADMIN.pin, role: ADMIN.role, tab })); renderAdmin(); };
-  window.adminLogout = () => { ADMIN.pin = ''; ADMIN.role = ''; sessionStorage.removeItem('guruji_admin'); renderAdmin(); };
+  window.adminTab = (tab) => {
+    ADMIN.tab = tab;
+    ADMIN.editing = null;
+    sessionStorage.setItem('guruji_admin', JSON.stringify({ pin: ADMIN.pin, token: ADMIN.token, role: ADMIN.role, email: ADMIN.email, tab }));
+    renderAdmin();
+  };
+  window.adminLogout = () => {
+    ADMIN.pin = '';
+    ADMIN.token = '';
+    ADMIN.role = '';
+    ADMIN.email = '';
+    sessionStorage.removeItem('guruji_admin');
+    renderAdmin();
+  };
   window.adminLogin = async (e) => {
     e.preventDefault();
     const pin = e.target.elements.pin.value;
     try {
       const res = await fetchJson('/api/admin/verify', { method: 'POST', headers: { 'x-admin-pin': pin } });
       if (!res) throw new Error('The admin dashboard needs the server.');
-      ADMIN.pin = pin; ADMIN.role = res.role;
+      ADMIN.pin = pin; ADMIN.token = ''; ADMIN.role = res.role; ADMIN.email = '';
       if (res.role !== 'owner' && ['bookings', 'enquiries'].includes(ADMIN.tab)) ADMIN.tab = 'services';
       sessionStorage.setItem('guruji_admin', JSON.stringify({ pin, role: res.role, tab: ADMIN.tab }));
       window.ADMIN_PIN_SESSION = pin;
       renderAdmin();
     } catch (err) { toast(err.message, 'error'); }
   };
+  window.adminLoginWithGoogle = async () => {
+    if (!window.firebaseAuth) {
+      toast('Connecting to Google Firebase...', 'warn');
+      return;
+    }
+    try {
+      const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const res = await signInWithPopup(window.firebaseAuth, provider);
+      const user = res.user;
+      if (!user) return;
+      const idToken = await user.getIdToken();
+      const verifyRes = await fetchJson('/api/admin/verify', {
+        method: 'POST',
+        body: { idToken }
+      });
+      if (!verifyRes || !verifyRes.ok) throw new Error('Verification failed');
+      ADMIN.token = verifyRes.token;
+      ADMIN.pin = '';
+      ADMIN.role = verifyRes.role;
+      ADMIN.email = verifyRes.email;
+      sessionStorage.setItem('guruji_admin', JSON.stringify({ token: verifyRes.token, role: verifyRes.role, email: verifyRes.email, tab: ADMIN.tab }));
+      toast(`Welcome, ${user.displayName || user.email}! Signed in as Admin.`, 'success');
+      renderAdmin();
+    } catch (err) {
+      toast(err.message || 'Google sign-in could not be verified for Admin.', 'error');
+    }
+  };
 
   function renderAdmin() {
     const host = $('#page-admin');
     if (!host) return;
-    if (!ADMIN.pin) {
+    if (!ADMIN.pin && !ADMIN.token) {
       host.innerHTML = `<section class="sp-section"><div class="sp-wrap sp-narrow">
-        <form class="sp-panel sp-form max-w-sm mx-auto text-center" onsubmit="adminLogin(event)">
-          <i class="fa-solid fa-lock text-3xl text-gold-deep" aria-hidden="true"></i>
-          <h1 class="sp-h2">Admin sign in</h1>
-          <label class="sp-field"><span>Admin PIN</span><input name="pin" type="password" autocomplete="current-password" required></label>
-          <button class="gold-gradient-btn h-11 rounded-xl">Sign in</button>
-        </form></div></section>`;
+        <div class="sp-panel sp-form max-w-sm mx-auto text-center space-y-4">
+          <i class="fa-solid fa-shield-halved text-3xl text-gold-deep" aria-hidden="true"></i>
+          <div>
+            <h1 class="sp-h2">Admin sign in</h1>
+            <p class="text-xs text-ink-3 mt-1">Authorized for <strong>gsrikar888@gmail.com</strong> & Temple Staff</p>
+          </div>
+
+          <!-- Google 1-Click Sign-in for gsrikar888@gmail.com -->
+          <button type="button" onclick="adminLoginWithGoogle()" class="w-full h-11 flex items-center justify-center gap-3 border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 font-medium hover:bg-stone-50 dark:hover:bg-stone-700 transition-all shadow-sm">
+            <svg class="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <span>Sign in with Google</span>
+          </button>
+
+          <div class="flex items-center my-1 text-xs text-ink-4">
+            <div class="flex-1 border-t border-stone-200 dark:border-stone-700"></div>
+            <span class="px-2">OR USE PIN</span>
+            <div class="flex-1 border-t border-stone-200 dark:border-stone-700"></div>
+          </div>
+
+          <form onsubmit="adminLogin(event)" class="space-y-3">
+            <label class="sp-field text-left"><span>Admin PIN</span><input name="pin" type="password" autocomplete="current-password" required placeholder="Enter Owner or Staff PIN"></label>
+            <button class="gold-gradient-btn w-full h-11 rounded-xl">Sign in with PIN</button>
+          </form>
+        </div></div></section>`;
       return;
     }
     const owner = ADMIN.role === 'owner';
@@ -2148,7 +2217,7 @@
     host.innerHTML = `
       <section class="adm">
         <aside class="adm-nav">
-          <div class="adm-nav__head"><strong>Admin</strong><span class="sp-pill sp-pill--gold">${esc(ADMIN.role)}</span></div>
+          <div class="adm-nav__head"><strong>Admin</strong><span class="sp-pill sp-pill--gold">${esc(ADMIN.email || ADMIN.role)}</span></div>
           ${tabs.map(([id, label, ic]) => `<button class="${ADMIN.tab === id ? 'is-active' : ''}" onclick="adminTab('${id}')"><i class="fa-solid ${ic}" aria-hidden="true"></i>${label}</button>`).join('')}
           <button onclick="adminLogout()" class="adm-nav__logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>Sign out</button>
         </aside>

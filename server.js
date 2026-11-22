@@ -5,6 +5,7 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -38,6 +39,11 @@ const HOST = process.env.HOST || '127.0.0.1';
 // Admin access. On a hosted deployment the admin area stays locked until ADMIN_PIN is set.
 const ADMIN_PIN = process.env.ADMIN_PIN || (process.env.VERCEL ? '' : '1008');
 const EDITOR_PIN = process.env.EDITOR_PIN || '';   // optional second role: can edit site content, cannot see bookings
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'gsrikar888@gmail.com')
+  .split(',')
+  .map(s => s.trim().toLowerCase())
+  .filter(Boolean);
+const verifiedAdminTokens = new Map();
 const CASHFREE = cashfreeConfig();
 const JITSI = jitsiConfig();
 // Guruji signs in to his own case area with this PIN; the owner PIN works there too.
@@ -213,12 +219,54 @@ function safeEqual(given, expected) {
   const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+/** Verify a Firebase Google ID Token with Google Identity Toolkit */
+async function verifyFirebaseToken(idToken) {
+  const apiKey = process.env.FIREBASE_API_KEY;
+  if (!apiKey || !idToken) return null;
+  const payload = JSON.stringify({ idToken });
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: 'identitytoolkit.googleapis.com',
+      path: `/v1/accounts:lookup?key=${apiKey}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (res.statusCode === 200 && json.users && json.users[0]) {
+            resolve(json.users[0]);
+          } else {
+            resolve(null);
+          }
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.write(payload);
+    req.end();
+  });
+}
+
 /** 'owner' (everything), 'guruji' (cases, chat, sessions), 'editor' (site content) or null. */
 function adminRole(req) {
   const pin = req.headers['x-admin-pin'];
   if (safeEqual(pin, ADMIN_PIN)) return 'owner';
   if (safeEqual(pin, GURUJI_PIN)) return 'guruji';
   if (safeEqual(pin, EDITOR_PIN)) return 'editor';
+  const token = req.headers['x-admin-token'];
+  if (token && verifiedAdminTokens.has(token)) {
+    const entry = verifiedAdminTokens.get(token);
+    if (Date.now() < entry.expiresAt) return entry.role;
+    verifiedAdminTokens.delete(token);
+  }
   return null;
 }
 /** Staff who may open a case: Guruji, or the owner. */
@@ -230,9 +278,9 @@ function requireGuruji(req) {
 }
 /** Owners can do everything; editors can manage content (mantras, pages, images). */
 function requireAdmin(req, need = 'owner') {
-  if (!ADMIN_PIN) throw new HttpError(503, 'The admin area is not configured yet (ADMIN_PIN is not set)');
+  if (!ADMIN_PIN && !ADMIN_EMAILS.length) throw new HttpError(503, 'The admin area is not configured yet (no PIN or admin email set)');
   const role = adminRole(req);
-  if (!role) throw new HttpError(401, 'Admin PIN required');
+  if (!role) throw new HttpError(401, 'Admin authorization required');
   if (need === 'owner' && role !== 'owner') throw new HttpError(403, 'Only the owner account can do this');
   if (need === 'editor' && !['owner', 'editor'].includes(role)) throw new HttpError(403, 'This account cannot edit the site content');
   return role;
@@ -529,8 +577,19 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     // Admin ------------------------------------------------------------------
     // Tells the browser which door the PIN opens: owner, guruji or editor
     ['POST', /^\/api\/admin\/verify$/, async (req) => {
-      rateLimit(req, 'admin', 10);
-      if (!ADMIN_PIN && !GURUJI_PIN && !EDITOR_PIN) throw new HttpError(503, 'The staff area is not configured yet (no PIN is set)');
+      rateLimit(req, 'admin', 20);
+      const body = await readJsonBody(req).catch(() => ({}));
+      if (body && body.idToken) {
+        const user = await verifyFirebaseToken(body.idToken);
+        if (user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+          const sessionToken = crypto.randomBytes(32).toString('hex');
+          verifiedAdminTokens.set(sessionToken, { email: user.email, role: 'owner', expiresAt: Date.now() + 3600000 });
+          return [200, { ok: true, role: 'owner', email: user.email, token: sessionToken }];
+        }
+        const userEmail = user && user.email ? user.email : 'Google Account';
+        throw new HttpError(403, `Access denied for ${userEmail}. Only registered temple admins can sign in.`);
+      }
+      if (!ADMIN_PIN && !GURUJI_PIN && !EDITOR_PIN && !ADMIN_EMAILS.length) throw new HttpError(503, 'The staff area is not configured yet (no PIN or admin email is set)');
       const role = adminRole(req);
       if (!role) throw new HttpError(401, 'That PIN was not recognised');
       return [200, { ok: true, role }];
