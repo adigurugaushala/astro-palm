@@ -9,7 +9,7 @@
     "dev": "node server.js",
     "check": "for f in server.js db.js payments.js session.js chart.js report.js course-lessons.js content-data.js gotras-data.js app.js site.js i18n.js chart-ui.js data.js mantras-data.js mantras-db.js; do node --check $f || exit 1; done",
     "build:mantras": "node scripts/create_mantras_dataset.js",
-    "test": "node --test test/api.test.js test/sessions.test.js test/accounts.test.js test/firebase-auth.test.js",
+    "test": "node --test test/api.test.js test/sessions.test.js test/accounts.test.js test/firebase-auth.test.js test/staff-access.test.js",
     "build": "node scripts/build-public.js",
     "db:check": "node scripts/check-db.js",
     "test:live": "node scripts/test-integrations.js",

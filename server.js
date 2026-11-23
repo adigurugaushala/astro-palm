@@ -352,19 +352,40 @@ async function verifyFirebaseToken(idToken) {
   };
 }
 
-/** 'owner' (everything), 'guruji' (cases, chat, sessions), 'editor' (site content) or null. */
-function adminRole(req) {
+/** Who is making this request, decided here and only here: a PIN, or a session
+ *  token the server issued after it verified a Google ID token itself. Nothing
+ *  in the request body is consulted — a browser cannot name its own role. */
+function adminIdentity(req) {
   const pin = req.headers['x-admin-pin'];
-  if (safeEqual(pin, ADMIN_PIN)) return 'owner';
-  if (safeEqual(pin, GURUJI_PIN)) return 'guruji';
-  if (safeEqual(pin, EDITOR_PIN)) return 'editor';
+  if (safeEqual(pin, ADMIN_PIN)) return { role: 'owner', email: '', via: 'pin' };
+  if (safeEqual(pin, GURUJI_PIN)) return { role: 'guruji', email: '', via: 'pin' };
+  if (safeEqual(pin, EDITOR_PIN)) return { role: 'editor', email: '', via: 'pin' };
   const token = req.headers['x-admin-token'];
   if (token && verifiedAdminTokens.has(token)) {
     const entry = verifiedAdminTokens.get(token);
-    if (Date.now() < entry.expiresAt) return entry.role;
+    if (Date.now() < entry.expiresAt) return { role: entry.role, email: entry.email, via: 'google' };
     verifiedAdminTokens.delete(token);
   }
-  return null;
+  return { role: null, email: '', via: '' };
+}
+
+/** 'owner' (everything), 'guruji' (cases, chat, sessions), 'editor' (site content) or null. */
+function adminRole(req) {
+  return adminIdentity(req).role;
+}
+
+/** How a staff action should be signed in the record: the verified Google
+ *  address when there is one, otherwise the role the PIN opened. */
+function staffLabel(req) {
+  const who = adminIdentity(req);
+  if (who.email) return who.email;
+  return who.role === 'owner' ? 'Owner' : who.role === 'guruji' ? 'Guruji' : 'Staff';
+}
+
+/** Drops sessions that have run out, so the map cannot grow without limit. */
+function pruneAdminSessions() {
+  const now = Date.now();
+  for (const [token, entry] of verifiedAdminTokens) if (now >= entry.expiresAt) verifiedAdminTokens.delete(token);
 }
 
 /** Resolves logged-in customer account from session token in header or cookie.
@@ -757,6 +778,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     // Tells the browser which door the PIN opens: owner, guruji or editor
     ['POST', /^\/api\/admin\/verify$/, async (req) => {
       rateLimit(req, 'admin', 20);
+      pruneAdminSessions();
       const body = await readJsonBody(req).catch(() => ({}));
       if (body && body.idToken) {
         const user = await verifyFirebaseToken(body.idToken);
@@ -791,6 +813,15 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const role = adminRole(req);
       if (!role) throw new HttpError(401, 'That PIN was not recognised');
       return [200, { ok: true, role }];
+    }],
+
+    /** Signing out throws the session away on the server too, so a copied
+     *  token cannot be used for the rest of its hour. */
+    ['POST', /^\/api\/admin\/logout$/, async (req) => {
+      const token = req.headers['x-admin-token'];
+      if (token) verifiedAdminTokens.delete(String(token));
+      pruneAdminSessions();
+      return [200, { ok: true, success: true }];
     }],
 
     ['GET', /^\/api\/admin\/content$/, async (req) => {
@@ -993,7 +1024,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     /** Why staff Google sign-in is or is not working, link by link. Reachable
      *  with the PIN, so it can be read when Google sign-in itself is refusing. */
     ['GET', /^\/api\/admin\/sign-in-check$/, async (req) => {
-      requireAdmin(req, 'editor');
+      requireAdmin(req, 'owner');
       const started = Date.now();
       const certs = await fetchGoogleCerts({ fresh: true });
       const checks = [
@@ -1386,11 +1417,12 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     }],
 
     ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/claim$/, async (req, [, orderId]) => {
-      const role = requireGuruji(req);
-      const body = await readJsonBody(req).catch(() => ({}));
+      requireGuruji(req);
       const booking = await store.getBooking(orderId);
       if (!booking) throw new HttpError(404, 'Case not found');
-      const by = str(body.name, 60) || (role === 'owner' ? 'Owner' : 'Guruji');
+      // Who claimed it comes from the verified session, never from the browser:
+      // otherwise anyone holding the PIN could claim a case under another name.
+      const by = staffLabel(req);
       const at = nowIso();
       const updated = await store.updateBooking(orderId, { assignedTo: by, assignedAt: at, updatedAt: at },
         { at, event: 'case_claimed', by });

@@ -68,7 +68,16 @@ SITE_URL=https://<your domain>
 JITSI_APP_ID=<from 8x8 JaaS>
 JITSI_KID=<from 8x8 JaaS>
 JITSI_PRIVATE_KEY=<the PEM block from 8x8 JaaS>
+RESEND_API_KEY=<optional, for email alerts>
+NOTIFY_EMAIL=<optional, where alerts go>
+ADMIN_EMAILS=<staff Google addresses, comma separated>
+GURUJI_EMAILS=<case-area-only Google addresses, comma separated>
+FIREBASE_PROJECT_ID=<only if it differs from the one in index.html>
 ```
+
+Both staff addresses belong in **`ADMIN_EMAILS`** when both people need both dashboards:
+`ADMIN_EMAILS` opens the admin dashboard *and* the case area, `GURUJI_EMAILS` opens the case area
+only. An address on neither list is refused.
 
 **`HOST=0.0.0.0` is the one that catches people out.** The server listens on `127.0.0.1` by
 default, which is right behind a reverse proxy but invisible to a managed platform — the build
@@ -91,6 +100,27 @@ SSL is issued automatically; wait for the padlock before taking payments.
    to `https://<your domain>/api/payments/cashfree/webhook`.
 4. Open `/admin` and `/guruji` and sign in with the two PINs.
 5. Make a ₹1 booking end to end, then refund it from the Cashfree dashboard.
+
+### 6. Staff Google sign-in
+
+1. Firebase Console → **Authentication → Settings → Authorized domains**: add your domain and its
+   `www` form. Without this the popup itself fails and no token is ever sent.
+2. Set `ADMIN_EMAILS` (above) and redeploy. A variable saved but not redeployed does nothing.
+3. Sign in with Google at `/admin`. If it is refused, open **Admin → Overview → Test staff Google
+   sign-in** — the PIN gets you in, so this works even while Google sign-in does not. It checks
+   three things and names the one that failed:
+   - *Staff addresses configured* — is the list reaching the running app at all.
+   - *Google certificates reachable* — can this server reach `googleapis.com`. Verifying a Google
+     token is impossible without it. If this is red, the runtime log will also carry
+     `Staff Google sign-in will fail: cannot reach Google for the signing keys`; ask Hostinger
+     support to allow outbound HTTPS for the app. There is no way around it in code.
+   - *Firebase project* — does the project the server checks against match the one the page signs
+     in with. A mismatch is a 401 with no other symptom.
+4. The same panel lists the last ten staff sign-in attempts and what the server decided about each.
+   Click Google first, then the check — the list is kept in memory and a redeploy clears it.
+
+What the status codes mean: **401** the token was missing, expired or could not be verified;
+**403** the identity was verified but the address is not on a list; **200** signed in.
 
 ---
 

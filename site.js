@@ -2070,6 +2070,17 @@
   // -------------------------------------------------------------------------
   const ADMIN = { pin: '', token: '', role: '', email: '', tab: 'overview', data: null, editing: null, filters: {} };
   try { const saved = JSON.parse(sessionStorage.getItem('guruji_admin') || 'null'); if (saved) Object.assign(ADMIN, saved); } catch (e) { /* ignore */ }
+  /** Forgets the staff session in this browser. Called whenever the server says
+   *  401: a session that has run out must leave no half-signed-in state behind,
+   *  or the dashboard draws itself with every panel empty and no way back in. */
+  function clearAdminSession() {
+    ADMIN.pin = '';
+    ADMIN.token = '';
+    ADMIN.role = '';
+    ADMIN.email = '';
+    sessionStorage.removeItem('guruji_admin');
+  }
+
   const adminFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
     if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
@@ -2243,7 +2254,11 @@
       if (!ADMIN.data) throw new Error('The admin dashboard needs the server.');
       renderAdminBody();
     } catch (err) {
-      if (err.status === 401) { ADMIN.pin = ''; sessionStorage.removeItem('guruji_admin'); return renderAdmin(); }
+      if (err.status === 401) {
+        clearAdminSession();
+        toast('Your session has ended. Please sign in again.', 'warn');
+        return renderAdmin();
+      }
       host.innerHTML = `<p class="sp-notice">${esc(err.message)}</p>`;
     }
   }
@@ -2851,11 +2866,13 @@
     renderAdmin();
   };
   window.adminLogout = () => {
-    ADMIN.pin = '';
-    ADMIN.token = '';
-    ADMIN.role = '';
-    ADMIN.email = '';
-    sessionStorage.removeItem('guruji_admin');
+    // Tell the server to throw the session away as well, so a token copied out
+    // of this browser stops working the moment the staff member signs out.
+    if (ADMIN.token) {
+      const token = ADMIN.token;
+      fetch('/api/admin/logout', { method: 'POST', headers: { 'x-admin-token': token } }).catch(() => {});
+    }
+    clearAdminSession();
     renderAdmin();
   };
   window.adminLogin = async (e) => {
@@ -3125,7 +3142,11 @@
     root.innerHTML = '<div class="sp-wrap py-8"><div class="sp-spinner" aria-hidden="true"></div></div>';
     let data;
     try { data = await gurujiFetch('/api/guruji/cases'); } catch (err) {
-      if (err.status === 401) { ADMIN.pin = ''; sessionStorage.removeItem('guruji_admin'); return renderGuruji(); }
+      if (err.status === 401) {
+        clearAdminSession();
+        toast('Your session has ended. Please sign in again.', 'warn');
+        return renderGuruji();
+      }
       root.innerHTML = `<div class="sp-wrap py-8"><p class="sp-notice">${esc(err.message)}</p></div>`; return;
     }
     GURUJI.list = (data && data.cases) || [];
@@ -3380,7 +3401,7 @@
   }
 
   window.claimCase = async (orderId) => {
-    try { await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/claim`, { method: 'POST', body: { name: 'Guruji' } }); renderCase(orderId); }
+    try { await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/claim`, { method: 'POST', body: {} }); renderCase(orderId); }
     catch (err) { toast(err.message, 'error'); }
   };
   window.castChart = async (orderId) => {
