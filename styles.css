@@ -1057,7 +1057,10 @@ textarea:focus {
 .learn-outline li em { grid-column: 1 / -1; font-style: normal; font-size: .88rem; color: rgb(var(--c-ink-2)); }
 .learn-enrol { border-top: 1px solid rgb(var(--c-line)); padding-top: 1.25rem; }
 .learn-enrol__fields { display: grid; gap: .6rem; margin-top: .75rem; }
-@media (min-width: 720px) { .learn-enrol__fields { grid-template-columns: repeat(3, 1fr); } }
+/* A grid item will not shrink below its content unless told to. */
+.learn-enrol__fields > * { min-width: 0; }
+.learn-enrol__fields .sp-input { width: 100%; min-width: 0; }
+@media (min-width: 900px) { .learn-enrol__fields { grid-template-columns: repeat(3, 1fr); } }
 .learn-enrol__msg { font-size: .85rem; color: rgb(var(--c-maroon)); margin-top: .6rem; min-height: 1.2em; }
 .learn-layout { display: grid; gap: 1.25rem; align-items: start; }
 @media (min-width: 960px) { .learn-layout { grid-template-columns: 300px 1fr; } }
@@ -1123,4 +1126,170 @@ html[lang="te"] .uppercase, html[lang="hi"] .uppercase { text-transform: none; }
   .sp-pillar-icon-box { width: 54px; height: 54px; font-size: 1.6rem; }
   .sp-pillar__title { font-size: 1.2rem; }
   .sp-pillar__text { font-size: .92rem; }
+}
+
+/* ==========================================================================
+   Motion layer — reveals, polish, page transitions
+   Everything here is scoped to html.motion-ready, which motion.js sets. With
+   no JavaScript the page renders exactly as before, fully visible.
+   ========================================================================== */
+
+:root {
+  --dur-slow: 620ms;
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --reveal-delay: 0ms;
+}
+
+/* Scroll reveal ----------------------------------------------------------- */
+.motion-ready:not(.motion-still) [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0);
+  transition:
+    opacity var(--dur-slow) var(--ease-soft) var(--reveal-delay),
+    transform var(--dur-slow) var(--ease-soft) var(--reveal-delay);
+}
+.motion-ready:not(.motion-still) [data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+/* Variants, for anything marked by hand */
+.motion-ready:not(.motion-still) [data-reveal="left"]  { transform: translate3d(-26px, 0, 0); }
+.motion-ready:not(.motion-still) [data-reveal="right"] { transform: translate3d(26px, 0, 0); }
+.motion-ready:not(.motion-still) [data-reveal="zoom"]  { transform: scale(0.94); }
+.motion-ready:not(.motion-still) [data-reveal="fade"]  { transform: none; }
+
+/* Reading progress -------------------------------------------------------- */
+.motion-progress {
+  position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 60;
+  transform: scaleX(0); transform-origin: 0 50%;
+  background: linear-gradient(90deg, #b8860b, #f7cb68 60%, #e9ae4f);
+  pointer-events: none;
+}
+.motion-still .motion-progress { display: none; }
+
+/* Page change ------------------------------------------------------------- */
+@keyframes motion-enter {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.motion-ready:not(.motion-still) main.is-entering { animation: motion-enter 380ms var(--ease-soft) both; }
+
+/* Buttons ----------------------------------------------------------------- */
+.gold-gradient-btn,
+.crimson-gradient-btn,
+.sp-btn-outline {
+  position: relative;
+  overflow: hidden;
+  min-height: 44px;                   /* a comfortable touch target */
+  padding-inline: 1.35rem;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.01em;
+  transform: translate3d(var(--magnet-x, 0), var(--magnet-y, 0), 0);
+  transition:
+    background var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    transform 180ms var(--ease-soft),
+    border-color var(--dur) ease,
+    color var(--dur) ease;
+}
+/* A slow sheen crosses the gold button on hover. */
+.gold-gradient-btn::after,
+.crimson-gradient-btn::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.42) 50%, transparent 65%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+.motion-ready:not(.motion-still) .gold-gradient-btn:hover::after,
+.motion-ready:not(.motion-still) .crimson-gradient-btn:hover::after { transform: translateX(120%); transition: transform 680ms var(--ease-soft); }
+.gold-gradient-btn:hover,
+.crimson-gradient-btn:hover { transform: translate3d(var(--magnet-x, 0), calc(var(--magnet-y, 0px) - 2px), 0); }
+.gold-gradient-btn:active,
+.crimson-gradient-btn:active,
+.sp-btn-outline:active { transform: scale(0.975); transition-duration: 90ms; }
+.sp-btn-outline:hover { transform: translateY(-1px); }
+:where(.gold-gradient-btn, .crimson-gradient-btn, .sp-btn-outline):focus-visible {
+  outline: 3px solid rgb(var(--c-gold-deep) / .55);
+  outline-offset: 3px;
+}
+/* Buttons that sit inside a tight row keep their own size */
+.sp-filter .sp-btn-outline, .chat__form button, .adm-nav button { min-height: 0; }
+
+/* Cards ------------------------------------------------------------------- */
+.motion-ready:not(.motion-still) .sp-card:hover { transform: translateY(-5px); }
+.sp-card__media, .sp-cat__media { overflow: hidden; }
+.sp-card__media img, .sp-cat__media img {
+  transition: transform 700ms var(--ease-soft);
+}
+.motion-ready:not(.motion-still) .sp-card:hover .sp-card__media img,
+.motion-ready:not(.motion-still) .sp-cat:hover .sp-cat__media img { transform: scale(1.06); }
+.motion-ready:not(.motion-still) .sp-pillar:hover { transform: translateY(-7px); }
+
+/* Navigation -------------------------------------------------------------- */
+header .nav-link { position: relative; }
+header .nav-link::after {
+  content: ""; position: absolute; left: 50%; right: 50%; bottom: .35rem; height: 2px;
+  background: rgb(var(--c-gold)); border-radius: 2px; opacity: 0;
+  transition: left 260ms var(--ease-soft), right 260ms var(--ease-soft), opacity 200ms ease;
+}
+header .nav-link:hover::after { left: .55rem; right: .55rem; opacity: .9; }
+.motion-still header .nav-link::after { transition: none; }
+
+/* Section headings: a gold rule that draws itself in ---------------------- */
+.sp-eyebrow { position: relative; display: inline-block; }
+.sp-eyebrow::after {
+  content: ""; position: absolute; left: 0; bottom: -.4rem; height: 2px; width: 0;
+  background: linear-gradient(90deg, rgb(var(--c-gold)), transparent);
+  transition: width 700ms var(--ease-soft) 140ms;
+}
+.is-revealed .sp-eyebrow::after, .sp-eyebrow.is-revealed::after { width: 2.6rem; }
+.motion-still .sp-eyebrow::after { width: 2.6rem; transition: none; }
+
+/* Pills and badges -------------------------------------------------------- */
+.sp-pill { transition: transform 160ms var(--ease-spring), background 200ms ease; }
+.motion-ready:not(.motion-still) a:hover > .sp-pill, .motion-ready:not(.motion-still) .sp-pill:hover { transform: translateY(-1px) scale(1.03); }
+
+/* Spacing rhythm ---------------------------------------------------------- */
+.sp-section { padding-block: clamp(3rem, 6vw, 5.5rem); }
+.sp-section--tight { padding-block: clamp(2rem, 4vw, 3.5rem); }
+@media (max-width: 640px) {
+  .sp-wrap { padding-inline: 1.15rem; }
+  .sp-panel { padding: 1.35rem 1.15rem; }
+}
+
+/* Anyone who asks for stillness gets it ----------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .motion-ready [data-reveal] { opacity: 1 !important; transform: none !important; }
+  .gold-gradient-btn::after, .crimson-gradient-btn::after { display: none; }
+}
+
+/* Hero: the copy arrives line by line, the artwork drifts very slowly ------ */
+@keyframes heroRise {
+  from { opacity: 0; transform: translate3d(0, 22px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes heroDrift {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to   { transform: scale(1.07) translate3d(-1.2%, -0.8%, 0); }
+}
+@keyframes heroGlow {
+  0%, 100% { opacity: .85; }
+  50%      { opacity: 1; }
+}
+.motion-ready:not(.motion-still) .hero-copy > * {
+  animation: heroRise 760ms var(--ease-soft) both;
+}
+.motion-ready:not(.motion-still) .hero-copy > *:nth-child(1) { animation-delay: 60ms; }
+.motion-ready:not(.motion-still) .hero-copy > *:nth-child(2) { animation-delay: 170ms; }
+.motion-ready:not(.motion-still) .hero-copy > *:nth-child(3) { animation-delay: 280ms; }
+.motion-ready:not(.motion-still) .hero-copy > *:nth-child(4) { animation-delay: 380ms; }
+.motion-ready:not(.motion-still) .hero-copy > *:nth-child(n+5) { animation-delay: 460ms; }
+.motion-ready:not(.motion-still) .hero-layer {
+  animation: heroDrift 26s var(--ease-soft) alternate infinite;
+  transform-origin: 30% 50%;
+}
+.motion-ready:not(.motion-still) .hero-wheel__glow { animation: heroGlow 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy > *, .hero-layer, .hero-wheel__glow { animation: none !important; opacity: 1 !important; transform: none !important; }
 }

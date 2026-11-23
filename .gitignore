@@ -27,3 +27,6 @@ scratch/
 data/enquiries.json
 data/content.json
 data/media.json
+data/messages.json
+data/users.json
+data/consents.json
