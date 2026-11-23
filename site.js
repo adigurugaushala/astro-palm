@@ -2665,9 +2665,25 @@
       renderAdmin();
       if (typeof renderGuruji === 'function') renderGuruji();
     } catch (err) {
-      toast(err.message || 'Google sign-in could not be verified for Admin.', 'error');
+      toast(staffSignInReason(err), 'error');
     }
   };
+
+  /** Turns the server's refusal code into something the owner can act on.
+   *  Without this the console shows a bare 401 and nothing says why. */
+  function staffSignInReason(err) {
+    const codes = {
+      wrong_project: 'That sign-in belongs to a different Firebase project. Check FIREBASE_PROJECT_ID on the server.',
+      wrong_issuer: 'That sign-in belongs to a different Firebase project. Check FIREBASE_PROJECT_ID on the server.',
+      google_certs_unreachable: 'The server could not reach Google to check the sign-in. Try again in a moment.',
+      token_expired: 'That sign-in has expired. Please try again.',
+      no_email: 'That Google account has no email address attached.'
+    };
+    if (err && err.code && codes[err.code]) return codes[err.code];
+    if (err && err.status === 403) return err.message;
+    if (err && err.status === 401) return 'That Google sign-in could not be verified (' + ((err && err.code) || 'unverified') + ').';
+    return (err && err.message) || 'Google sign-in could not be verified for Admin.';
+  }
 
   function renderAdmin() {
     const host = $('#page-admin');
