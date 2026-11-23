@@ -2627,6 +2627,17 @@
       renderAdmin();
     } catch (err) { toast(err.message, 'error'); }
   };
+  /** Google sign-in only works once the owner has listed the addresses. Say so
+   *  here rather than letting someone click and be refused. */
+  function staffGoogleNote() {
+    const g = SITE.staffGoogle;
+    if (!g || (g.admin + g.guruji) > 0) return '';
+    return `<p class="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-left">
+      Google sign-in is not set up yet. Add the addresses to <strong>ADMIN_EMAILS</strong> (full dashboard)
+      or <strong>GURUJI_EMAILS</strong> (case area) in the hosting environment, then redeploy. The PIN below works either way.
+    </p>`;
+  }
+
   window.adminLoginWithGoogle = async () => {
     if (!window.firebaseAuth) {
       toast('Connecting to Google Firebase...', 'warn');
@@ -2670,7 +2681,8 @@
             <p class="text-xs text-ink-3 mt-1">For temple staff only</p>
           </div>
 
-          <!-- Google sign-in, limited to the addresses in ADMIN_EMAILS -->
+          ${staffGoogleNote()}
+          <!-- Google sign-in, limited to the addresses in ADMIN_EMAILS / GURUJI_EMAILS -->
           <button type="button" onclick="adminLoginWithGoogle()" class="w-full h-11 flex items-center justify-center gap-3 border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 font-medium hover:bg-stone-50 dark:hover:bg-stone-700 transition-all shadow-sm">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -2822,7 +2834,8 @@
             <p class="text-xs text-ink-3 mt-1">For Guruji and temple staff only</p>
           </div>
 
-          <!-- Google sign-in, limited to the addresses in ADMIN_EMAILS -->
+          ${staffGoogleNote()}
+          <!-- Google sign-in, limited to the addresses in ADMIN_EMAILS / GURUJI_EMAILS -->
           <button type="button" onclick="adminLoginWithGoogle()" class="w-full h-11 flex items-center justify-center gap-3 border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 font-medium hover:bg-stone-50 dark:hover:bg-stone-700 transition-all shadow-sm">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -3028,12 +3041,20 @@
     ]);
     if (health) {
       SITE.payments = health.payments; SITE.paymentEnv = health.paymentEnv; SITE.serverOnline = true;
+      SITE.staffGoogle = health.staffGoogleSignIn || null;
       if (health.testOneRupee) {
         window.TEST_ONE_RUPEE = true;
         if (typeof applyOneRupeeUI === 'function') applyOneRupeeUI();
       }
     }
     refreshPaymentPage();
+    // The staff sign-in panels are drawn before the server answers; redraw them
+    // once we know whether Google sign-in is configured at all.
+    const path = location.pathname.replace(/\/$/, '');
+    if (SITE.staffGoogle && !ADMIN.pin && !ADMIN.token) {
+      if (path === '/admin') renderAdmin();
+      else if (path.startsWith('/guruji') && typeof renderGuruji === 'function') renderGuruji();
+    }
     if (content && content.content) {
       SITE.content = Object.assign({}, window.GURUJI_CONTENT, content.content);
       if (content.content.testOneRupee) {
