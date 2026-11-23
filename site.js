@@ -109,6 +109,7 @@
           <span class="sp-price sp-price--muted">${s.duration ? esc(s.duration) : 'Fee on enquiry'}</span>
           <a href="/services/${esc(s.slug)}" data-link class="sp-link">Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </div>
+        <button type="button" class="gold-gradient-btn w-full h-11 rounded-xl mt-3" onclick="bookService('${esc(s.slug)}')">Book Now</button>
       </div>
     </article>`;
 
@@ -1050,18 +1051,7 @@
           <div class="text-center mt-8"><a href="/services" data-link class="sp-btn-outline">Explore all services</a></div>
         </div>
       </section>
-      <section class="sp-section">
-        <div class="sp-wrap grid gap-10 lg:grid-cols-2 items-center">
-          <img src="/assets/svc/reiki.svg" alt="" class="sp-feature-img" loading="lazy">
-          <div>
-            <p class="sp-eyebrow sp-eyebrow--maroon">Healing</p>
-            <h2 class="sp-h2">Reiki Healing</h2>
-            <p class="sp-text mt-3">In-person sessions at Adiguru Wellness Centre and distance Reiki sessions — offered for relaxation and a sense of balance, as a complementary practice alongside medical care.</p>
-            <div class="flex flex-wrap gap-3 mt-6"><a href="/reiki-healing" data-link class="gold-gradient-btn h-12 px-6 rounded-full">Explore Reiki</a><button type="button" onclick="bookService('reiki-individual-session')" class="sp-btn-outline">Book a session</button></div>
-          </div>
-        </div>
-      </section>
-      ${featuredCourses.length ? `<section class="sp-section sp-section--tint"><div class="sp-wrap">${sectionHead('Learning', 'Popular courses')}<div class="grid gap-6 md:grid-cols-3">${featuredCourses.map(courseCard).join('')}</div><div class="text-center mt-8"><a href="/courses" data-link class="sp-btn-outline">All courses</a></div></div></section>` : ''}
+
       <section class="sp-section">
         <div class="sp-wrap">
           ${sectionHead('Why Guruji Palmistry', 'Guidance, not fear. Awareness, not dependency.')}
