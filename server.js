@@ -559,7 +559,14 @@ function newReference(prefix) {
 async function notifyOwner(subject, lines) {
   const key = process.env.RESEND_API_KEY;
   const to = process.env.NOTIFY_EMAIL;
-  if (!key || !to) return false;
+  if (!key || !to) {
+    // Say so once per server start, so a missing alert is never a mystery.
+    if (!notifyOwner.warned) {
+      notifyOwner.warned = true;
+      console.warn('[server] Email alerts are OFF: set RESEND_API_KEY and NOTIFY_EMAIL to be told about enquiries and paid bookings.');
+    }
+    return false;
+  }
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -667,6 +674,8 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       paymentEnv: PAYMENT_MODE === 'cashfree' ? CASHFREE.mode : undefined,
       paymentsReady: PAYMENT_MODE !== 'cashfree' ? undefined : store.mode !== 'file-temporary',
       sessions: JITSI.mode, sessionsProductionSafe: JITSI.production,
+      emailAlerts: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_EMAIL),
+      staffGoogleSignIn: { admin: ADMIN_EMAILS.length, guruji: GURUJI_EMAILS.length },
       testOneRupee: TEST_ONE_RUPEE
     }]],
 

@@ -1049,9 +1049,9 @@
       <section class="sp-section sp-pillars-wrap">
         <div class="sp-wrap">
           ${sectionHead('Guruji Palmistry', 'Four pillars', 'Everything we offer grows from four roots.')}
-          <div class="grid gap-4 grid-cols-2 lg:grid-cols-4">${(C().pillars || []).map((p, i) => `
+          <div class="grid gap-5 sm:gap-6 grid-cols-2 lg:grid-cols-4">${(C().pillars || []).map((p, i) => `
             <a href="${esc(p.link)}" data-link class="sp-pillar sp-pillar--${i}">
-              <i class="fa-solid ${esc(p.icon)}" aria-hidden="true"></i>
+              <span class="sp-pillar-icon-box"><i class="fa-solid ${esc(p.icon)}" aria-hidden="true"></i></span>
               <span class="sp-pillar__title">${esc(p.title)}</span>
               <span class="sp-pillar__text">${esc(p.text)}</span>
             </a>`).join('')}</div>
