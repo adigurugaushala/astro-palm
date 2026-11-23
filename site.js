@@ -2481,6 +2481,9 @@
             </div>
           </li>`).join('')}</ul>
         ${hints.length ? `<p class="text-xs text-ink-3 mt-2">Configured: ${hints.map(esc).join(', ')}</p>` : ''}
+        <p class="text-xs text-ink-3 mt-1">Node ${esc(d.nodeVersion || '')}${(d.proxyEnv || []).length
+          ? ' · proxy variables set: ' + d.proxyEnv.map(esc).join(', ')
+          : ' · no proxy variables set'}</p>
         ${(d.recentAttempts || []).length ? `
           <h3 class="sp-h3 mt-4" style="font-size:1rem">Recent sign-in attempts</h3>
           <ul class="adm-attempts">${d.recentAttempts.map(a => `

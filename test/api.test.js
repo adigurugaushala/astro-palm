@@ -280,7 +280,9 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(res.status, 200);
       const names = res.body.checks.map(c => c.name);
       assert.ok(names.includes('Staff addresses configured'));
+      assert.ok(names.includes('Name lookup for googleapis.com'));
       assert.ok(names.includes('Google certificates reachable'));
+      assert.ok(Array.isArray(res.body.proxyEnv), 'proxy variables are reported');
       assert.ok(names.includes('Firebase project'));
       assert.equal(res.body.firebaseProjectId, 'palm-56063');
 

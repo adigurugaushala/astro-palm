@@ -6,6 +6,7 @@
 
 const http = require('http');
 const https = require('https');
+const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -297,6 +298,20 @@ function fetchGoogleCerts({ fresh = false } = {}) {
     });
     req.on('error', (e) => done(null, e.code || e.message || 'network_error'));
     req.on('timeout', () => { req.destroy(); done(null, 'timeout'); });
+  });
+}
+
+/** Does this machine resolve the host Google publishes its keys on? A hosting
+ *  container with a broken resolver fails here, before any HTTPS is attempted,
+ *  and that is what an ENOTFOUND in the certificate fetch really means. */
+function probeGoogleDns(host = 'www.googleapis.com') {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve({ ok: false, code: 'timeout' }), 5000);
+    dns.lookup(host, { all: false }, (err, address, family) => {
+      clearTimeout(timer);
+      if (err) return resolve({ ok: false, code: err.code || 'lookup_failed' });
+      resolve({ ok: true, address, family });
+    });
   });
 }
 
@@ -1035,6 +1050,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     ['GET', /^\/api\/admin\/sign-in-check$/, async (req) => {
       requireAdmin(req, 'owner');
       const started = Date.now();
+      const nameLookup = await probeGoogleDns();
       const certs = await fetchGoogleCerts({ fresh: true });
       const checks = [
         {
@@ -1042,6 +1058,14 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
           ok: ADMIN_EMAILS.length + GURUJI_EMAILS.length > 0,
           detail: `ADMIN_EMAILS has ${ADMIN_EMAILS.length}, GURUJI_EMAILS has ${GURUJI_EMAILS.length}`,
           fix: 'Set ADMIN_EMAILS (and GURUJI_EMAILS) in the hosting environment, then redeploy.'
+        },
+        {
+          name: 'Name lookup for googleapis.com',
+          ok: nameLookup.ok,
+          detail: nameLookup.ok
+            ? `resolves to ${nameLookup.address} (IPv${nameLookup.family})`
+            : `cannot resolve (${nameLookup.code})`,
+          fix: 'The container cannot resolve the hostname, which happens before any HTTPS. Ask the host to check the DNS resolver given to the Node process; this is what an ENOTFOUND means.'
         },
         {
           name: 'Google certificates reachable',
@@ -1065,6 +1089,17 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         adminEmails: ADMIN_EMAILS.length,
         gurujiEmails: GURUJI_EMAILS.length,
         // the addresses themselves are masked: enough to recognise, not to harvest
+        // Hosts sometimes set these, and a stray value breaks every outbound
+        // request. Host and port only — a proxy URL can carry credentials.
+        proxyEnv: ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'https_proxy', 'http_proxy', 'no_proxy', 'DNS_SERVERS']
+          .filter(k => process.env[k])
+          .map(k => {
+            const v = String(process.env[k]);
+            let shown = v;
+            try { const u = new URL(v); shown = u.host; } catch (_) { shown = v.slice(0, 60); }
+            return `${k}=${shown}`;
+          }),
+        nodeVersion: process.version,
         adminEmailHints: ADMIN_EMAILS.map(maskEmail),
         gurujiEmailHints: GURUJI_EMAILS.map(maskEmail),
         recentAttempts: signInLog
