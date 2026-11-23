@@ -753,7 +753,14 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       requireAdmin(req, 'editor');
       const content = await getContent(store);
       const overrides = await store.getContentOverrides();
-      return [200, { content, edited: Object.keys(overrides), sections: CONTENT_SECTIONS }];
+      // `defaults` is what ships in the code. The dashboard compares the two so
+      // the owner can see exactly what a saved copy is holding back, item by
+      // item, before deciding to restore anything.
+      const meta = typeof store.getContentMeta === 'function' ? await store.getContentMeta() : {};
+      return [200, {
+        content, edited: Object.keys(overrides), sections: CONTENT_SECTIONS,
+        defaults: DEFAULT_CONTENT, savedAt: meta
+      }];
     }],
 
     ['PUT', /^\/api\/admin\/content\/([A-Za-z]+)$/, async (req, [, section]) => {

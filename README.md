@@ -99,6 +99,23 @@ Set the Jitsi keys before taking real consultations: with none set the room fall
 
 The interface can be switched to Telugu or Hindi from the header, the mobile menu or the footer; the choice is remembered on the device. Translations live in `i18n.js`, keyed by the exact English string, so anything without an entry stays in English rather than being half-translated. Articles, course lessons and Guruji's written readings are in English for now, and the switcher says so in the chosen language.
 
+## Where the site's words come from
+
+Two places, and the database wins:
+
+1. **`content-data.js`** — what ships in the code. A deployment updates it.
+2. **The `content` collection** — whatever has been saved from the admin
+   dashboard. While a section is saved there, it overrides the code for that
+   section, and a deployment will not change it.
+
+That is deliberate: an edit made in the dashboard has to survive the next
+deployment. But it also means a change made in the code may not show up on the
+site. **Admin → Saved vs original** lists every section, says which of the two
+is in use, when the saved copy was last written and by whom, and spells out
+item by item what the saved copy is holding back — what would come back, what
+would be lost, and what differs. Restoring a section downloads a backup of the
+saved copy first, so nothing is thrown away.
+
 ## SEO and accessibility
 
 `/robots.txt` and `/sitemap.xml` are generated from the live content, so new services, courses and articles appear in the sitemap as soon as they are published. Each page sets its own title, description, canonical link and Schema.org data (Organization, Service, Course, Article, FAQPage, BreadcrumbList).

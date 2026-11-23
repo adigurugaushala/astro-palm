@@ -2256,9 +2256,86 @@
   }
 
   const STATUS_TONE = { PAID: 'green', DETAILS_RECEIVED: 'green', COMPLETED: 'green', CONFIRMED: 'green', SCHEDULED: 'gold', PENDING_PAYMENT: 'muted', NEW: 'gold', CONTACTED: 'gold', PAYMENT_FAILED: 'red', CANCELLED: 'red', REFUNDED: 'muted', CLOSED: 'muted' };
+  /** A readable summary of one content section: how many items, and which ones. */
+  function contentShape(value) {
+    if (Array.isArray(value)) return { kind: 'list', count: value.length, keys: value.map(itemKey) };
+    if (value && typeof value === 'object') return { kind: 'fields', count: Object.keys(value).length, keys: Object.keys(value) };
+    return { kind: 'value', count: 1, keys: [] };
+  }
+  // Match on the same thing however it is spelled: a saved copy may key on the
+  // title where the code keys on the slug.
+  const itemKey = (x) => String((x && (x.slug || x.id || x.title || x.name || x.q)) || JSON.stringify(x).slice(0, 40))
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  /** What the saved copy holds that the code does not, and the other way round. */
+  function contentDiff(saved, original) {
+    const a = contentShape(saved), b = contentShape(original);
+    const inSaved = new Set(a.keys), inCode = new Set(b.keys);
+    const onlySaved = a.keys.filter(k => !inCode.has(k));
+    const onlyCode = b.keys.filter(k => !inSaved.has(k));
+    let changed = [];
+    if (a.kind === 'list' && b.kind === 'list') {
+      const byKey = (arr) => Object.fromEntries(arr.map(x => [itemKey(x), x]));
+      const A = byKey(saved), B = byKey(original);
+      changed = Object.keys(A).filter(k => B[k] && JSON.stringify(A[k]) !== JSON.stringify(B[k]));
+    } else if (a.kind === 'fields' && b.kind === 'fields') {
+      changed = Object.keys(saved).filter(k => k in original && JSON.stringify(saved[k]) !== JSON.stringify(original[k]));
+    }
+    return { onlySaved, onlyCode, changed, savedCount: a.count, codeCount: b.count };
+  }
+
+  window.adminDownloadSection = function (section) {
+    const value = (ADMIN.data.content || {})[section];
+    const blob = new Blob([JSON.stringify({ section, savedAt: new Date().toISOString(), value }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `guruji-${section}-backup.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast('Backup downloaded. Keep it until you are happy with the result.');
+  };
+
+  function renderContentStatus(host) {
+    const d = ADMIN.data || {};
+    const sections = d.sections || [];
+    const edited = new Set(d.edited || []);
+    const savedAt = d.savedAt || {};
+    const rows = sections.map(sec => {
+      const saved = edited.has(sec);
+      const diff = saved ? contentDiff(d.content[sec], (d.defaults || {})[sec]) : null;
+      const when = (savedAt[sec] || {}).updatedAt;
+      const by = (savedAt[sec] || {}).updatedBy;
+      return `
+        <div class="sp-panel mb-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <strong class="text-base">${esc(sec)}</strong>
+              <span class="sp-pill ${saved ? 'sp-pill--gold' : 'sp-pill--muted'} ml-2">${saved ? 'saved in the database' : 'using the original'}</span>
+              ${when ? `<span class="text-xs text-ink-3 ml-2">last saved ${esc(new Date(when).toLocaleString('en-IN'))}${by ? ' by ' + esc(by) : ''}</span>` : ''}
+            </div>
+            ${saved ? `<div class="flex gap-2">
+              <button type="button" class="sp-btn-outline text-xs" onclick="adminDownloadSection('${esc(sec)}')">Download a backup</button>
+              <button type="button" class="sp-btn-outline text-xs" onclick="adminReset('${esc(sec)}')">Restore the original</button>
+            </div>` : ''}
+          </div>
+          ${saved ? `
+            <p class="text-xs text-ink-3 mt-2">The database copy has ${diff.savedCount} item${diff.savedCount === 1 ? '' : 's'}; the code has ${diff.codeCount}. Restoring replaces the saved copy with the code's — download the backup first.</p>
+            ${diff.onlyCode.length ? `<p class="text-sm mt-2"><strong>Only in the code</strong> (restoring would bring these back): ${diff.onlyCode.slice(0, 12).map(esc).join(', ')}${diff.onlyCode.length > 12 ? ` and ${diff.onlyCode.length - 12} more` : ''}</p>` : ''}
+            ${diff.onlySaved.length ? `<p class="text-sm mt-2"><strong>Only in the saved copy</strong> (restoring would lose these): ${diff.onlySaved.slice(0, 12).map(esc).join(', ')}${diff.onlySaved.length > 12 ? ` and ${diff.onlySaved.length - 12} more` : ''}</p>` : ''}
+            ${diff.changed.length ? `<p class="text-sm mt-2"><strong>Different in both</strong>: ${diff.changed.slice(0, 12).map(esc).join(', ')}${diff.changed.length > 12 ? ` and ${diff.changed.length - 12} more` : ''}</p>` : ''}
+            ${!diff.onlyCode.length && !diff.onlySaved.length && !diff.changed.length ? '<p class="text-sm mt-2 text-emerald-800">The saved copy and the code hold the same thing — restoring would change nothing.</p>' : ''}
+          ` : '<p class="text-xs text-ink-3 mt-2">Nothing was ever saved here from the dashboard, so this section shows exactly what the code ships. A new deployment updates it by itself.</p>'}
+        </div>`;
+    }).join('');
+    host.innerHTML = `
+      <p class="sp-text mb-4">The site shows the database copy of a section when one exists, and the code's version otherwise. That is why an edit made here survives a deployment — and why a change made in the code may not appear. Nothing on this page changes anything until you press a button.</p>
+      ${rows}`;
+  }
+
   function renderAdminBody() {
     const host = $('#adm-body');
     const tab = ADMIN.tab;
+    if (tab === 'contentStatus') return renderContentStatus(host);
     if (tab === 'consents') {
       const rows = ADMIN.data.consents || [];
       const f = ADMIN.filters.consents || {};
@@ -2480,7 +2557,11 @@
     adminSaveSection(tab, list, 'Deleted.');
   };
   window.adminReset = async (section) => {
-    if (!confirm('Replace your edits in this section with the original content?')) return;
+    // Nothing is thrown away silently: the saved copy is downloaded first.
+    const edited = (ADMIN.data && ADMIN.data.edited) || [];
+    if (!edited.includes(section)) { toast('That section is already the original.'); return; }
+    if (!confirm(`Replace the saved "${section}" with the original from the code?\n\nA backup of the saved copy downloads first, so nothing is lost.`)) return;
+    try { adminDownloadSection(section); } catch (e) { /* a blocked download must not stop the reset */ }
     try {
       const out = await adminFetch('/api/admin/content/' + section, { method: 'DELETE' });
       ADMIN.data.content[section] = out.value;
@@ -2635,6 +2716,7 @@
       ['services', 'Services & pricing', 'fa-hand'], ['serviceCategories', 'Service categories', 'fa-layer-group'], ['courses', 'Courses', 'fa-graduation-cap'],
       ['articles', 'Articles', 'fa-newspaper'], ['faqCategories', 'FAQs', 'fa-circle-question'], ['testimonials', 'Testimonials', 'fa-quote-left'],
       ['about', 'About Guruji', 'fa-user'], ['pillars', 'Home pillars', 'fa-table-columns'], ['settings', 'Settings & homepage', 'fa-gear'],
+      owner && ['contentStatus', 'Saved vs original', 'fa-code-compare'],
       ['policies', 'Policies', 'fa-file-contract'], ['images', 'Images', 'fa-image'], ['mantras', 'Mantras', 'fa-om']
     ].filter(Boolean);
     host.innerHTML = `

@@ -234,6 +234,31 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(list.body.reviews.length, 2);
     });
 
+    test('the dashboard can compare the saved content with the code', async () => {
+      // A section saved from the dashboard overrides the code from then on, so
+      // the owner needs to see what the saved copy is holding back before
+      // restoring anything. The API hands over both versions and the save time.
+      const before = await call('GET', '/api/admin/content', null, admin);
+      assert.equal(before.status, 200);
+      assert.ok(before.body.defaults, 'the code version comes back for comparison');
+
+      const saved = await call('PUT', '/api/admin/content/pillars',
+        { value: [{ title: 'Guidance', text: 'Edited here', icon: 'fa-hand', link: '/services' }] }, admin);
+      assert.equal(saved.status, 200);
+
+      const after = await call('GET', '/api/admin/content', null, admin);
+      assert.ok(after.body.edited.includes('pillars'));
+      assert.equal(after.body.content.pillars.length, 1, 'the site now shows the saved copy');
+      assert.equal(after.body.defaults.pillars.length, 4, 'the code still has four');
+      assert.ok(after.body.savedAt.pillars.updatedAt, 'and when it was saved');
+
+      const reset = await call('DELETE', '/api/admin/content/pillars', null, admin);
+      assert.equal(reset.status, 200);
+      assert.equal(reset.body.value.length, 4, 'restoring hands back the code version');
+      const restored = await call('GET', '/api/admin/content', null, admin);
+      assert.ok(!restored.body.edited.includes('pillars'));
+    });
+
     test('site content is served, and the admin can edit and reset a section', async () => {
       const pub = await call('GET', '/api/content');
       assert.equal(pub.status, 200);

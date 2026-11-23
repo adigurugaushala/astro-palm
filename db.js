@@ -200,6 +200,13 @@ class FileStore {
     for (const [k, v] of Object.entries(d)) out[k] = v.value;
     return out;
   }
+  /** When each saved section was last changed, and by which role. */
+  async getContentMeta() {
+    const d = readJson(CONTENT_FILE, {});
+    const out = {};
+    for (const [k, v] of Object.entries(d)) out[k] = { updatedAt: v.updatedAt || '', updatedBy: v.updatedBy || '' };
+    return out;
+  }
   async setContentSection(section, value, meta = {}) {
     const d = readJson(CONTENT_FILE, {});
     d[section] = { value, updatedAt: new Date().toISOString(), ...meta };
@@ -517,6 +524,13 @@ class MongoStore {
     const docs = await this.content.find({}).toArray();
     const out = {};
     for (const d of docs) out[d.section] = d.value;
+    return out;
+  }
+  /** When each saved section was last changed, and by which role. */
+  async getContentMeta() {
+    const docs = await this.content.find({}).toArray();
+    const out = {};
+    for (const d of docs) out[d.section] = { updatedAt: d.updatedAt || '', updatedBy: d.updatedBy || '' };
     return out;
   }
   async setContentSection(section, value, meta = {}) {
