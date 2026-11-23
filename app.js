@@ -140,14 +140,6 @@ function showPage(pageId) {
   if (pageId === "book-pooja") initPoojaDatePicker();
   if (pageId === "book-status") prepareTrackPage();
 
-  // The 10-minute slot hold starts when the seeker enters the booking flow
-  if ((pageId === "book-consultation" || pageId === "book-pooja") && !state.slotTimerInterval && state.paymentStatus !== "SUCCESS") {
-    state.isSlotHeld = true;
-    state.slotTimerSeconds = 600;
-    updateSlotTimerDisplays();
-    startSlotTimer();
-  }
-
   // Hide all views
   document.querySelectorAll(".page-view").forEach(el => {
     el.classList.add("hidden");
@@ -1450,7 +1442,7 @@ async function handleAuthSubmit(event) {
   state.user.email = email;
 
   // Persist slot hold immediately so it cannot be lost (only when one is held)
-  if (state.slotTimerInterval) persistHeldSlot();
+  if (state.selectedDateISO) persistHeldSlot();
 
   // Securely register or update customer account in DB with legal consent record
   try {

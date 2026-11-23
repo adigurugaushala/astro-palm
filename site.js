@@ -95,6 +95,9 @@
 
   const bookLabel = (s) => s.bookingType === 'enquiry' ? 'Enquire &amp; Book' : 'Book Now';
 
+  /** "₹ 549" when the service has a price, '' when it is booked by enquiry. */
+  const priceLabel = (s) => (Number(s && s.price) > 0 ? '₹ ' + Number(s.price).toLocaleString('en-IN') : '');
+
   const serviceCard = (s, { compact = false } = {}) => `
     <article class="sp-card sp-card--service">
       <a href="/services/${esc(s.slug)}" data-link class="sp-card__media" tabindex="-1" aria-hidden="true">
@@ -106,7 +109,7 @@
         <h3 class="sp-card__title"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
         ${compact ? '' : `<p class="sp-card__text">${esc(s.short)}</p>`}
         <div class="sp-card__foot">
-          <span class="sp-price sp-price--muted">${s.duration ? esc(s.duration) : 'Fee on enquiry'}</span>
+          <span class="sp-price${priceLabel(s) ? '' : ' sp-price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</span>
           <a href="/services/${esc(s.slug)}" data-link class="sp-link">Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </div>
         <button type="button" class="gold-gradient-btn w-full h-11 rounded-xl mt-3" onclick="bookService('${esc(s.slug)}')">Book Now</button>
@@ -366,7 +369,7 @@
             <aside class="sp-book">
               <img src="${esc(imageFor(s))}" alt="" class="sp-book__img">
               <div class="sp-book__body">
-                <div class="sp-book__price sp-book__price--muted">Fee on enquiry</div>
+                <div class="sp-book__price${priceLabel(s) ? '' : ' sp-book__price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</div>
                 ${s.duration ? `<p class="sp-book__meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> ${esc(s.duration)}</p>` : ''}
                 <p class="sp-book__meta"><i class="fa-solid fa-video" aria-hidden="true"></i> ${s.category === 'puja-rituals' || s.category === 'pitru' || s.category === 'japa-mantra' ? 'Performed on your behalf, with Sankalpa in your name' : 'Online (phone / video) or in person'}</p>
                 <button type="button" class="gold-gradient-btn w-full h-12 rounded-xl mt-4" onclick="bookService('${esc(s.slug)}')">${bookLabel(s)}</button>
@@ -426,7 +429,7 @@
               <h3 class="sp-h3"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
               <p class="sp-text">${esc(s.short)}</p>
               <div class="sp-session__foot">
-                <span class="sp-price sp-price--muted">${s.duration ? esc(s.duration) : 'Fee on enquiry'}</span>
+                <span class="sp-price${priceLabel(s) ? '' : ' sp-price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</span>
                 ${waLink() ? `<a class="sp-btn-outline" href="${waLink('Namaste, I would like to enquire about ' + s.title)}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Enquire on WhatsApp</a>` : `<button type="button" class="sp-btn-outline" onclick="bookService('${esc(s.slug)}')">${bookLabel(s)}</button>`}
               </div>
             </article>`).join('')}</div>

@@ -755,40 +755,6 @@
       <!-- ====================================================================== -->
       <!-- SECTION 9: SEEKER REVIEWS & TESTIMONIALS                              -->
       <!-- ====================================================================== -->
-      <section class="py-16 px-4 sm:px-8 bg-white border-b border-line">
-        <div class="max-w-6xl mx-auto">
-          
-          <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
-            <div>
-              <span class="text-2xs font-semibold tracking-[0.25em] text-maroon uppercase">— SEEKER BLESSINGS —</span>
-              <h2 class="font-serif text-3xl sm:text-4xl text-ink mt-1 font-bold">
-                Trusted by Seekers <span class="italic text-maroon">Worldwide</span>
-              </h2>
-              <div class="flex items-center gap-2 mt-2">
-                <div class="flex text-amber-500 text-sm">
-                  <i class="fa-solid fa-star"></i>
-                  <i class="fa-solid fa-star"></i>
-                  <i class="fa-solid fa-star"></i>
-                  <i class="fa-solid fa-star"></i>
-                  <i class="fa-solid fa-star"></i>
-                </div>
-                <span class="text-xs font-bold text-zinc-800">4.9 / 5 Rating</span>
-                
-              </div>
-            </div>
-
-            <button onclick="openReviewModal()" class="px-4 py-2 rounded-xl border border-zinc-300 text-xs font-semibold text-maroon hover:bg-amber-50 self-start sm:self-auto transition">
-              <i class="fa-regular fa-pen-to-square mr-1"></i> Write a Seeker Review
-            </button>
-          </div>
-
-          <!-- Dynamic Seeker Reviews Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5" id="reviews-container">
-            <!-- Rendered dynamically by renderReviews() in app.js -->
-          </div>
-
-        </div>
-      </section>
 
       <!-- ====================================================================== -->
       <!-- SECTION 11: FINAL SEEKER BLESSING CTA BANNER                          -->
@@ -1569,8 +1535,7 @@
                 </p>
               </div>
               <div class="mt-4 pt-3 border-t border-sand text-center">
-                <div class="font-bold text-lg text-ink">Fee on enquiry</div>
-                <div class="text-xs text-ink-3">30 Mins Live Session</div>
+                <div class="font-bold text-lg text-ink">₹ 549</div>
               </div>
             </div>
 
@@ -1586,8 +1551,7 @@
                 </p>
               </div>
               <div class="mt-4 pt-3 border-t border-sand text-center">
-                <div class="font-bold text-lg text-ink">Fee on enquiry</div>
-                <div class="text-xs text-ink-3">30 Mins Live Session</div>
+                <div class="font-bold text-lg text-ink">₹ 549</div>
               </div>
             </div>
 
@@ -1604,7 +1568,7 @@
               </div>
               <div class="mt-4 pt-3 border-t border-sand text-center">
                 <div class="font-bold text-lg text-ink flex items-baseline justify-center gap-2"><span class="text-ink-3 font-medium text-base line-through">₹ 749</span><span>₹ 10</span></div>
-                <div class="text-2xs text-ink-3">45 Mins · <span class="text-emerald-700 font-semibold">Recommended</span></div>
+                <div class="text-2xs text-ink-3"><span class="text-emerald-700 font-semibold">Recommended</span></div>
               </div>
             </div>
 
@@ -1653,10 +1617,6 @@
                   </h4>
                   <p class="text-2xs text-ink-3">Click on an open date in the Vedic calendar below, then pick a comfortable time slot.</p>
                 </div>
-              </div>
-              <div class="text-2xs text-maroon bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium shadow-2xs">
-                <i class="fa-solid fa-clock-rotate-left text-xs"></i>
-                <span>10-Minute Slot Hold Active</span>
               </div>
             </div>
 
@@ -3657,13 +3617,6 @@
   </div>
 
   <!-- Global Devotional Toast Element -->
-  <!-- Slot-hold countdown: floats above the page during booking so it never crowds the header -->
-  <div id="slot-timer-container" class="hidden fixed bottom-5 right-5 z-40 items-center" role="status" aria-live="off">
-    <div class="slot-timer-badge px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 whitespace-nowrap shadow-lg">
-      <i class="fa-solid fa-stopwatch" aria-hidden="true"></i>
-      <span>Slot held for <strong id="slot-timer-display" class="font-mono">10:00</strong></span>
-    </div>
-  </div>
 
   <div id="vedic-toast">
     <i class="fa-solid fa-circle-check text-amber-400"></i>
