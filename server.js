@@ -58,6 +58,18 @@ const maskEmail = (e) => {
 const ADMIN_EMAILS = emailList(process.env.ADMIN_EMAILS);
 const GURUJI_EMAILS = emailList(process.env.GURUJI_EMAILS);
 
+/** The last few staff sign-in attempts, so a refusal can be read in the
+ *  dashboard instead of the browser console. Reasons and masked addresses
+ *  only — never a token. Lives in memory; a restart clears it. */
+const signInLog = [];
+function noteSignIn(outcome, reason, email) {
+  signInLog.unshift({
+    at: nowIso(), outcome, reason: reason || '',
+    email: email ? maskEmail(email) : ''
+  });
+  signInLog.length = Math.min(signInLog.length, 10);
+}
+
 /** Which dashboard a Google address may open: 'owner', 'guruji' or null.
  *  An address in both lists gets the wider role. */
 function roleForEmail(email) {
@@ -253,10 +265,13 @@ function safeEqual(given, expected) {
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'palm-56063';
 const GOOGLE_CERT_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 let googleCerts = { keys: null, expiresAt: 0 };
+/** Tests only: stands in for the request to Google. */
+let testCertFetch = null;
 
 /** Google's public signing certificates, cached until their max-age runs out. */
 function fetchGoogleCerts({ fresh = false } = {}) {
   if (!fresh && googleCerts.keys && Date.now() < googleCerts.expiresAt) return Promise.resolve(googleCerts.keys);
+  if (testCertFetch) return Promise.resolve(testCertFetch());
   return new Promise((resolve) => {
     const done = (keys, why) => { fetchGoogleCerts.lastError = why || ''; resolve(keys); };
     const req = https.get(GOOGLE_CERT_URL, { timeout: 6000 }, (res) => {
@@ -300,7 +315,14 @@ async function verifyFirebaseToken(idToken) {
 
   const certs = await fetchGoogleCerts();
   if (!certs) return fail('google_certs_unreachable');
-  const cert = certs[header.kid];
+  // Google rotates its signing keys. A token can be signed with a key published
+  // after we filled the cache, so an unknown key id means "look again", not
+  // "reject" — without this, sign-in breaks for everyone until the cache ages out.
+  let cert = certs[header.kid];
+  if (!cert) {
+    const refreshed = await fetchGoogleCerts({ fresh: true });
+    if (refreshed) cert = refreshed[header.kid];
+  }
   if (!cert) return fail('unknown_key_id');
 
   let verified = false;
@@ -739,15 +761,26 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       if (body && body.idToken) {
         const user = await verifyFirebaseToken(body.idToken);
         if (!user || !user.email) {
+          const why = verifyFirebaseToken.lastError || 'unverified';
+          noteSignIn('refused', why);
+          console.warn('[staff sign-in] refused:', why);
           throw new HttpError(401, {
-            code: verifyFirebaseToken.lastError || 'unverified',
-            message: 'That Google sign-in could not be verified.'
+            code: why,
+            message: why === 'google_certs_unreachable'
+              ? 'This server could not reach Google to check the sign-in. Open Admin → Overview → Test staff Google sign-in.'
+              : why === 'wrong_project' || why === 'wrong_issuer'
+                ? 'That sign-in belongs to a different Firebase project. Check FIREBASE_PROJECT_ID.'
+                : 'That Google sign-in could not be verified.'
           });
         }
         const role = roleForEmail(user.email);
         if (!role) {
-          throw new HttpError(403, 'This Google account is not on the staff list. Ask the owner to add it to ADMIN_EMAILS or GURUJI_EMAILS.');
+          noteSignIn('not_staff', 'email_not_listed', user.email);
+          throw new HttpError(403, ADMIN_EMAILS.length + GURUJI_EMAILS.length
+            ? 'This Google account is not on the staff list. Ask the owner to add it to ADMIN_EMAILS or GURUJI_EMAILS.'
+            : 'No staff addresses are set yet. Add this address to ADMIN_EMAILS in the hosting environment and redeploy.');
         }
+        noteSignIn('allowed', role, user.email);
         const sessionToken = crypto.randomBytes(32).toString('hex');
         verifiedAdminTokens.set(sessionToken, { email: user.email, role, expiresAt: Date.now() + 3600000 });
         return [200, { ok: true, role, email: user.email, token: sessionToken }];
@@ -993,7 +1026,8 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         gurujiEmails: GURUJI_EMAILS.length,
         // the addresses themselves are masked: enough to recognise, not to harvest
         adminEmailHints: ADMIN_EMAILS.map(maskEmail),
-        gurujiEmailHints: GURUJI_EMAILS.map(maskEmail)
+        gurujiEmailHints: GURUJI_EMAILS.map(maskEmail),
+        recentAttempts: signInLog
       }];
     }],
 
@@ -2065,6 +2099,16 @@ function start() {
   const listenPort = isSocket ? rawPort : Number(rawPort);
   const listenHost = isSocket ? null : (process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1'));
 
+  // Fetch Google's signing certificates once at start-up. It makes the first
+  // staff sign-in quick, and when the host blocks outgoing requests it says so
+  // in the deploy log rather than at the moment somebody tries to sign in.
+  if (ADMIN_EMAILS.length || GURUJI_EMAILS.length) {
+    fetchGoogleCerts({ fresh: true }).then(keys => {
+      if (keys) console.log(`[server] Staff Google sign-in ready (${Object.keys(keys).length} Google keys).`);
+      else console.warn(`[server] Staff Google sign-in will fail: cannot reach Google for the signing keys (${fetchGoogleCerts.lastError || 'unknown'}). The PIN still works.`);
+    });
+  }
+
   let activeHandler = null;
   const storePromise = createStore().then(st => {
     activeHandler = createHandler(st);
@@ -2129,5 +2173,7 @@ module.exports = {
   createServer, createHandler, getSharedStore, start, CONSULTATIONS, POOJAS,
   SPA_ROUTE_RX, slotStartISO, minutesFromDuration, verifyFirebaseToken, maskEmail,
   /** Tests only: pretend Google published these certificates. */
-  _setGoogleCertsForTest(keys, ttlMs = 60000) { googleCerts = { keys, expiresAt: Date.now() + ttlMs }; }
+  _setGoogleCertsForTest(keys, ttlMs = 60000) { googleCerts = { keys, expiresAt: Date.now() + ttlMs }; },
+  /** Tests only: what a fetch from Google should return (null to use the network). */
+  _setGoogleCertFetchForTest(fn) { testCertFetch = fn; }
 };

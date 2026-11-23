@@ -1383,3 +1383,10 @@ header .nav-link:hover::after { left: .55rem; right: .55rem; opacity: .9; }
 .adm-checks li div { display: grid; gap: .1rem; }
 .adm-checks li span { color: rgb(var(--c-ink-3)); font-size: .78rem; }
 .adm-checks li em { font-style: normal; color: rgb(var(--c-maroon)); font-size: .78rem; }
+
+.adm-attempts { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: .3rem; }
+.adm-attempts li { display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; align-items: center; font-size: .78rem; padding: .35rem .6rem; border-radius: var(--radius-sm); border: 1px solid rgb(var(--c-line)); }
+.adm-attempts li.is-ok { background: rgb(16 185 129 / .06); border-color: rgb(16 185 129 / .28); }
+.adm-attempts li.is-bad { background: rgb(190 18 60 / .05); border-color: rgb(190 18 60 / .25); }
+.adm-attempts time { color: rgb(var(--c-ink-3)); font-variant-numeric: tabular-nums; }
+.adm-attempts strong { font-weight: 600; }

@@ -88,6 +88,33 @@ describe('Firebase ID token verification', { skip: haveCerts ? false : 'no test 
     assert.equal(server.verifyFirebaseToken.lastError, 'token_expired');
   });
 
+  test('a token signed with a newly published key is accepted after a refresh', async () => {
+    // Google rotates its signing keys. The cache held the old one; the token is
+    // signed with a key published since. The server must look again, not refuse.
+    server._setGoogleCertsForTest({ 'old-key': cert });
+    let fetched = 0;
+    server._setGoogleCertFetchForTest(() => { fetched++; return { 'rotated-key': cert }; });
+    try {
+      const t = makeToken(goodClaims(), { key: privateKey, kid: 'rotated-key' });
+      const user = await server.verifyFirebaseToken(t);
+      assert.ok(user, 'accepted after refetching: ' + server.verifyFirebaseToken.lastError);
+      assert.equal(user.email, 'devotee@example.com');
+      assert.equal(fetched, 1, 'asked Google exactly once');
+    } finally {
+      server._setGoogleCertFetchForTest(null);
+      server._setGoogleCertsForTest({ 'test-key': cert });
+    }
+  });
+
+  test('a key Google does not publish is still refused', async () => {
+    server._setGoogleCertFetchForTest(() => ({ 'test-key': cert }));
+    try {
+      const t = makeToken(goodClaims(), { key: privateKey, kid: 'not-a-google-key' });
+      assert.equal(await server.verifyFirebaseToken(t), null);
+      assert.equal(server.verifyFirebaseToken.lastError, 'unknown_key_id');
+    } finally { server._setGoogleCertFetchForTest(null); }
+  });
+
   test('an unknown signing key is refused', async () => {
     const t = makeToken(goodClaims(), { key: privateKey, kid: 'not-a-google-key' });
     assert.equal(await server.verifyFirebaseToken(t), null);

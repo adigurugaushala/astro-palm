@@ -2466,6 +2466,14 @@
             </div>
           </li>`).join('')}</ul>
         ${hints.length ? `<p class="text-xs text-ink-3 mt-2">Configured: ${hints.map(esc).join(', ')}</p>` : ''}
+        ${(d.recentAttempts || []).length ? `
+          <h3 class="sp-h3 mt-4" style="font-size:1rem">Recent sign-in attempts</h3>
+          <ul class="adm-attempts">${d.recentAttempts.map(a => `
+            <li class="${a.outcome === 'allowed' ? 'is-ok' : 'is-bad'}">
+              <time>${esc(new Date(a.at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }))}</time>
+              <span>${esc(a.email || 'address not reached')}</span>
+              <strong>${esc(a.outcome === 'allowed' ? 'signed in as ' + a.reason : a.reason.replace(/_/g, ' '))}</strong>
+            </li>`).join('')}</ul>` : '<p class="text-xs text-ink-3 mt-2">No staff sign-in has been tried since the last restart.</p>'}
         <p class="text-xs text-ink-3 mt-1">The page signs in against Firebase project
           <strong>${esc(window.GURUJI_FIREBASE_PROJECT || 'palm-56063')}</strong>; the server checks tokens against
           <strong>${esc(d.firebaseProjectId || '')}</strong>.
