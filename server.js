@@ -98,6 +98,7 @@ const GURUJI_PIN = process.env.GURUJI_PIN || '';
 const PAYMENT_MODE = process.env.PAYMENT_MODE || (CASHFREE.enabled ? 'cashfree' : 'simulated');
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_MEDIA_BODY_BYTES = 3 * 1024 * 1024;
+const MAX_DOC_BODY_BYTES = 8 * 1024 * 1024;   // a reading PDF is bigger than a photo
 
 if (!process.env.ADMIN_PIN) {
   console.warn(process.env.VERCEL
@@ -794,7 +795,9 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     // Uploaded images
     ['GET', /^\/api\/media\/([a-z0-9-]+)$/, async (req, [, id]) => {
       const item = await store.getMedia(id);
-      if (!item) throw new HttpError(404, 'Image not found');
+      // This route is public, so it serves images only. Readings are kept in the
+      // same store and must never be reachable by guessing an id.
+      if (!item || !MEDIA_TYPES[item.type]) throw new HttpError(404, 'Image not found');
       return [200, { __raw: Buffer.from(item.data, 'base64'), type: item.type }];
     }],
 
@@ -1514,6 +1517,34 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { ok: true, success: true, case: updated }];
     }],
 
+    // Guruji can hand over a finished PDF instead of typing the reading.
+    ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/report-file$/, async (req, [, orderId]) => {
+      requireGuruji(req);
+      rateLimit(req, 'report-file', 20);
+      const body = await readJsonBody(req, MAX_DOC_BODY_BYTES);
+      const booking = await store.getBooking(orderId);
+      if (!booking) throw new HttpError(404, 'Case not found');
+      const data = String(body.data || '').replace(/^data:[^,]+,/, '');
+      const bytes = Buffer.from(data, 'base64');
+      if (!bytes.length) throw new HttpError(422, 'The file is empty');
+      if (bytes.length > 5 * 1024 * 1024) throw new HttpError(413, 'The reading must be 5 MB or smaller');
+      // Trust the bytes, not the name or the type the browser claims.
+      if (bytes.slice(0, 5).toString('latin1') !== '%PDF-') throw new HttpError(422, 'Please upload a PDF');
+      const mediaId = 'doc-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex');
+      await store.saveMedia({
+        id: mediaId, name: str(body.name, 160) || `reading-${orderId}.pdf`, type: 'application/pdf',
+        size: bytes.length, data: bytes.toString('base64'), createdAt: nowIso()
+      });
+      const previous = booking.reportFile;
+      const at = nowIso();
+      const reportFile = { mediaId, name: str(body.name, 160) || `reading-${orderId}.pdf`, size: bytes.length, uploadedAt: at };
+      const updated = await store.updateBooking(orderId, { reportFile, updatedAt: at },
+        { at, event: 'reading_uploaded', by: staffLabel(req) });
+      // The old one is replaced, so it should not linger in the store.
+      if (previous && previous.mediaId) { try { await store.deleteMedia(previous.mediaId); } catch (e) { /* keep the new one */ } }
+      return [201, { ok: true, success: true, reportFile: updated.reportFile }];
+    }],
+
     ['PUT', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/report$/, async (req, [, orderId]) => {
       requireGuruji(req);
       const body = await readJsonBody(req);
@@ -1550,6 +1581,21 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     }],
 
     // The report, as a PDF ------------------------------------------------------
+    ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/report-file\.pdf$/, async (req, [, orderId], url) => {
+      rateLimit(req, 'report-file-read', 60);
+      const booking = await store.getBooking(orderId);
+      const actor = bookingActor(req, booking, { mobile: url.searchParams.get('mobile') });
+      if (actor === undefined) throw new HttpError(401, 'Sign in to open this reading');
+      if (!booking || !actor) throw new HttpError(404, 'Booking not found');
+      const file = booking.reportFile;
+      if (!file || !file.mediaId) throw new HttpError(404, 'No reading has been uploaded yet');
+      const ready = booking.report && booking.report.status === 'ready';
+      if (!ready && actor.who !== 'guruji') throw new HttpError(409, 'Your reading is not ready yet. We will tell you as soon as it is.');
+      const item = await store.getMedia(file.mediaId);
+      if (!item) throw new HttpError(404, 'No reading has been uploaded yet');
+      return [200, { __raw: Buffer.from(item.data, 'base64'), type: 'application/pdf', filename: str(file.name, 160) || `guruji-reading-${orderId}.pdf` }];
+    }],
+
     ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/report\.pdf$/, async (req, [, orderId], url) => {
       rateLimit(req, 'report-pdf', 30);
       const booking = await store.getBooking(orderId);

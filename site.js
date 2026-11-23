@@ -197,24 +197,13 @@
               <img src="${esc(a.portrait)}" alt="Portrait of ${esc(a.name)}">
               <figcaption><strong>${esc(a.name)}</strong></figcaption>
             </figure>
-            <div class="sp-panel bg-amber-50/70 border border-amber-300 text-center space-y-2 p-4 rounded-2xl shadow-xs">
-              <div class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100/90 px-3 py-1 rounded-full border border-amber-300">
-                <i class="fa-solid fa-stamp text-amber-700"></i> Govt. of Telangana Registered
-              </div>
-              <div class="font-mono text-xs font-bold text-night-2">Reg: SEA/MED/ALO/NR/1439866/2026</div>
-              <p class="text-[11px] text-ink-3">Labour Dept · Telangana Shops &amp; Establishments Act, 1988</p>
-              <button type="button" onclick="openCertificateModal()" class="gold-gradient-btn text-xs px-4 py-2 rounded-xl w-full flex items-center justify-center gap-2 font-semibold shadow-xs">
-                <i class="fa-regular fa-id-card"></i> View Certificate Proof
-              </button>
-            </div>
           </div>
           <div class="space-y-6">
             ${block(sec('journey'))}
             ${sec('approach') ? `<blockquote class="sp-quote"><p class="text-lg italic font-serif leading-relaxed text-amber-900">${esc(sec('approach').body)}</p><cite class="mt-2 block font-sans font-semibold text-xs tracking-wider uppercase text-amber-800">— ${esc(sec('approach').title)}</cite></blockquote>` : ''}
           </div>
         </div>
-      </section>
-      ${ctaBand('Speak with Guruji', 'Begin with a palm analysis, a Kundali analysis, or the combined Astro-Palmistry Correlation.')}`;
+      </section>`;
   };
 
   RENDER.services = () => {
@@ -3081,6 +3070,7 @@
           <div class="flex flex-wrap gap-3 mt-2">
             ${roomOpen ? `<a href="/session/${esc(b.orderId)}" data-link class="gold-gradient-btn h-11 px-5 rounded-xl" data-join-link><i class="fa-solid fa-video" aria-hidden="true"></i> Join session</a>` : ''}
             ${ready ? `<a href="/api/bookings/${esc(b.orderId)}/report.pdf?mobile=${encodeURIComponent(mobile)}" target="_blank" rel="noopener" class="sp-btn-outline"><i class="fa-regular fa-file-pdf"></i> Download your reading</a>` : ''}
+            ${ready && b.reportFile ? `<a href="/api/bookings/${esc(b.orderId)}/report-file.pdf?mobile=${encodeURIComponent(mobile)}" target="_blank" rel="noopener" class="sp-btn-outline"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i> Read Guruji's PDF</a>` : ''}
             ${b.chart ? '<button type="button" class="sp-btn-outline" data-show-chart>See your Kundali</button>' : ''}
           </div>
           ${ready ? '' : '<p class="text-xs text-ink-3 mt-2">Your written reading appears here once Guruji has finished it.</p>'}
@@ -3345,6 +3335,50 @@
   };
 
   /** A printable list of today's appointments, for the desk. */
+  /** A line describing the uploaded reading, with a link to open it. */
+  function readingFileLine(c) {
+    const f = c && c.reportFile;
+    if (!f) return '<p class="case-file case-file--none">No PDF uploaded yet.</p>';
+    const kb = Math.max(1, Math.round((f.size || 0) / 1024));
+    return `<p class="case-file"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
+      <a href="/api/bookings/${esc(c.orderId)}/report-file.pdf" target="_blank" rel="noopener">${esc(f.name || 'reading.pdf')}</a>
+      <span>${kb} KB · uploaded ${esc(new Date(f.uploadedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }))} IST</span></p>`;
+  }
+
+  /** Sends the chosen PDF up and refreshes the line under the drop zone. */
+  async function uploadReadingPdf(file, orderId) {
+    if (!file) return;
+    if (file.type && file.type !== 'application/pdf') return toast('Please choose a PDF.', 'error');
+    if (file.size > 5 * 1024 * 1024) return toast('The reading must be 5 MB or smaller.', 'error');
+    toast('Uploading the reading…');
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).replace(/^data:[^,]+,/, ''));
+        r.onerror = () => reject(new Error('That file could not be read.'));
+        r.readAsDataURL(file);
+      });
+      const res = await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/report-file`, {
+        method: 'POST', body: { name: file.name, data }
+      });
+      const slot = $('[data-reading-file]');
+      if (slot) slot.innerHTML = readingFileLine({ orderId, reportFile: res.reportFile });
+      toast('The reading is uploaded.', 'ok');
+    } catch (err) {
+      toast(err.message || 'The reading could not be uploaded.', 'error');
+    }
+  }
+
+  window.gurujiDropReading = (ev, orderId) => {
+    ev.preventDefault();
+    ev.currentTarget.classList.remove('is-over');
+    uploadReadingPdf((ev.dataTransfer.files || [])[0], orderId);
+  };
+  window.gurujiPickReading = (ev, orderId) => {
+    uploadReadingPdf((ev.target.files || [])[0], orderId);
+    ev.target.value = '';
+  };
+
   window.gurujiPrintDay = () => {
     const today = new Date().toISOString().slice(0, 10);
     const rows = GURUJI.list.filter(c => (c.slotStart || '').slice(0, 10) === today)
@@ -3478,6 +3512,22 @@
                 <p class="case-wordcount" data-wordcount>&nbsp;</p>
                 <p class="text-xs text-ink-3">Leave a blank line between paragraphs. A draft saves itself a few seconds after you stop typing; the seeker sees nothing until you mark it ready.</p>
               </form>
+            </div>
+
+            <div class="sp-panel">
+              <h2 class="sp-h3">Reading as a PDF</h2>
+              <p class="text-xs text-ink-3">Drop a finished PDF here instead of typing it. The seeker can read or download it once you mark the reading sent.</p>
+              <div class="dropzone" data-drop tabindex="0" role="button" aria-label="Upload the reading as a PDF"
+                   ondragover="event.preventDefault(); this.classList.add('is-over')"
+                   ondragleave="this.classList.remove('is-over')"
+                   ondrop="gurujiDropReading(event, '${esc(c.orderId)}')"
+                   onclick="this.querySelector('input').click()"
+                   onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.querySelector('input').click(); }">
+                <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+                <span>Drop the PDF here, or click to choose one</span>
+                <input type="file" accept="application/pdf" hidden onchange="gurujiPickReading(event, '${esc(c.orderId)}')">
+              </div>
+              <div data-reading-file>${readingFileLine(c)}</div>
             </div>
           </div>
 

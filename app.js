@@ -1426,8 +1426,7 @@ async function handleAuthSubmit(event) {
   event.preventDefault();
   const ok = validateFields([
     { id: "auth-name", rule: "name", msg: "Please enter your full name." },
-    { id: "auth-mobile", rule: "mobile", msg: "Enter a valid 10-digit mobile number." },
-    { id: "auth-email", rule: "email", msg: "Enter a valid email address — your report is sent here." }
+    { id: "auth-mobile", rule: "mobile", msg: "Enter a valid 10-digit mobile number." }
   ]);
   if (!ok) return;
 
@@ -1444,7 +1443,8 @@ async function handleAuthSubmit(event) {
 
   const name = document.getElementById("auth-name").value.trim();
   const mobile = document.getElementById("auth-mobile").value.replace(/\D/g, "");
-  const email = document.getElementById("auth-email").value.trim().toLowerCase();
+  // No address is asked for any more: the reading is delivered in the account, not by mail.
+  const email = (document.getElementById("auth-email")?.value || "").trim().toLowerCase();
   const password = document.getElementById("auth-password") ? document.getElementById("auth-password").value : "";
   const serviceAck = Boolean(document.getElementById("consult-service-ack")?.checked);
 
