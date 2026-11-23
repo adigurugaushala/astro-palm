@@ -80,6 +80,14 @@ function roleForEmail(email) {
   return null;
 }
 const verifiedAdminTokens = new Map();
+
+// So anyone can tell from outside which build is actually running: after a
+// deploy, /api/health should report the version in package.json. If it reports
+// an older one, the platform is still serving the previous build.
+const APP_VERSION = (() => {
+  try { return require('./package.json').version; } catch (_) { return 'unknown'; }
+})();
+const STARTED_AT = new Date().toISOString();
 const verifiedCustomerTokens = new Map();
 const CASHFREE = cashfreeConfig();
 const JITSI = jitsiConfig();
@@ -724,7 +732,8 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
   return [
     // Health -----------------------------------------------------------------
     ['GET', /^\/api\/health$/, async () => [200, {
-      ok: true, storage: store.mode, payments: PAYMENT_MODE,
+      ok: true, version: APP_VERSION, startedAt: STARTED_AT,
+      storage: store.mode, payments: PAYMENT_MODE,
       paymentEnv: PAYMENT_MODE === 'cashfree' ? CASHFREE.mode : undefined,
       paymentsReady: PAYMENT_MODE !== 'cashfree' ? undefined : store.mode !== 'file-temporary',
       sessions: JITSI.mode, sessionsProductionSafe: JITSI.production,

@@ -1,6 +1,6 @@
 {
   "name": "guruji",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Guruji — palmistry, Vedic astrology consultations, pooja sevas and the Mantras & Stotras library.",
   "main": "server.js",
   "private": true,
