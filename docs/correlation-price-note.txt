@@ -1,0 +1,1 @@
+Merge only when you're ready. The branch is not merged. If Hostinger deploys from main, merging it would put ₹1 live for every customer booking Correlation. Open the PR here: https://github.com/adigurugaushala/astro-palm/pull/new/test/correlation-one-rupee
