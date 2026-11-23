@@ -2096,7 +2096,7 @@ function initMantrasLibrary() {
   renderMantraCategories();
   renderFeaturedMantras();
   renderMantrasGrid();
-  renderRecentMantras();
+
   const count = (typeof MantrasDB !== "undefined") ? MantrasDB.getAll().length : 0;
   document.querySelectorAll("[data-mantra-count]").forEach(el => el.textContent = count);
 }
@@ -2132,7 +2132,7 @@ function renderMantrasLibrary() {
   renderMantraCategories();
   renderFeaturedMantras();
   renderMantrasGrid();
-  renderRecentMantras();
+
   updateBookmarkCounters();
 }
 
@@ -2277,24 +2277,30 @@ function renderMantrasGrid() {
     list.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
   }
 
-  if (countDisplay) countDisplay.innerText = list.length;
+  // While nothing is filtered, the six in the Featured strip above are not
+  // printed again here — the same card appearing twice on one screen reads as
+  // a fault. A search or a category filter shows everything that matches.
+  const untouched = !mantrasState.bookmarkedOnly
+    && mantrasState.activeCategory === 'all' && mantrasState.filterDeity === 'all'
+    && mantrasState.filterPurpose === 'all' && mantrasState.filterType === 'all'
+    && mantrasState.searchQuery.trim() === '';
+  const featuredIds = untouched
+    ? new Set(((typeof MantrasDB !== 'undefined') ? MantrasDB.getAll() : []).filter(m => m.featured).slice(0, 6).map(m => m.id))
+    : new Set();
+  const shown = untouched ? list.filter(m => !featuredIds.has(m.id)) : list;
 
-  if (list.length === 0) {
+  if (countDisplay) countDisplay.innerText = list.length;
+  // The note only makes sense while the featured strip is showing.
+  const featuredNote = document.getElementById('mantras-featured-note');
+  if (featuredNote) featuredNote.classList.toggle('hidden', !untouched);
+
+  if (shown.length === 0) {
     container.innerHTML = '';
-    if (emptyState) emptyState.classList.remove('hidden');
+    if (emptyState) emptyState.classList.toggle('hidden', list.length > 0);
   } else {
     if (emptyState) emptyState.classList.add('hidden');
-    container.innerHTML = list.map(m => createMantraCardHTML(m, false)).join('');
+    container.innerHTML = shown.map(m => createMantraCardHTML(m, false)).join('');
   }
-}
-
-// Render Recently Added Mantras
-function renderRecentMantras() {
-  const container = document.getElementById('recent-mantras-grid');
-  if (!container) return;
-
-  const all = (typeof MantrasDB !== 'undefined') ? MantrasDB.getRecent(3) : [];
-  container.innerHTML = all.map(m => createMantraCardHTML(m, false)).join('');
 }
 
 // HTML Generator for Individual Mantra Card

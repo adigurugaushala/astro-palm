@@ -509,6 +509,9 @@
       (!needle || [a.title, a.excerpt, (a.body || []).join(' ')].join(' ').toLowerCase().includes(needle)));
     const featured = all.filter(a => a.featured).slice(0, 3);
     const filtersActive = q || cat || type;
+    // The featured three are shown above; don't print them again directly below.
+    const featuredSlugs = new Set(featured.map(a => a.slug));
+    const rest = filtersActive ? list : list.filter(a => !featuredSlugs.has(a.slug));
     return `
       ${hero({ eyebrow: 'Resources', title: 'Knowledge Hub', sub: 'Articles and guides on palmistry, astrology, Reiki, mantras, rituals, meditation and Sanatana Dharma.', crumbs: crumbs([['Home', '/'], ['Resources']]) })}
       <section class="sp-section">
@@ -527,8 +530,10 @@
             <button class="gold-gradient-btn h-11 px-5 rounded-xl" type="submit">Search</button>
           </form>
           ${!filtersActive && featured.length ? `<h2 class="sp-h3 mt-10 mb-4">Featured</h2><div class="grid gap-6 md:grid-cols-3">${featured.map(articleCard).join('')}</div>` : ''}
-          <h2 class="sp-h3 mt-10 mb-4">${filtersActive ? `${list.length} result${list.length === 1 ? '' : 's'}` : 'Recent posts'}${filtersActive ? ' · <a href="/resources" data-link class="sp-link text-sm">Clear filters</a>' : ''}</h2>
-          ${list.length ? `<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${list.map(articleCard).join('')}</div>` : '<p class="sp-text">No articles match yet. Try another word or category.</p>'}
+          <h2 class="sp-h3 mt-10 mb-4">${filtersActive ? `${list.length} result${list.length === 1 ? '' : 's'}` : 'More reading'}${filtersActive ? ' · <a href="/resources" data-link class="sp-link text-sm">Clear filters</a>' : ''}</h2>
+          ${rest.length ? `<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">${rest.map(articleCard).join('')}</div>`
+            : filtersActive ? '<p class="sp-text">No articles match yet. Try another word or category.</p>'
+            : '<p class="sp-text">Everything we have published so far is featured above.</p>'}
         </div>
       </section>
       <section class="sp-section sp-section--tint">
