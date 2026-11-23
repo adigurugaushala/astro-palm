@@ -1609,12 +1609,35 @@
   // -------------------------------------------------------------------------
   const CHAT = { timer: null, lastAt: '', orderId: null, auth: null, el: null };
 
-  const chatBubble = (m, you) => `
-    <li class="chat-msg ${m.from === you ? 'chat-msg--mine' : ''}">
+  /** Everyone here keeps Indian time, so the clock is fixed to IST rather than
+   *  the reader's device, which may be anywhere. */
+  const chatTime = (at) => new Date(at).toLocaleString('en-IN', {
+    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata'
+  });
+
+  const chatBubble = (m, you) => {
+    const mine = m.from === you;
+    return `
+    <li class="chat-msg ${mine ? 'chat-msg--mine' : ''}" data-at="${esc(m.at)}">
       <span class="chat-msg__who">${esc(m.from === 'guruji' ? 'Guruji' : m.name || 'You')}</span>
       <p>${esc(m.text).replace(/\n/g, '<br>')}</p>
-      <time datetime="${esc(m.at)}">${new Date(m.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</time>
+      <span class="chat-msg__foot">
+        <time datetime="${esc(m.at)}">${chatTime(m.at)} IST</time>
+        ${mine ? '<span class="chat-msg__seen" data-seen>Sent</span>' : ''}
+      </span>
     </li>`;
+  };
+
+  /** Marks your own messages Seen up to the point the other side has read. */
+  function applySeen(list, seenUpTo) {
+    list.querySelectorAll('.chat-msg--mine').forEach((li) => {
+      const tag = li.querySelector('[data-seen]');
+      if (!tag) return;
+      const seen = Boolean(seenUpTo) && li.dataset.at <= seenUpTo;
+      tag.textContent = seen ? 'Seen' : 'Sent';
+      tag.classList.toggle('is-seen', seen);
+    });
+  }
 
   function chatMarkup(title) {
     return `<div class="chat">
@@ -1653,6 +1676,7 @@
           if (atBottom) list.scrollTop = list.scrollHeight;
         }
         if (!list.children.length) list.innerHTML = '<li class="chat__empty">No messages yet. Write the first one.</li>';
+        applySeen(list, res.seenUpTo || '');
         state.textContent = 'Live';
       } catch (err) {
         state.textContent = err.status === 404 ? 'Not found' : 'Offline';

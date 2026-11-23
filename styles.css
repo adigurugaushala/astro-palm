@@ -1543,3 +1543,9 @@ body.staff-portal #whatsapp-fab { display: none !important; }
   .gm-row__ref { grid-column: 2 / -1; }
   .gm-row__service { grid-column: 2 / -1; }
 }
+
+/* Chat: time and read receipt under each message */
+.chat-msg__foot { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.chat-msg--mine .chat-msg__foot { justify-content: flex-end; }
+.chat-msg__seen { font-size: 11px; color: rgb(var(--c-ink-3)); white-space: nowrap; }
+.chat-msg__seen.is-seen { color: rgb(var(--c-maroon)); font-weight: 600; }

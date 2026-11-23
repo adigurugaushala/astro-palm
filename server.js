@@ -1344,9 +1344,15 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const actor = bookingActor(req, booking, { mobile: url.searchParams.get('mobile') });
       if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
       const since = str(url.searchParams.get('since'), 40);
-      const messages = await store.listMessages(orderId, since);
+      // The whole thread, so the reply can say how far the other side has read.
+      // Polling only asks for new messages, so a read receipt on an older
+      // message would never reach the sender without this.
+      const thread = await store.listMessages(orderId);
+      const messages = since ? thread.filter(m => m.at > since) : thread;
+      const mineRead = thread.filter(m => m.from === actor.who && m.readAt);
+      const seenUpTo = mineRead.length ? mineRead[mineRead.length - 1].at : '';
       await store.markMessagesRead(orderId, actor.who);
-      return [200, { messages, you: actor.who }];
+      return [200, { messages, you: actor.who, seenUpTo }];
     }],
 
     ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/messages$/, async (req, [, orderId]) => {
