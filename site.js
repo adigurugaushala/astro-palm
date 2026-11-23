@@ -3096,7 +3096,7 @@
   // -------------------------------------------------------------------------
   // Guruji's case area
   // -------------------------------------------------------------------------
-  const GURUJI = { list: [], current: null, filter: '', view: 'all', q: '', sort: 'soonest' };
+  const GURUJI = { list: [], current: null, filter: '', view: 'pending', q: '', sort: 'soonest' };
   const gurujiFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
     if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
@@ -3167,46 +3167,46 @@
     const waiting = all.filter(c => c.status !== 'COMPLETED');
     const today = new Date().toISOString().slice(0, 10);
     const row = (c) => {
-      const when = c.slotStart ? new Date(c.slotStart) : null;
-      const todayRow = when && when.toISOString().slice(0, 10) === today;
-      const photos = (c.photos || []).length;
       const marks = [];
+      const photos = (c.photos || []).length;
       if (photos) marks.push(photos + (photos === 1 ? ' photo' : ' photos'));
       if (c.chart) marks.push('chart cast');
       if (c.report && c.report.status === 'ready') marks.push('reading ready');
-      return `<a href="/guruji/${esc(c.orderId)}" data-link class="gm-row${c.unread ? ' is-unread' : ''}${todayRow ? ' is-today' : ''}">
+      return `<a href="/guruji/${esc(c.orderId)}" data-link class="gm-row${c.unread ? ' is-unread' : ''}">
         <span class="gm-row__dot" aria-hidden="true"></span>
         <span class="gm-row__who">${esc((c.devotee || {}).name || 'Seeker')}</span>
-        <span class="gm-row__main">
-          <span class="gm-row__subject">${esc((c.service && c.service.title) || 'Consultation')}</span>
-          <span class="gm-row__snippet">${esc(c.orderId)}${marks.length ? ' · ' + esc(marks.join(' · ')) : ''}</span>
-        </span>
+        <span class="gm-row__service">${esc((c.service && c.service.title) || 'Consultation')}</span>
+        <span class="gm-row__ref">${esc(c.orderId)}${marks.length ? `<em>${esc(marks.join(' · '))}</em>` : ''}</span>
         <span class="gm-row__tags">
           <span class="sp-pill sp-pill--${STATUS_TONE[c.status] || 'muted'}">${esc(c.status.replace(/_/g, ' ').toLowerCase())}</span>
           ${c.unread ? `<span class="gm-row__unread">${c.unread} new</span>` : ''}
           ${c.assignedTo ? '' : '<span class="gm-row__free">unclaimed</span>'}
         </span>
-        <span class="gm-row__when">${when ? esc(when.toLocaleString('en-IN', todayRow ? { hour: 'numeric', minute: '2-digit' } : { day: 'numeric', month: 'short' })) : '—'}</span>
       </a>`;
     };
     const startsAt = (c) => (c.slotStart || '');
     const isToday = (c) => startsAt(c).slice(0, 10) === today;
+    // Guruji works a case through three stages, so the folders follow the status.
+    const STAGE = {
+      pending: (c) => c.status === 'PAID',
+      inprogress: (c) => ['DETAILS_RECEIVED', 'SCHEDULED', 'AWAITING_REPORT'].includes(c.status),
+      completed: (c) => c.status === 'COMPLETED'
+    };
     const counts = {
-      today: all.filter(isToday).length,
-      unread: all.reduce((t, c) => t + (c.unread || 0), 0),
-      unclaimed: all.filter(c => !c.assignedTo && c.status !== 'COMPLETED').length,
-      reports: all.filter(c => c.status === 'AWAITING_REPORT' || (c.report && c.report.status !== 'ready' && c.status !== 'COMPLETED')).length
+      pending: all.filter(STAGE.pending).length,
+      inprogress: all.filter(STAGE.inprogress).length,
+      completed: all.filter(STAGE.completed).length,
+      unread: all.reduce((t, c) => t + (c.unread || 0), 0)
     };
     const views = {
-      all: () => all,
-      today: () => all.filter(isToday),
-      unread: () => all.filter(c => c.unread),
-      unclaimed: () => all.filter(c => !c.assignedTo && c.status !== 'COMPLETED'),
-      reports: () => all.filter(c => c.status === 'AWAITING_REPORT' || (c.report && c.report.status !== 'ready' && c.status !== 'COMPLETED')),
-      finished: () => all.filter(c => c.status === 'COMPLETED')
+      pending: () => all.filter(STAGE.pending),
+      inprogress: () => all.filter(STAGE.inprogress),
+      completed: () => all.filter(STAGE.completed),
+      // Not a folder: the bell opens this.
+      unread: () => all.filter(c => c.unread)
     };
     const q = GURUJI.q.trim().toLowerCase();
-    let list = (views[GURUJI.view] || views.all)();
+    let list = (views[GURUJI.view] || views.pending)();
     if (q) list = list.filter(c => [c.orderId, (c.devotee || {}).name, (c.devotee || {}).mobile, (c.service || {}).title]
       .filter(Boolean).join(' ').toLowerCase().includes(q));
     list = list.slice().sort((a, b) => GURUJI.sort === 'newest'
@@ -3237,12 +3237,9 @@
           <aside class="gm-side">
             <button type="button" class="gm-compose" onclick="gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i> Day sheet</button>
             <nav class="gm-folders" aria-label="Case folders">
-              ${folder('all', 'All cases', 'fa-inbox', all.length)}
-              ${folder('today', 'Today', 'fa-calendar-day', counts.today)}
-              ${folder('unread', 'Unread', 'fa-envelope', counts.unread)}
-              ${folder('unclaimed', 'Unclaimed', 'fa-hand-holding-heart', counts.unclaimed)}
-              ${folder('reports', 'Readings due', 'fa-feather-pointed', counts.reports)}
-              ${folder('finished', 'Finished', 'fa-circle-check', 0)}
+              ${folder('pending', 'Pending', 'fa-hourglass-half', counts.pending)}
+              ${folder('inprogress', 'In progress', 'fa-spinner', counts.inprogress)}
+              ${folder('completed', 'Completed', 'fa-circle-check', counts.completed)}
             </nav>
             <div class="gm-next">
               <span>Next appointment</span>
@@ -3252,11 +3249,18 @@
           </aside>
           <main class="gm-main">
             <div class="gm-listhead">
-              <span class="gm-count">${waiting.length} waiting · ${all.length - waiting.length} finished</span>
+              <span class="gm-count">${list.length} ${list.length === 1 ? 'case' : 'cases'}</span>
               <select class="sp-select" aria-label="Sort the cases" onchange="gurujiSort(this.value)">
                 <option value="soonest" ${GURUJI.sort === 'soonest' ? 'selected' : ''}>Soonest appointment</option>
                 <option value="newest" ${GURUJI.sort === 'newest' ? 'selected' : ''}>Newest booking</option>
               </select>
+            </div>
+            <div class="gm-colhead">
+              <span aria-hidden="true"></span>
+              <span>Seeker Name</span>
+              <span>Service Name</span>
+              <span>Booking ID</span>
+              <span>Status</span>
             </div>
             <div class="gm-rows">${list.length ? list.map(row).join('')
               : `<p class="gm-empty">${all.length ? 'Nothing matches that.' : 'No paid bookings yet.'}</p>`}</div>

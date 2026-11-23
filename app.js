@@ -139,6 +139,7 @@ function showPage(pageId) {
   closeMobileMenu();
   if (pageId === "book-pooja") initPoojaDatePicker();
   if (pageId === "book-status") prepareTrackPage();
+  if (pageId === "book-upload") applyBirthDetailVisibility();
 
   // Hide all views
   document.querySelectorAll(".page-view").forEach(el => {
@@ -673,6 +674,16 @@ function updateSlotTimerDisplays() {
 // ==========================================
 // REVIEWS RENDERER
 // ==========================================
+
+/**
+ * A palm reading is taken from the hands, so the chart fields (time and place
+ * of birth, and the co-ordinates derived from them) are not asked for there.
+ */
+function applyBirthDetailVisibility() {
+  const id = (state.selectedService && state.selectedService.id) || '';
+  const palmOnly = id === 'palmistry_reading';
+  document.querySelectorAll('[data-birth-detail]').forEach(el => el.classList.toggle('hidden', palmOnly));
+}
 
 function renderReviews() {
   const container = document.getElementById("reviews-container");

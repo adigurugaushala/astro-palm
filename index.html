@@ -1512,68 +1512,6 @@
             <li class="bk-step is-done"><span class="bk-step__dot">1</span><span class="bk-step__label">Sign In</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step is-active"><span class="bk-step__dot">2</span><span class="bk-step__label">Select Service</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">3</span><span class="bk-step__label">Payment</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">4</span><span class="bk-step__label">Your Details</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">5</span><span class="bk-step__label">Confirmation</span></li>
           </ol>
 
-          <div>
-            <h2 class="bk-heading !mb-1"><svg class="w-7 h-7 text-maroon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4c-2.2 2.6-3 5.9 0 10.5 3-4.6 2.2-7.9 0-10.5z"/><path d="M12 14.5c-1.4-3.8-4.4-6-8-6.3 0 3.8 3 6.3 8 6.3zM12 14.5c1.4-3.8 4.4-6 8-6.3 0 3.8-3 6.3-8 6.3z"/><path d="M4 17.5c2.4 1.5 5 2.2 8 2.2s5.6-.7 8-2.2"/></svg>Choose a Service</h2>
-            <p class="text-[15px] text-ink-3 pl-10">Select the type of consultation you need.</p>
-          </div>
-
-          <!-- 3 Service Option Cards (Screenshot 4: Exact Icons & checked state) -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            
-            <!-- Option 1: Detailed Palm Analysis (Selected Crimson Checkmark - Screenshot 4) -->
-            <div onclick="selectConsultationService('palmistry_reading', 549, this)" class="consult-card selected border-2 border-maroon bg-rose-50/40 p-5 rounded-xl cursor-pointer hover:shadow-md transition relative flex flex-col justify-between">
-              <div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-maroon text-white flex items-center justify-center text-2xs">
-                <i class="fa-solid fa-check"></i>
-              </div>
-              <div>
-                <div class="w-16 h-16 mx-auto flex items-center justify-center mb-3">
-                  <img src="/assets/consult_icon_palmistry.png" alt="Detailed Palm Analysis" class="w-full h-full object-contain">
-                </div>
-                <h3 class="font-serif font-bold text-center text-[17px] text-ink">Detailed Palm Analysis</h3>
-                <p class="text-[13px] text-center text-ink-3 mt-1.5 leading-snug">
-                  Life path, nature, strengths, challenges and guidance from your hand.
-                </p>
-              </div>
-              <div class="mt-4 pt-3 border-t border-sand text-center">
-                <div class="font-bold text-lg text-ink">₹ 549</div>
-              </div>
-            </div>
-
-            <!-- Option 2: Comprehensive Kundali Analysis -->
-            <div onclick="selectConsultationService('astrology_correlation', 549, this)" class="consult-card border border-line bg-white p-5 rounded-xl cursor-pointer hover:border-amber-400 hover:shadow-md transition relative flex flex-col justify-between">
-              <div>
-                <div class="w-16 h-16 mx-auto flex items-center justify-center mb-3">
-                  <img src="/assets/consult_icon_astrology.png" alt="Comprehensive Kundali Analysis" class="w-full h-full object-contain">
-                </div>
-                <h3 class="font-serif font-bold text-center text-[17px] text-ink">Comprehensive Kundali Analysis</h3>
-                <p class="text-[13px] text-center text-ink-3 mt-1.5 leading-snug">
-                  Analysis based on your date, time and place of birth.
-                </p>
-              </div>
-              <div class="mt-4 pt-3 border-t border-sand text-center">
-                <div class="font-bold text-lg text-ink">₹ 549</div>
-              </div>
-            </div>
-
-            <!-- Option 3: Astro-Palmistry Correlation -->
-            <div onclick="selectConsultationService('combined_consultation', 10, this)" class="consult-card border border-line bg-white p-5 rounded-xl cursor-pointer hover:border-amber-400 hover:shadow-md transition relative flex flex-col justify-between">
-              <div>
-                <div class="w-24 h-16 mx-auto flex items-center justify-center mb-3">
-                  <img src="/assets/consult_icon_combined.png" alt="Astro-Palmistry Correlation" class="w-full h-full object-contain">
-                </div>
-                <h3 class="font-serif font-bold text-center text-[17px] text-ink">Astro-Palmistry Correlation</h3>
-                <p class="text-[13px] text-center text-ink-3 mt-1.5 leading-snug">
-                  Palmistry and Astrology together for a deeper and accurate reading.
-                </p>
-              </div>
-              <div class="mt-4 pt-3 border-t border-sand text-center">
-                <div class="font-bold text-lg text-ink flex items-baseline justify-center gap-2"><span class="text-ink-3 font-medium text-base line-through">₹ 749</span><span>₹ 10</span></div>
-                <div class="text-2xs text-ink-3"><span class="text-emerald-700 font-semibold">Recommended</span></div>
-              </div>
-            </div>
-
-          </div>
-
           <!-- Handedness Selection -->
           <div class="pt-4 border-t border-sand flex flex-wrap items-center justify-between gap-4 bg-paper p-3.5 rounded-2xl border border-line">
             <div class="space-y-0.5">
@@ -2034,11 +1972,11 @@
               <label class="block font-semibold text-ink mb-1">Date of Birth *</label>
               <input type="date" id="devotee-dob" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
             </div>
-            <div>
+             <div data-birth-detail>
               <label class="block font-semibold text-ink mb-1">Time of Birth</label>
               <input type="time" id="devotee-tob" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
             </div>
-            <div class="sm:col-span-2">
+             <div class="sm:col-span-2" data-birth-detail>
               <label for="devotee-pob" class="block font-semibold text-ink mb-1">Place of Birth (City, State)</label>
               <div class="relative" data-place-wrap>
                 <input type="text" id="devotee-pob" placeholder="Start typing your birth place, e.g. Narasaraopet" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="pob-list" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
@@ -2046,7 +1984,7 @@
               </div>
               <p class="text-2xs text-ink-3 mt-1">The chart is cast from the latitude and longitude of your birth place — choose it from the list so we get them right.</p>
             </div>
-            <div class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-[minmax(0,180px)_minmax(0,180px)_minmax(0,1fr)] gap-3 items-end" id="pob-coords">
+            <div data-birth-detail class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-[minmax(0,180px)_minmax(0,180px)_minmax(0,1fr)] gap-3 items-end" id="pob-coords">
               <div>
                 <label for="devotee-lat" class="block font-semibold text-ink mb-1">Latitude</label>
                 <input type="text" id="devotee-lat" inputmode="decimal" placeholder="e.g. 16.2349" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
