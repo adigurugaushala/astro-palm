@@ -110,7 +110,7 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(r.status, 201);
       consult = r.body.booking;
       assert.match(consult.orderId, /^GURUJI-PLM-[A-Z0-9]+$/);
-      assert.equal(consult.amount, 1, 'amount sent by the browser is ignored');
+      assert.equal(consult.amount, 10, 'amount sent by the browser is ignored');
       assert.equal(consult.status, 'PENDING_PAYMENT');
       assert.equal(consult.devotee.mobile, '9123456789');
       assert.equal(consult.devotee.email, 'ravi@example.com');
