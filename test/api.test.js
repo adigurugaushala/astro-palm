@@ -234,6 +234,59 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(list.body.reviews.length, 2);
     });
 
+    test('the owner can hide, reply to and delete a review', async () => {
+      const posted = await call('POST', '/api/reviews', { name: 'Meena', rating: 5, comment: 'A calm and careful reading.' });
+      const id = posted.body.review.id;
+
+      assert.equal((await call('GET', '/api/admin/reviews')).status, 401, 'staff only');
+      const all = await call('GET', '/api/admin/reviews', null, admin);
+      assert.equal(all.status, 200);
+      assert.ok(all.body.reviews.some(r => r.id === id));
+
+      // Hiding takes it off the public list but keeps it in the dashboard
+      assert.equal((await call('PATCH', `/api/admin/reviews/${id}`, { hidden: true }, admin)).status, 200);
+      const publicList = await call('GET', '/api/reviews');
+      assert.ok(!publicList.body.reviews.some(r => r.id === id), 'hidden reviews leave the site');
+      const stillThere = await call('GET', '/api/admin/reviews', null, admin);
+      assert.ok(stillThere.body.reviews.some(r => r.id === id), 'the owner can still see it');
+
+      // A reply shows under the review once it is back up
+      await call('PATCH', `/api/admin/reviews/${id}`, { hidden: false, reply: 'Thank you, Meena.' }, admin);
+      const back = await call('GET', '/api/reviews');
+      const shown = back.body.reviews.find(r => r.id === id);
+      assert.equal(shown.reply, 'Thank you, Meena.');
+
+      assert.equal((await call('DELETE', `/api/admin/reviews/${id}`, null, admin)).status, 200);
+      assert.equal((await call('DELETE', `/api/admin/reviews/${id}`, null, admin)).status, 404);
+    });
+
+    test('the overview counts the work waiting and never leaks to a visitor', async () => {
+      assert.equal((await call('GET', '/api/admin/overview')).status, 401);
+      const res = await call('GET', '/api/admin/overview', null, admin);
+      assert.equal(res.status, 200);
+      const o = res.body;
+      assert.equal(o.daily.length, 14, 'two weeks of daily figures');
+      assert.ok(o.bookings.total >= 1);
+      assert.equal(typeof o.revenue.month, 'number');
+      assert.ok(Array.isArray(o.upcoming));
+      assert.ok(Array.isArray(o.topServices));
+      assert.ok(Array.isArray(o.system.missing));
+      assert.equal(o.bookings.total, Object.values(o.bookings.byStatus).reduce((t, n) => t + n, 0));
+    });
+
+    test('bookings and enquiries download as CSV', async () => {
+      const res = await fetch(base + '/api/admin/bookings/export', { headers: admin });
+      assert.equal(res.status, 200);
+      assert.match(res.headers.get('content-type') || '', /text\/csv/);
+      const text = await res.text();
+      assert.match(text.split('\n')[0], /^Reference,Created,Type,Status/);
+      assert.ok(text.split('\n').length > 1, 'at least one row');
+
+      const enq = await fetch(base + '/api/admin/enquiries/export', { headers: admin });
+      assert.equal(enq.status, 200);
+      assert.equal((await fetch(base + '/api/admin/bookings/export')).status, 401);
+    });
+
     test('the dashboard can compare the saved content with the code', async () => {
       // A section saved from the dashboard overrides the code from then on, so
       // the owner needs to see what the saved copy is holding back before

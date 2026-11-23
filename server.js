@@ -401,10 +401,12 @@ function createRateLimiter() {
   };
 }
 
-/** Public view of a booking (no internal history). */
+/** Public view of a booking: what the seeker may see. Anything staff write
+ *  about a case — the audit trail, the owner's note, Guruji's own notes — is
+ *  stripped here, so a new staff-only field is private by default. */
 const publicBooking = (b) => {
   if (!b) return b;
-  const { history, adminNote, ...rest } = b;
+  const { history, adminNote, gurujiNotes, ...rest } = b;
   return rest;
 };
 
@@ -854,6 +856,149 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { ok: true, success: true, enquiry: updated }];
     }],
 
+    /** One screen of numbers for the owner: what came in, what is owed, what is
+     *  waiting on us. Read-only, computed from the records we already keep. */
+    ['GET', /^\/api\/admin\/overview$/, async (req) => {
+      requireAdmin(req, 'owner');
+      const bookings = await store.listBookings({}, 1000);
+      const enquiries = await store.listEnquiries({}, 1000);
+      const unread = await store.unreadCounts();
+      const reviews = await store.listReviews(500, { all: true });
+
+      const now = Date.now();
+      const DAY = 86400000;
+      const since = (days) => new Date(now - days * DAY).toISOString();
+      const startOfToday = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z').toISOString();
+      const PAID = ['PAID', 'DETAILS_RECEIVED', 'SCHEDULED', 'AWAITING_REPORT', 'COMPLETED'];
+      const paid = (b) => PAID.includes(b.status);
+      const amount = (b) => (paid(b) ? Number(b.amount) || 0 : 0);
+      const countIn = (rows, from) => rows.filter(r => (r.createdAt || '') >= from).length;
+      const sumIn = (from) => bookings.filter(b => (b.createdAt || '') >= from).reduce((t, b) => t + amount(b), 0);
+
+      const byStatus = {};
+      for (const b of bookings) byStatus[b.status] = (byStatus[b.status] || 0) + 1;
+
+      const byService = {};
+      for (const b of bookings) {
+        const title = (b.service && b.service.title) || b.type || 'Other';
+        byService[title] = (byService[title] || 0) + 1;
+      }
+      const topServices = Object.entries(byService).sort((a, b) => b[1] - a[1]).slice(0, 6)
+        .map(([title, count]) => ({ title, count }));
+
+      // Fourteen days of counts, oldest first, so the dashboard can draw a bar per day
+      const daily = [];
+      for (let i = 13; i >= 0; i--) {
+        const day = new Date(now - i * DAY).toISOString().slice(0, 10);
+        const rows = bookings.filter(b => (b.createdAt || '').slice(0, 10) === day);
+        daily.push({ date: day, bookings: rows.length, revenue: rows.reduce((t, b) => t + amount(b), 0) });
+      }
+
+      const upcoming = bookings
+        .map(b => ({ b, startsAt: b.slotStart || '' }))
+        .filter(x => x.startsAt && x.startsAt >= new Date(now - 2 * 3600000).toISOString() && !['CANCELLED', 'REFUNDED'].includes(x.b.status))
+        .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+        .slice(0, 8)
+        .map(({ b, startsAt }) => ({
+          orderId: b.orderId, name: (b.devotee || {}).name || '', service: (b.service || {}).title || b.type,
+          status: b.status, startsAt, assignedTo: b.assignedTo || ''
+        }));
+
+      const ratings = reviews.filter(r => !r.hidden).map(r => Number(r.rating) || 0).filter(Boolean);
+      const unreadTotal = Object.values(unread).reduce((t, n) => t + n, 0);
+
+      return [200, {
+        generatedAt: nowIso(),
+        bookings: {
+          today: countIn(bookings, startOfToday), week: countIn(bookings, since(7)), month: countIn(bookings, since(30)),
+          total: bookings.length, byStatus,
+          pendingPayment: byStatus.PENDING_PAYMENT || 0,
+          awaitingReport: byStatus.AWAITING_REPORT || 0,
+          unclaimed: bookings.filter(b => CASE_STATUSES.includes(b.status) && !b.assignedTo).length
+        },
+        revenue: {
+          currency: 'INR', today: sumIn(startOfToday), week: sumIn(since(7)), month: sumIn(since(30)),
+          total: bookings.reduce((t, b) => t + amount(b), 0)
+        },
+        enquiries: {
+          new: enquiries.filter(e => e.status === 'NEW').length,
+          week: countIn(enquiries, since(7)), total: enquiries.length
+        },
+        reviews: {
+          total: reviews.length, hidden: reviews.filter(r => r.hidden).length,
+          verified: reviews.filter(r => r.verified).length,
+          average: ratings.length ? Math.round((ratings.reduce((t, n) => t + n, 0) / ratings.length) * 10) / 10 : 0
+        },
+        messages: { unread: unreadTotal, threads: Object.keys(unread).length },
+        topServices, daily, upcoming,
+        system: {
+          storage: store.mode, payments: PAYMENT_MODE,
+          paymentEnv: PAYMENT_MODE === 'cashfree' ? CASHFREE.mode : undefined,
+          sessions: JITSI.mode, sessionsProductionSafe: JITSI.production,
+          emailAlerts: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_EMAIL),
+          staffGoogleSignIn: { admin: ADMIN_EMAILS.length, guruji: GURUJI_EMAILS.length },
+          missing: [
+            !process.env.MONGODB_URI && 'MONGODB_URI',
+            PAYMENT_MODE !== 'cashfree' && 'CASHFREE_APP_ID / CASHFREE_SECRET_KEY',
+            !(process.env.RESEND_API_KEY && process.env.NOTIFY_EMAIL) && 'RESEND_API_KEY / NOTIFY_EMAIL',
+            !ADMIN_EMAILS.length && 'ADMIN_EMAILS',
+            !GURUJI_EMAILS.length && 'GURUJI_EMAILS'
+          ].filter(Boolean)
+        }
+      }];
+    }],
+
+    // Reviews the public site shows — the owner decides which ones stay up ----
+    ['GET', /^\/api\/admin\/reviews$/, async (req) => {
+      requireAdmin(req, 'owner');
+      return [200, { reviews: await store.listReviews(300, { all: true }) }];
+    }],
+
+    ['PATCH', /^\/api\/admin\/reviews\/([A-Za-z0-9-]+)$/, async (req, [, id]) => {
+      requireAdmin(req, 'owner');
+      const body = await readJsonBody(req).catch(() => ({}));
+      const set = { updatedAt: nowIso() };
+      if (body.hidden !== undefined) set.hidden = Boolean(body.hidden);
+      if (body.verified !== undefined) set.verified = Boolean(body.verified);
+      if (body.reply !== undefined) set.reply = str(body.reply, 1000);
+      const review = await store.updateReview(id, set);
+      if (!review) throw new HttpError(404, 'Review not found');
+      return [200, { ok: true, success: true, review }];
+    }],
+
+    ['DELETE', /^\/api\/admin\/reviews\/([A-Za-z0-9-]+)$/, async (req, [, id]) => {
+      requireAdmin(req, 'owner');
+      const gone = await store.deleteReview(id);
+      if (!gone) throw new HttpError(404, 'Review not found');
+      return [200, { ok: true, success: true }];
+    }],
+
+    // Spreadsheet copies of the two record lists -----------------------------
+    ['GET', /^\/api\/admin\/(bookings|enquiries)\/export$/, async (req, [, what]) => {
+      requireAdmin(req, 'owner');
+      const csv = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+      let header, rows;
+      if (what === 'bookings') {
+        header = ['Reference', 'Created', 'Type', 'Status', 'Name', 'Mobile', 'Email', 'Service', 'Amount', 'Appointment', 'Assigned to', 'Payment'];
+        rows = (await store.listBookings({}, 5000)).map(b => [
+          b.orderId, b.createdAt, b.type, b.status, (b.devotee || {}).name, (b.devotee || {}).mobile, (b.devotee || {}).email,
+          (b.service || {}).title, b.amount, b.slot ? `${b.slot.date || ''} ${b.slot.time || ''}` : b.poojaDate || '',
+          b.assignedTo, b.payment ? `${b.payment.provider} ${b.payment.status}` : ''
+        ].map(csv).join(','));
+      } else {
+        header = ['Reference', 'Created', 'Kind', 'Status', 'Name', 'Mobile', 'Email', 'Service', 'Preferred date', 'Preferred time', 'Message'];
+        rows = (await store.listEnquiries({}, 5000)).map(e => [
+          e.reference, e.createdAt, e.kind, e.status, (e.contact || {}).name, (e.contact || {}).phone, (e.contact || {}).email,
+          (e.service || {}).title, e.preferredDate, e.preferredTime, e.message
+        ].map(csv).join(','));
+      }
+      return [200, {
+        __raw: Buffer.from(header.join(',') + '\n' + rows.join('\n'), 'utf8'),
+        type: 'text/csv; charset=utf-8',
+        headers: { 'Content-Disposition': `attachment; filename="guruji_${what}_${new Date().toISOString().slice(0, 10)}.csv"` }
+      }];
+    }],
+
     ['GET', /^\/api\/admin\/consents$/, async (req, m, url) => {
       requireAdmin(req, 'owner');
       const q = str(url.searchParams.get('q'), 80);
@@ -1166,6 +1311,33 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const at = nowIso();
       const updated = await store.updateBooking(orderId, { assignedTo: by, assignedAt: at, updatedAt: at },
         { at, event: 'case_claimed', by });
+      return [200, { ok: true, success: true, case: updated }];
+    }],
+
+    /** Guruji's own notes on a case. The seeker never sees these. */
+    ['PUT', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/notes$/, async (req, [, orderId]) => {
+      const role = requireGuruji(req);
+      const body = await readJsonBody(req).catch(() => ({}));
+      const booking = await store.getBooking(orderId);
+      if (!booking) throw new HttpError(404, 'Case not found');
+      const at = nowIso();
+      const notes = str(body.notes, 8000);
+      const updated = await store.updateBooking(orderId, { gurujiNotes: notes, updatedAt: at },
+        { at, event: 'notes_saved', by: role });
+      return [200, { ok: true, success: true, notes: updated.gurujiNotes || '' }];
+    }],
+
+    /** Move a case along: scheduled, awaiting the reading, finished. */
+    ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/status$/, async (req, [, orderId]) => {
+      const role = requireGuruji(req);
+      const body = await readJsonBody(req).catch(() => ({}));
+      const allowed = ['DETAILS_RECEIVED', 'SCHEDULED', 'AWAITING_REPORT', 'COMPLETED'];
+      if (!allowed.includes(body.status)) throw new HttpError(422, 'That status cannot be set from the case area');
+      const booking = await store.getBooking(orderId);
+      if (!booking) throw new HttpError(404, 'Case not found');
+      const at = nowIso();
+      const updated = await store.updateBooking(orderId, { status: body.status, updatedAt: at },
+        { at, event: 'status_changed', status: body.status, by: role });
       return [200, { ok: true, success: true, case: updated }];
     }],
 

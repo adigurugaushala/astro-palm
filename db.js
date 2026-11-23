@@ -133,14 +133,31 @@ class FileStore {
   }
 
   // Reviews
-  async listReviews(limit) {
-    return readJson(REVIEWS_FILE, []).slice(0, limit);
+  /** `all` includes the ones hidden from the public site; the site itself never asks for those. */
+  async listReviews(limit, { all: wantAll = false } = {}) {
+    const rows = readJson(REVIEWS_FILE, []);
+    return (wantAll ? rows : rows.filter(r => !r.hidden)).slice(0, limit);
   }
   async createReview(review) {
     const all = readJson(REVIEWS_FILE, []);
     all.unshift(review);
     writeJson(REVIEWS_FILE, all);
     return review;
+  }
+  async updateReview(id, set) {
+    const all = readJson(REVIEWS_FILE, []);
+    const i = all.findIndex(r => r.id === id);
+    if (i === -1) return null;
+    all[i] = { ...all[i], ...set };
+    writeJson(REVIEWS_FILE, all);
+    return all[i];
+  }
+  async deleteReview(id) {
+    const all = readJson(REVIEWS_FILE, []);
+    const left = all.filter(r => r.id !== id);
+    if (left.length === all.length) return false;
+    writeJson(REVIEWS_FILE, left);
+    return true;
   }
 
   // Chat messages between a seeker and Guruji
@@ -466,13 +483,22 @@ class MongoStore {
   }
 
   // Reviews
-  async listReviews(limit) {
-    const docs = await this.reviews.find({}).sort({ createdAt: -1, _id: -1 }).limit(limit).toArray();
+  async listReviews(limit, { all: wantAll = false } = {}) {
+    const q = wantAll ? {} : { hidden: { $ne: true } };
+    const docs = await this.reviews.find(q).sort({ createdAt: -1, _id: -1 }).limit(limit).toArray();
     return docs.map(stripMongoId);
   }
   async createReview(review) {
     await this.reviews.insertOne({ ...review });
     return review;
+  }
+  async updateReview(id, set) {
+    const doc = await this.reviews.findOneAndUpdate({ id }, { $set: set }, { returnDocument: 'after', includeResultMetadata: false });
+    return doc ? stripMongoId(doc) : null;
+  }
+  async deleteReview(id) {
+    const res = await this.reviews.deleteOne({ id });
+    return (res.deletedCount || 0) > 0;
   }
 
   // Chat messages

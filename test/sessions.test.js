@@ -177,6 +177,26 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(r.body.code, 'ended');
     });
 
+    test('Guruji keeps private notes and moves a case along', async () => {
+      const b = await newBooking(6, '9100000015');
+      await pay(b.orderId, '9100000015');
+
+      assert.equal((await call('PUT', `/api/guruji/cases/${b.orderId}/notes`, { notes: 'Soft voice, asked about Saturn.' })).status, 401);
+      const saved = await call('PUT', `/api/guruji/cases/${b.orderId}/notes`, { notes: 'Soft voice, asked about Saturn.' }, guruji);
+      assert.equal(saved.status, 200);
+      assert.equal((await store.getBooking(b.orderId)).gurujiNotes, 'Soft voice, asked about Saturn.');
+
+      // The seeker's own view of the booking must never carry them
+      const mine = await call('GET', `/api/bookings/${b.orderId}?mobile=9100000015`);
+      assert.equal(mine.status, 200);
+      assert.ok(!JSON.stringify(mine.body).includes('asked about Saturn'), 'private notes stay with staff');
+
+      assert.equal((await call('POST', `/api/guruji/cases/${b.orderId}/status`, { status: 'REFUNDED' }, guruji)).status, 422);
+      const moved = await call('POST', `/api/guruji/cases/${b.orderId}/status`, { status: 'AWAITING_REPORT' }, guruji);
+      assert.equal(moved.status, 200);
+      assert.equal((await store.getBooking(b.orderId)).status, 'AWAITING_REPORT');
+    });
+
     test('with no Jitsi keys set the room is the public service, and says so', async () => {
       const r = await call('GET', `/api/bookings/${live.orderId}/session?mobile=${liveMobile}`);
       assert.equal(r.body.mode, 'public');

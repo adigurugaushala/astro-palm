@@ -1518,7 +1518,10 @@
     btn.classList.toggle('hidden', !live);
 
     // Create (or reuse) the booking now, so the seeker can see the reference and
-    // the amount the server will actually charge before paying.
+    // the amount the server will actually charge before paying. Only ever from
+    // the payment page itself: this runs on every page load, and creating a
+    // booking from, say, the home page filled the records with abandoned ones.
+    if (state.currentPage !== 'book-payment') return;
     if (typeof ensureBooking !== 'function' || state.paymentStatus === 'SUCCESS') return;
     try {
       const booking = await ensureBooking();
@@ -2065,7 +2068,7 @@
   // -------------------------------------------------------------------------
   // Admin dashboard
   // -------------------------------------------------------------------------
-  const ADMIN = { pin: '', token: '', role: '', email: '', tab: 'bookings', data: null, editing: null, filters: {} };
+  const ADMIN = { pin: '', token: '', role: '', email: '', tab: 'overview', data: null, editing: null, filters: {} };
   try { const saved = JSON.parse(sessionStorage.getItem('guruji_admin') || 'null'); if (saved) Object.assign(ADMIN, saved); } catch (e) { /* ignore */ }
   const adminFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
@@ -2220,7 +2223,11 @@
     const host = $('#adm-body');
     host.innerHTML = '<div class="sp-spinner" aria-hidden="true"></div>';
     try {
-      if (tab === 'bookings' || tab === 'enquiries') {
+      if (tab === 'overview') {
+        ADMIN.data = await adminFetch('/api/admin/overview');
+      } else if (tab === 'reviews') {
+        ADMIN.data = await adminFetch('/api/admin/reviews');
+      } else if (tab === 'bookings' || tab === 'enquiries') {
         const f = ADMIN.filters[tab] || {};
         const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
         ADMIN.data = await adminFetch(`/api/admin/${tab}${qs ? '?' + qs : ''}`);
@@ -2318,10 +2325,211 @@
       ${rows}`;
   }
 
+  // -------------------------------------------------------------------------
+  // Overview: the whole business on one screen
+  // -------------------------------------------------------------------------
+  const rupees = (n) => '₹' + (Number(n) || 0).toLocaleString('en-IN');
+  const whenText = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const today = new Date().toDateString() === d.toDateString();
+    return (today ? 'Today ' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ')
+      + d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  };
+
+  function kpi(label, value, note, tone, tab) {
+    const click = tab ? ` onclick="adminTab('${tab}')" role="button" tabindex="0"` : '';
+    return `<div class="adm-kpi ${tone ? 'adm-kpi--' + tone : ''}${tab ? ' adm-kpi--link' : ''}"${click}>
+      <span class="adm-kpi__label">${esc(label)}</span>
+      <strong class="adm-kpi__value">${esc(String(value))}</strong>
+      ${note ? `<span class="adm-kpi__note">${esc(note)}</span>` : ''}
+    </div>`;
+  }
+
+  function renderOverview(host) {
+    const d = ADMIN.data || {};
+    const b = d.bookings || {}, rev = d.revenue || {}, enq = d.enquiries || {},
+      rv = d.reviews || {}, msg = d.messages || {}, sys = d.system || {};
+    const daily = d.daily || [];
+    const peak = Math.max(1, ...daily.map(x => x.bookings));
+    const needsAttention = [
+      b.pendingPayment && [`${b.pendingPayment} booking${b.pendingPayment === 1 ? '' : 's'} never paid`, 'bookings'],
+      enq.new && [`${enq.new} enquir${enq.new === 1 ? 'y has' : 'ies have'} had no reply`, 'enquiries'],
+      msg.unread && [`${msg.unread} unread chat message${msg.unread === 1 ? '' : 's'}`, 'bookings'],
+      b.awaitingReport && [`${b.awaitingReport} reading${b.awaitingReport === 1 ? '' : 's'} still to write`, 'bookings'],
+      b.unclaimed && [`${b.unclaimed} case${b.unclaimed === 1 ? '' : 's'} nobody has claimed`, 'bookings']
+    ].filter(Boolean);
+
+    host.innerHTML = `
+      <div class="adm-overview">
+        <div class="adm-overview__head">
+          <p class="text-xs text-ink-3">Figures as of ${esc(whenText(d.generatedAt) || 'now')}</p>
+          <div class="flex gap-2">
+            <button class="sp-btn-outline sp-btn-sm" onclick="adminLoad()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <button class="sp-btn-outline sp-btn-sm" onclick="adminExport('bookings')"><i class="fa-solid fa-file-csv"></i> Bookings CSV</button>
+          </div>
+        </div>
+
+        <div class="adm-kpis">
+          ${kpi('Bookings today', b.today || 0, `${b.week || 0} this week · ${b.month || 0} this month`, 'gold', 'bookings')}
+          ${kpi('Collected this month', rupees(rev.month), `${rupees(rev.today)} today · ${rupees(rev.total)} all time`, 'green')}
+          ${kpi('New enquiries', enq.new || 0, `${enq.week || 0} arrived this week`, (enq.new ? 'red' : ''), 'enquiries')}
+          ${kpi('Unread messages', msg.unread || 0, `${msg.threads || 0} conversation${msg.threads === 1 ? '' : 's'}`, (msg.unread ? 'red' : ''))}
+          ${kpi('Readings to write', b.awaitingReport || 0, `${b.unclaimed || 0} case${b.unclaimed === 1 ? '' : 's'} unclaimed`, (b.awaitingReport ? 'gold' : ''))}
+          ${kpi('Review rating', rv.average || '—', `${rv.total || 0} review${rv.total === 1 ? '' : 's'} · ${rv.hidden || 0} hidden`, '', 'reviews')}
+        </div>
+
+        ${needsAttention.length ? `
+        <div class="sp-panel adm-attention">
+          <h2 class="sp-h3"><i class="fa-solid fa-circle-exclamation text-amber-600"></i> Needs your attention</h2>
+          <ul class="adm-attention__list">${needsAttention.map(([text, tab]) =>
+            `<li><button type="button" onclick="adminTab('${tab}')">${esc(text)}</button></li>`).join('')}</ul>
+        </div>` : `<div class="sp-panel adm-attention adm-attention--clear">
+          <h2 class="sp-h3"><i class="fa-solid fa-circle-check text-emerald-600"></i> Nothing waiting on you</h2>
+          <p class="sp-text">Every enquiry has been answered, every booking paid, every reading sent.</p>
+        </div>`}
+
+        <div class="adm-overview__grid">
+          <div class="sp-panel">
+            <h2 class="sp-h3">Last fourteen days</h2>
+            <div class="adm-chart" role="img" aria-label="Bookings per day over the last fourteen days">
+              ${daily.map(x => `<div class="adm-chart__col" title="${esc(x.date)}: ${x.bookings} booking${x.bookings === 1 ? '' : 's'}, ${rupees(x.revenue)}">
+                  <span class="adm-chart__bar" style="height:${Math.round((x.bookings / peak) * 100)}%"></span>
+                  <span class="adm-chart__tick">${esc(x.date.slice(8))}</span>
+                </div>`).join('')}
+            </div>
+            <p class="text-xs text-ink-3 mt-2">Tallest bar = ${peak} booking${peak === 1 ? '' : 's'} in a day.</p>
+          </div>
+
+          <div class="sp-panel">
+            <h2 class="sp-h3">Next appointments</h2>
+            ${(d.upcoming || []).length ? `<ul class="adm-upcoming">${d.upcoming.map(u => `
+              <li>
+                <span class="adm-upcoming__when">${esc(whenText(u.startsAt))}</span>
+                <span class="adm-upcoming__who">${esc(u.name)}<small>${esc(u.service || '')}</small></span>
+                <span class="sp-pill sp-pill--${STATUS_TONE[u.status] || 'muted'}">${esc((u.status || '').replace(/_/g, ' ').toLowerCase())}</span>
+                <a href="/guruji/${esc(u.orderId)}" data-link class="sp-link">Open</a>
+              </li>`).join('')}</ul>` : '<p class="sp-text">Nothing booked yet.</p>'}
+          </div>
+
+          <div class="sp-panel">
+            <h2 class="sp-h3">Most booked</h2>
+            ${(d.topServices || []).length ? `<ul class="adm-bars">${d.topServices.map(t => `
+              <li><span>${esc(t.title)}</span>
+                <span class="adm-bars__track"><span style="width:${Math.round((t.count / d.topServices[0].count) * 100)}%"></span></span>
+                <strong>${t.count}</strong></li>`).join('')}</ul>` : '<p class="sp-text">No bookings yet.</p>'}
+          </div>
+
+          <div class="sp-panel">
+            <h2 class="sp-h3">Where every booking stands</h2>
+            <ul class="adm-statuses">${Object.entries(b.byStatus || {}).sort((x, y) => y[1] - x[1]).map(([st, n]) =>
+              `<li><span class="sp-pill sp-pill--${STATUS_TONE[st] || 'muted'}">${esc(st.replace(/_/g, ' ').toLowerCase())}</span><strong>${n}</strong></li>`).join('')
+              || '<li class="sp-text">No bookings yet.</li>'}</ul>
+          </div>
+
+          <div class="sp-panel adm-health">
+            <h2 class="sp-h3">How the site is set up</h2>
+            <dl class="adm-health__list">
+              <div><dt>Database</dt><dd>${sys.storage === 'mongo' ? '<span class="sp-pill sp-pill--green">MongoDB</span>' : '<span class="sp-pill sp-pill--red">Files only — records are lost on redeploy</span>'}</dd></div>
+              <div><dt>Payments</dt><dd>${sys.payments === 'cashfree' ? `<span class="sp-pill sp-pill--green">Cashfree ${esc(sys.paymentEnv || '')}</span>` : '<span class="sp-pill sp-pill--gold">Simulated — no money moves</span>'}</dd></div>
+              <div><dt>Video sessions</dt><dd>${sys.sessionsProductionSafe ? `<span class="sp-pill sp-pill--green">${esc(sys.sessions || '')}</span>` : `<span class="sp-pill sp-pill--gold">${esc(sys.sessions || 'public rooms')}</span>`}</dd></div>
+              <div><dt>Email alerts</dt><dd>${sys.emailAlerts ? '<span class="sp-pill sp-pill--green">On</span>' : '<span class="sp-pill sp-pill--muted">Off</span>'}</dd></div>
+              <div><dt>Staff Google sign-in</dt><dd>${(sys.staffGoogleSignIn || {}).admin || 0} admin · ${(sys.staffGoogleSignIn || {}).guruji || 0} Guruji</dd></div>
+            </dl>
+            ${(sys.missing || []).length ? `<p class="text-xs text-ink-3 mt-3">Not set in the hosting environment: <strong>${sys.missing.map(esc).join('</strong>, <strong>')}</strong></p>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // -------------------------------------------------------------------------
+  // Reviews: what the public sees, and what the owner lets them see
+  // -------------------------------------------------------------------------
+  function renderReviewsAdmin(host) {
+    const rows = (ADMIN.data && ADMIN.data.reviews) || [];
+    const f = ADMIN.filters.reviews || {};
+    const shown = rows.filter(r => f.show === 'hidden' ? r.hidden : f.show === 'verified' ? r.verified : f.show === 'live' ? !r.hidden : true);
+    const stars = (n) => Array.from({ length: 5 }, (_, i) => `<i class="fa-${i < n ? 'solid' : 'regular'} fa-star"></i>`).join('');
+    host.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div class="sp-chips sp-chips--nav">
+          ${[['', 'All'], ['live', 'On the site'], ['hidden', 'Hidden'], ['verified', 'Verified']].map(([v, label]) =>
+            `<a href="#" class="${(f.show || '') === v ? 'is-active' : ''}" onclick="event.preventDefault(); adminReviewFilter('${v}')">${label}</a>`).join('')}
+        </div>
+        <p class="text-sm text-ink-3">${shown.length} of ${rows.length}</p>
+      </div>
+      <div class="adm-reviews">${shown.map(r => `
+        <article class="adm-review ${r.hidden ? 'is-hidden' : ''}">
+          <header>
+            <span class="adm-review__stars">${stars(Number(r.rating) || 0)}</span>
+            <strong>${esc(r.name || 'Seeker')}</strong>
+            ${r.location ? `<small>${esc(r.location)}</small>` : ''}
+            ${r.verified ? '<span class="sp-pill sp-pill--green">verified</span>' : '<span class="sp-pill sp-pill--muted">unverified</span>'}
+            ${r.hidden ? '<span class="sp-pill sp-pill--red">hidden</span>' : ''}
+            <time>${esc((r.createdAt || '').slice(0, 10))}</time>
+          </header>
+          <p class="adm-review__text">${esc(r.comment || '')}</p>
+          ${r.consultation ? `<p class="text-xs text-ink-3">${esc(r.consultation)}</p>` : ''}
+          <form class="adm-review__reply" onsubmit="adminReviewReply(event, '${esc(r.id)}')">
+            <input name="reply" value="${esc(r.reply || '')}" placeholder="Reply publicly (optional)">
+            <button class="sp-btn-outline sp-btn-sm">Save reply</button>
+          </form>
+          <footer>
+            <button class="sp-btn-outline sp-btn-sm" onclick="adminReviewSet('${esc(r.id)}', { hidden: ${r.hidden ? 'false' : 'true'} })">
+              ${r.hidden ? 'Show on the site' : 'Hide from the site'}
+            </button>
+            <button class="sp-btn-outline sp-btn-sm" onclick="adminReviewSet('${esc(r.id)}', { verified: ${r.verified ? 'false' : 'true'} })">
+              ${r.verified ? 'Remove verified mark' : 'Mark verified'}
+            </button>
+            <button class="sp-btn-outline sp-btn-sm adm-review__del" onclick="adminReviewDelete('${esc(r.id)}')">Delete</button>
+          </footer>
+        </article>`).join('') || '<p class="sp-text">No reviews yet.</p>'}
+      </div>`;
+  }
+
+  window.adminQuickStatus = (status) => {
+    ADMIN.filters[ADMIN.tab] = Object.assign({}, ADMIN.filters[ADMIN.tab], { status });
+    adminLoad();
+  };
+  window.adminReviewFilter = (show) => { ADMIN.filters.reviews = { show }; renderAdminBody(); };
+  window.adminReviewSet = async (id, patch) => {
+    try { await adminFetch(`/api/admin/reviews/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }); toast('Review updated.'); adminLoad(); }
+    catch (err) { toast(err.message, 'error'); }
+  };
+  window.adminReviewReply = async (e, id) => {
+    e.preventDefault();
+    try { await adminFetch(`/api/admin/reviews/${encodeURIComponent(id)}`, { method: 'PATCH', body: { reply: e.target.elements.reply.value } }); toast('Reply saved.'); adminLoad(); }
+    catch (err) { toast(err.message, 'error'); }
+  };
+  window.adminReviewDelete = async (id) => {
+    if (!confirm('Delete this review for good?')) return;
+    try { await adminFetch(`/api/admin/reviews/${encodeURIComponent(id)}`, { method: 'DELETE' }); toast('Review deleted.'); adminLoad(); }
+    catch (err) { toast(err.message, 'error'); }
+  };
+
+  /** Downloads the bookings or enquiries list as a spreadsheet. */
+  window.adminExport = async function (what) {
+    try {
+      const headers = {};
+      if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
+      if (ADMIN.token) headers['x-admin-token'] = ADMIN.token;
+      const res = await fetch(`/api/admin/${what}/export`, { headers });
+      if (!res.ok) throw new Error(`Could not export the ${what}`);
+      const url = window.URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = `guruji_${what}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+      toast(`${what[0].toUpperCase()}${what.slice(1)} exported.`);
+    } catch (err) { toast(err.message, 'error'); }
+  };
+
   function renderAdminBody() {
     const host = $('#adm-body');
     const tab = ADMIN.tab;
     if (tab === 'contentStatus') return renderContentStatus(host);
+    if (tab === 'overview') return renderOverview(host);
+    if (tab === 'reviews') return renderReviewsAdmin(host);
     if (tab === 'consents') {
       const rows = ADMIN.data.consents || [];
       const f = ADMIN.filters.consents || {};
@@ -2329,7 +2537,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <form class="sp-filter flex-1" onsubmit="event.preventDefault(); adminFilter(this)">
             <div class="sp-filter__search"><i class="fa-solid fa-magnifying-glass"></i><input name="q" value="${esc(f.q || '')}" placeholder="Search name, mobile, email, consent ID…"></div>
-            <select name="serviceType" onchange="adminFilter(this.form)">
+            <select name="serviceType" aria-label="Filter by service" onchange="adminFilter(this.form)">
               <option value="">All services</option>
               <option value="general" ${f.serviceType === 'general' ? 'selected' : ''}>General / Account</option>
               <option value="consultation" ${f.serviceType === 'consultation' ? 'selected' : ''}>Consultation</option>
@@ -2394,11 +2602,20 @@
       const rows = ADMIN.data[tab] || [];
       const f = ADMIN.filters[tab] || {};
       host.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="sp-chips sp-chips--nav">
+            ${(isB
+            ? [['', 'All'], ['PENDING_PAYMENT', 'Unpaid'], ['PAID', 'Paid'], ['SCHEDULED', 'Scheduled'], ['AWAITING_REPORT', 'Reading due'], ['COMPLETED', 'Finished']]
+            : [['', 'All'], ['NEW', 'No reply yet'], ['CONTACTED', 'Contacted'], ['CONFIRMED', 'Confirmed'], ['CLOSED', 'Closed']])
+            .map(([v, label]) => `<a href="#" class="${(f.status || '') === v ? 'is-active' : ''}" onclick="event.preventDefault(); adminQuickStatus('${v}')">${label}</a>`).join('')}
+          </div>
+          <button type="button" class="sp-btn-outline sp-btn-sm" onclick="adminExport('${tab}')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+        </div>
         <form class="sp-filter" onsubmit="event.preventDefault(); adminFilter(this)">
           <div class="sp-filter__search"><i class="fa-solid fa-magnifying-glass"></i><input name="q" value="${esc(f.q || '')}" placeholder="Search name, mobile, reference…"></div>
-          <select name="status" onchange="adminFilter(this.form)"><option value="">All statuses</option>${ADMIN.data.statuses.map(s => `<option ${f.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
-          ${isB ? `<select name="type" onchange="adminFilter(this.form)"><option value="">All types</option><option value="consultation" ${f.type === 'consultation' ? 'selected' : ''}>Consultation</option><option value="pooja" ${f.type === 'pooja' ? 'selected' : ''}>Pooja</option></select>`
-          : `<select name="kind" onchange="adminFilter(this.form)"><option value="">All kinds</option>${['booking', 'course', 'contact'].map(k => `<option ${f.kind === k ? 'selected' : ''}>${k}</option>`).join('')}</select>`}
+          <select name="status" aria-label="Filter by status" onchange="adminFilter(this.form)"><option value="">All statuses</option>${ADMIN.data.statuses.map(s => `<option ${f.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+          ${isB ? `<select name="type" aria-label="Filter by booking type" onchange="adminFilter(this.form)"><option value="">All types</option><option value="consultation" ${f.type === 'consultation' ? 'selected' : ''}>Consultation</option><option value="pooja" ${f.type === 'pooja' ? 'selected' : ''}>Pooja</option></select>`
+          : `<select name="kind" aria-label="Filter by enquiry kind" onchange="adminFilter(this.form)"><option value="">All kinds</option>${['booking', 'course', 'contact'].map(k => `<option ${f.kind === k ? 'selected' : ''}>${k}</option>`).join('')}</select>`}
           <button class="sp-btn-outline">Filter</button>
         </form>
         <p class="text-sm text-ink-3 my-3">${rows.length} ${tab}</p>
@@ -2607,7 +2824,7 @@
       const res = await fetchJson('/api/admin/verify', { method: 'POST', headers: { 'x-admin-pin': pin } });
       if (!res) throw new Error('The admin dashboard needs the server.');
       ADMIN.pin = pin; ADMIN.token = ''; ADMIN.role = res.role; ADMIN.email = '';
-      if (res.role !== 'owner' && ['bookings', 'enquiries'].includes(ADMIN.tab)) ADMIN.tab = 'services';
+      if (res.role !== 'owner' && ['overview', 'bookings', 'enquiries', 'consents', 'reviews', 'contentStatus'].includes(ADMIN.tab)) ADMIN.tab = 'services';
       sessionStorage.setItem('guruji_admin', JSON.stringify({ pin, role: res.role, tab: ADMIN.tab }));
       window.ADMIN_PIN_SESSION = pin;
       renderAdmin();
@@ -2724,9 +2941,11 @@
       return;
     }
     const tabs = [
+      owner && ['overview', 'Overview', 'fa-gauge-high'],
       owner && ['bookings', 'Bookings', 'fa-calendar-check'],
       owner && ['enquiries', 'Enquiries', 'fa-envelope-open-text'],
       owner && ['consents', 'Consent Records', 'fa-shield-halved'],
+      owner && ['reviews', 'Reviews', 'fa-star'],
       ['services', 'Services & pricing', 'fa-hand'], ['serviceCategories', 'Service categories', 'fa-layer-group'], ['courses', 'Courses', 'fa-graduation-cap'],
       ['articles', 'Articles', 'fa-newspaper'], ['faqCategories', 'FAQs', 'fa-circle-question'], ['testimonials', 'Testimonials', 'fa-quote-left'],
       ['about', 'About Guruji', 'fa-user'], ['pillars', 'Home pillars', 'fa-table-columns'], ['settings', 'Settings & homepage', 'fa-gear'],
@@ -2813,7 +3032,7 @@
   // -------------------------------------------------------------------------
   // Guruji's case area
   // -------------------------------------------------------------------------
-  const GURUJI = { list: [], current: null, filter: '' };
+  const GURUJI = { list: [], current: null, filter: '', view: 'all', q: '', sort: 'soonest' };
   const gurujiFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
     if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
@@ -2869,7 +3088,15 @@
       root.innerHTML = `<div class="sp-wrap py-8"><p class="sp-notice">${esc(err.message)}</p></div>`; return;
     }
     GURUJI.list = (data && data.cases) || [];
-    const waiting = GURUJI.list.filter(c => c.status !== 'COMPLETED');
+    renderCaseList();
+  }
+
+  /** The case list, with the counts and filters Guruji actually works from. */
+  function renderCaseList() {
+    const root = $('[data-guruji-root]');
+    if (!root) return;
+    const all = GURUJI.list;
+    const waiting = all.filter(c => c.status !== 'COMPLETED');
     const today = new Date().toISOString().slice(0, 10);
     const card = (c) => {
       const when = c.slotStart ? new Date(c.slotStart) : null;
@@ -2886,16 +3113,106 @@
         <p class="case-card__meta">${esc(c.orderId)} · ${(c.photos || []).length} photo${(c.photos || []).length === 1 ? '' : 's'}${c.chart ? ' · chart cast' : ''}${c.report && c.report.status === 'ready' ? ' · reading sent' : ''}</p>
       </a>`;
     };
+    const startsAt = (c) => (c.slotStart || '');
+    const isToday = (c) => startsAt(c).slice(0, 10) === today;
+    const counts = {
+      today: all.filter(isToday).length,
+      unread: all.reduce((t, c) => t + (c.unread || 0), 0),
+      unclaimed: all.filter(c => !c.assignedTo && c.status !== 'COMPLETED').length,
+      reports: all.filter(c => c.status === 'AWAITING_REPORT' || (c.report && c.report.status !== 'ready' && c.status !== 'COMPLETED')).length
+    };
+    const views = {
+      all: () => all,
+      today: () => all.filter(isToday),
+      unread: () => all.filter(c => c.unread),
+      unclaimed: () => all.filter(c => !c.assignedTo && c.status !== 'COMPLETED'),
+      reports: () => all.filter(c => c.status === 'AWAITING_REPORT' || (c.report && c.report.status !== 'ready' && c.status !== 'COMPLETED')),
+      finished: () => all.filter(c => c.status === 'COMPLETED')
+    };
+    const q = GURUJI.q.trim().toLowerCase();
+    let list = (views[GURUJI.view] || views.all)();
+    if (q) list = list.filter(c => [c.orderId, (c.devotee || {}).name, (c.devotee || {}).mobile, (c.service || {}).title]
+      .filter(Boolean).join(' ').toLowerCase().includes(q));
+    list = list.slice().sort((a, b) => GURUJI.sort === 'newest'
+      ? (b.createdAt || '').localeCompare(a.createdAt || '')
+      : (startsAt(a) || '9999').localeCompare(startsAt(b) || '9999'));
+
+    const chip = (id, label, n) => `<a href="#" class="${GURUJI.view === id ? 'is-active' : ''}" onclick="event.preventDefault(); gurujiView('${id}')">${label}${n ? ` (${n})` : ''}</a>`;
+    const next = all.filter(c => startsAt(c) > new Date().toISOString() && c.status !== 'COMPLETED')
+      .sort((a, b) => startsAt(a).localeCompare(startsAt(b)))[0];
+
     root.innerHTML = `
       <div class="sp-wrap py-8">
         <div class="session-head">
           <div><p class="sp-eyebrow sp-eyebrow--maroon">Guruji</p><h1 class="sp-h2">Cases</h1>
-            <p class="sp-text">${waiting.length} waiting · ${GURUJI.list.length - waiting.length} finished</p></div>
-          <button class="sp-btn-outline" onclick="adminLogout(); renderGuruji()">Sign out</button>
+            <p class="sp-text">${waiting.length} waiting · ${all.length - waiting.length} finished</p></div>
+          <div class="flex gap-2">
+            <button class="sp-btn-outline sp-btn-sm" onclick="gurujiPrintDay()"><i class="fa-solid fa-print"></i> Day sheet</button>
+            <button class="sp-btn-outline sp-btn-sm" onclick="renderGuruji()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <button class="sp-btn-outline sp-btn-sm" onclick="adminLogout(); renderGuruji()">Sign out</button>
+          </div>
         </div>
-        <div class="case-grid">${GURUJI.list.length ? GURUJI.list.map(card).join('') : '<p class="sp-text">No paid bookings yet.</p>'}</div>
+
+        <div class="case-stats">
+          <div class="case-stat"><span>Today</span><strong>${counts.today}</strong></div>
+          <div class="case-stat"><span>Unread messages</span><strong>${counts.unread}</strong></div>
+          <div class="case-stat"><span>Unclaimed</span><strong>${counts.unclaimed}</strong></div>
+          <div class="case-stat"><span>Readings to write</span><strong>${counts.reports}</strong></div>
+          <div class="case-stat"><span>Next appointment</span><strong>${next ? esc(new Date(next.slotStart).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })) : '—'}</strong>
+            ${next ? `<span>${esc((next.devotee || {}).name || '')}</span>` : ''}</div>
+        </div>
+
+        <div class="case-toolbar">
+          <div class="sp-chips sp-chips--nav">
+            ${chip('all', 'All', all.length)}${chip('today', 'Today', counts.today)}${chip('unread', 'Unread', counts.unread)}
+            ${chip('unclaimed', 'Unclaimed', counts.unclaimed)}${chip('reports', 'Readings due', counts.reports)}${chip('finished', 'Finished', 0)}
+          </div>
+          <input type="search" value="${esc(GURUJI.q)}" placeholder="Search name, mobile or reference…" oninput="gurujiSearch(this.value)">
+          <select class="sp-select" aria-label="Sort the cases" onchange="gurujiSort(this.value)">
+            <option value="soonest" ${GURUJI.sort === 'soonest' ? 'selected' : ''}>Soonest appointment</option>
+            <option value="newest" ${GURUJI.sort === 'newest' ? 'selected' : ''}>Newest booking</option>
+          </select>
+        </div>
+
+        <div class="case-grid">${list.length ? list.map(card).join('')
+          : `<p class="sp-text">${all.length ? 'Nothing matches that.' : 'No paid bookings yet.'}</p>`}</div>
       </div>`;
   }
+
+  window.gurujiView = (v) => { GURUJI.view = v; renderCaseList(); };
+  window.gurujiSort = (v) => { GURUJI.sort = v; renderCaseList(); };
+  window.gurujiSearch = (v) => {
+    GURUJI.q = v;
+    clearTimeout(window.__gurujiSearchTimer);
+    window.__gurujiSearchTimer = setTimeout(renderCaseList, 200);
+  };
+
+  /** A printable list of today's appointments, for the desk. */
+  window.gurujiPrintDay = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = GURUJI.list.filter(c => (c.slotStart || '').slice(0, 10) === today)
+      .sort((a, b) => (a.slotStart || '').localeCompare(b.slotStart || ''));
+    const w = window.open('', '_blank');
+    if (!w) return toast('Your browser blocked the print window.', 'error');
+    w.document.write(`<!doctype html><title>Day sheet</title>
+      <style>body{font:14px/1.5 system-ui,sans-serif;padding:2rem;color:#1c1917}
+      h1{font-size:1.3rem;margin:0 0 .25rem}p.sub{color:#78716c;margin:0 0 1.5rem}
+      table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #e7e5e4;padding:.5rem;text-align:left;vertical-align:top}
+      th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#78716c}</style>
+      <h1>Guruji Palmistry — day sheet</h1>
+      <p class="sub">${new Date().toLocaleDateString('en-IN', { dateStyle: 'full' })} · ${rows.length} appointment${rows.length === 1 ? '' : 's'}</p>
+      <table><thead><tr><th>Time</th><th>Seeker</th><th>Service</th><th>Reference</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+      ${rows.map(c => `<tr>
+        <td>${c.slotStart ? new Date(c.slotStart).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+        <td>${esc((c.devotee || {}).name || '')}<br><small>${esc((c.devotee || {}).mobile || '')}</small></td>
+        <td>${esc((c.service || {}).title || '')}</td>
+        <td>${esc(c.orderId)}</td>
+        <td>${esc((c.status || '').replace(/_/g, ' ').toLowerCase())}</td>
+        <td></td></tr>`).join('') || '<tr><td colspan="6">Nothing booked today.</td></tr>'}
+      </tbody></table>`);
+    w.document.close();
+    w.print();
+  };
   window.renderGuruji = renderGuruji;
 
   window.gurujiLogin = async (e) => {
@@ -2937,6 +3254,13 @@
             ${c.assignedTo ? `<span class="sp-pill sp-pill--gold">with ${esc(c.assignedTo)}</span>` : `<button class="sp-btn-outline sp-btn-sm" onclick="claimCase('${esc(c.orderId)}')">Claim this case</button>`}
             <a href="/session/${esc(c.orderId)}" data-link class="gold-gradient-btn h-10 px-4 rounded-xl text-sm"><i class="fa-solid fa-video"></i> Join session</a>
             <button class="sp-btn-outline sp-btn-sm" onclick="endSession('${esc(c.orderId)}')">End session</button>
+            <select class="sp-select sp-btn-sm" onchange="setCaseStatus('${esc(c.orderId)}', this.value)" aria-label="Move this case">
+              <option value="">Move to…</option>
+              ${['DETAILS_RECEIVED', 'SCHEDULED', 'AWAITING_REPORT', 'COMPLETED'].filter(st => st !== c.status)
+                .map(st => `<option value="${st}">${esc(st.replace(/_/g, ' ').toLowerCase())}</option>`).join('')}
+            </select>
+            ${(d.mobile && waLink()) ? `<a class="sp-btn-outline sp-btn-sm" target="_blank" rel="noopener" href="https://wa.me/91${esc(String(d.mobile).replace(/\D/g, '').slice(-10))}"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
+            ${d.mobile ? `<a class="sp-btn-outline sp-btn-sm" href="tel:${esc(d.mobile)}"><i class="fa-solid fa-phone"></i> Call</a>` : ''}
           </div>
         </div>
 
@@ -2969,9 +3293,21 @@
               <div data-chart-slot>${c.chart ? '' : '<p class="sp-text">Not cast yet. Needs the date, time and co-ordinates of birth.</p>'}</div>
             </div>
 
+            <div class="sp-panel case-notes">
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <h2 class="sp-h3">My notes</h2>
+                <span class="text-xs text-ink-3">Only staff see these</span>
+              </div>
+              <form class="sp-form" onsubmit="saveCaseNotes(event, '${esc(c.orderId)}')">
+                <label class="sp-field"><span class="sr-only">Private notes</span>
+                  <textarea name="notes" rows="5" placeholder="What you noticed, what to follow up, what the seeker asked for.">${esc(c.gurujiNotes || '')}</textarea></label>
+                <button class="sp-btn-outline sp-btn-sm">Save notes</button>
+              </form>
+            </div>
+
             <div class="sp-panel">
               <h2 class="sp-h3">The reading</h2>
-              <form class="sp-form" onsubmit="saveReport(event, '${esc(c.orderId)}')">
+              <form class="sp-form" data-report-form oninput="reportTyped(this, '${esc(c.orderId)}')" onsubmit="saveReport(event, '${esc(c.orderId)}')">
                 <label class="sp-field"><span>Part 2 — the hands</span><textarea name="palm" rows="7">${esc(r.palm || '')}</textarea></label>
                 <label class="sp-field"><span>Part 3 — where the chart and the hands agree</span><textarea name="correlation" rows="6">${esc(r.correlation || '')}</textarea></label>
                 <label class="sp-field"><span>Summary</span><textarea name="summary" rows="4">${esc(r.summary || '')}</textarea></label>
@@ -2982,7 +3318,8 @@
                   <a class="sp-link" href="/api/bookings/${esc(c.orderId)}/report.pdf" target="_blank" rel="noopener">Preview the PDF ↗</a>
                   ${r.status === 'ready' ? `<span class="sp-pill sp-pill--green">sent ${esc((r.readyAt || '').slice(0, 10))}</span>` : r.version ? `<span class="sp-pill sp-pill--muted">draft v${r.version}</span>` : ''}
                 </div>
-                <p class="text-xs text-ink-3">Snippets: leave a blank line between paragraphs. The seeker sees this only after you mark it ready.</p>
+                <p class="case-wordcount" data-wordcount>&nbsp;</p>
+                <p class="text-xs text-ink-3">Leave a blank line between paragraphs. A draft saves itself a few seconds after you stop typing; the seeker sees nothing until you mark it ready.</p>
               </form>
             </div>
           </div>
@@ -3022,6 +3359,41 @@
       toast('Draft saved.');
     } catch (err) { toast(err.message, 'error'); }
   };
+  window.saveCaseNotes = async (e, orderId) => {
+    e.preventDefault();
+    try {
+      await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/notes`, { method: 'PUT', body: { notes: e.target.elements.notes.value } });
+      toast('Notes saved.');
+    } catch (err) { toast(err.message, 'error'); }
+  };
+
+  window.setCaseStatus = async (orderId, status) => {
+    if (!status) return;
+    try {
+      await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/status`, { method: 'POST', body: { status } });
+      toast('Case moved.');
+      renderCase(orderId);
+    } catch (err) { toast(err.message, 'error'); }
+  };
+
+  /** Counts the words as Guruji writes, and saves the draft once typing stops. */
+  window.reportTyped = (form, orderId) => {
+    const f = form.elements;
+    const text = ['palm', 'correlation', 'summary', 'remedies'].map(k => (f[k] ? f[k].value : '')).join(' ');
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const el = form.querySelector('[data-wordcount]');
+    if (el) el.textContent = words ? `${words} word${words === 1 ? '' : 's'} written` : '\u00a0';
+    clearTimeout(form.__saveTimer);
+    form.__saveTimer = setTimeout(async () => {
+      try {
+        await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/report`, {
+          method: 'PUT', body: { palm: f.palm.value, correlation: f.correlation.value, summary: f.summary.value, remedies: f.remedies.value }
+        });
+        if (el) el.textContent = `${words} word${words === 1 ? '' : 's'} · draft saved`;
+      } catch (err) { if (el) el.textContent = `${words} words · not saved (${err.message})`; }
+    }, 4000);
+  };
+
   window.markReportReady = async (orderId) => {
     if (!confirm('Mark this reading ready? The seeker will be able to download it.')) return;
     try { await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/ready`, { method: 'POST' }); toast('The seeker can now download the reading.'); renderCase(orderId); }
