@@ -2564,7 +2564,7 @@
       ADMIN.role = verifyRes.role;
       ADMIN.email = verifyRes.email;
       sessionStorage.setItem('guruji_admin', JSON.stringify({ token: verifyRes.token, role: verifyRes.role, email: verifyRes.email, tab: ADMIN.tab }));
-      toast(`Welcome, ${user.displayName || user.email}! Signed in as Admin.`, 'success');
+      toast(`Welcome, ${user.displayName || user.email}! Signed in as ${verifyRes.role === 'owner' ? 'Admin' : 'Guruji'}.`, 'success');
       renderAdmin();
       if (typeof renderGuruji === 'function') renderGuruji();
     } catch (err) {
@@ -2609,6 +2609,20 @@
       return;
     }
     const owner = ADMIN.role === 'owner';
+    if (ADMIN.role === 'guruji') {
+      // Guruji's sign-in opens the case area, not the site's content and prices.
+      host.innerHTML = `<section class="sp-section"><div class="sp-wrap sp-narrow">
+        <div class="sp-panel sp-form max-w-md mx-auto text-center space-y-4">
+          <i class="fa-solid fa-hands-praying text-3xl text-gold-deep" aria-hidden="true"></i>
+          <h1 class="sp-h2">Namaste${ADMIN.email ? ', ' + esc(ADMIN.email) : ''}</h1>
+          <p class="sp-text">This sign-in opens Guruji's case area: the devotees waiting, their palms and charts, the chat and the readings.</p>
+          <div class="flex gap-3 justify-center flex-wrap">
+            <a href="/guruji" data-link class="gold-gradient-btn h-11 px-5 rounded-xl inline-flex items-center">Go to my cases</a>
+            <button type="button" onclick="adminLogout()" class="sp-btn-outline">Sign out</button>
+          </div>
+        </div></div></section>`;
+      return;
+    }
     const tabs = [
       owner && ['bookings', 'Bookings', 'fa-calendar-check'],
       owner && ['enquiries', 'Enquiries', 'fa-envelope-open-text'],

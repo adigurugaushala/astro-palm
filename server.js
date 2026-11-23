@@ -39,12 +39,26 @@ const HOST = process.env.HOST || '127.0.0.1';
 // Admin access. On a hosted deployment the admin area stays locked until ADMIN_PIN is set.
 const ADMIN_PIN = process.env.ADMIN_PIN || (process.env.VERCEL ? '' : '1008');
 const EDITOR_PIN = process.env.EDITOR_PIN || '';   // optional second role: can edit site content, cannot see bookings
-// Set ADMIN_EMAILS in the environment (comma separated). Never hard-code a
-// personal address here: this file lives in a public repository.
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+// Google sign-in for staff. Set these in the environment, comma separated.
+// Never hard-code a personal address here: this file lives in a public
+// repository. ADMIN_EMAILS opens the whole admin dashboard; GURUJI_EMAILS
+// opens only Guruji's case area (devotees, chat, charts, readings, sessions).
+const emailList = (value) => String(value || '')
   .split(',')
   .map(s => s.trim().toLowerCase())
   .filter(Boolean);
+const ADMIN_EMAILS = emailList(process.env.ADMIN_EMAILS);
+const GURUJI_EMAILS = emailList(process.env.GURUJI_EMAILS);
+
+/** Which dashboard a Google address may open: 'owner', 'guruji' or null.
+ *  An address in both lists gets the wider role. */
+function roleForEmail(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e) return null;
+  if (ADMIN_EMAILS.includes(e)) return 'owner';
+  if (GURUJI_EMAILS.includes(e)) return 'guruji';
+  return null;
+}
 const verifiedAdminTokens = new Map();
 const verifiedCustomerTokens = new Map();
 const CASHFREE = cashfreeConfig();
@@ -704,15 +718,23 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const body = await readJsonBody(req).catch(() => ({}));
       if (body && body.idToken) {
         const user = await verifyFirebaseToken(body.idToken);
-        if (user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-          const sessionToken = crypto.randomBytes(32).toString('hex');
-          verifiedAdminTokens.set(sessionToken, { email: user.email, role: 'owner', expiresAt: Date.now() + 3600000 });
-          return [200, { ok: true, role: 'owner', email: user.email, token: sessionToken }];
+        if (!user || !user.email) {
+          throw new HttpError(401, {
+            code: verifyFirebaseToken.lastError || 'unverified',
+            message: 'That Google sign-in could not be verified.'
+          });
         }
-        const userEmail = user && user.email ? user.email : 'Google Account';
-        throw new HttpError(403, `Access denied for ${userEmail}. Only registered temple admins can sign in.`);
+        const role = roleForEmail(user.email);
+        if (!role) {
+          throw new HttpError(403, 'This Google account is not on the staff list. Ask the owner to add it to ADMIN_EMAILS or GURUJI_EMAILS.');
+        }
+        const sessionToken = crypto.randomBytes(32).toString('hex');
+        verifiedAdminTokens.set(sessionToken, { email: user.email, role, expiresAt: Date.now() + 3600000 });
+        return [200, { ok: true, role, email: user.email, token: sessionToken }];
       }
-      if (!ADMIN_PIN && !GURUJI_PIN && !EDITOR_PIN && !ADMIN_EMAILS.length) throw new HttpError(503, 'The staff area is not configured yet (no PIN or admin email is set)');
+      if (!ADMIN_PIN && !GURUJI_PIN && !EDITOR_PIN && !ADMIN_EMAILS.length && !GURUJI_EMAILS.length) {
+        throw new HttpError(503, 'The staff area is not configured yet (no PIN or staff email is set)');
+      }
       const role = adminRole(req);
       if (!role) throw new HttpError(401, 'That PIN was not recognised');
       return [200, { ok: true, role }];

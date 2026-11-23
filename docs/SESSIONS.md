@@ -68,6 +68,8 @@ Run this once after setting the Jitsi keys, before taking real consultations. It
 | Name | Needed for | Notes |
 |---|---|---|
 | `GURUJI_PIN` | the case area, chat, chart, reading | long and random; not the same as `ADMIN_PIN` |
+| `ADMIN_EMAILS` | Google sign-in for the owner | comma separated; opens the whole dashboard |
+| `GURUJI_EMAILS` | Google sign-in for Guruji | comma separated; opens the case area only |
 | `JITSI_APP_ID`, `JITSI_KID`, `JITSI_PRIVATE_KEY` | JaaS rooms | from the 8x8 JaaS console; the private key is a PEM block |
 | `JITSI_DOMAIN`, `JITSI_APP_SECRET` | a self-hosted Jitsi instead | |
 | `JITSI_OPEN_BEFORE_MIN`, `JITSI_CLOSE_AFTER_MIN` | optional | defaults 10 and 30 |

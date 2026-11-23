@@ -107,3 +107,58 @@ describe('Firebase ID token verification', { skip: haveCerts ? false : 'no test 
     assert.equal(await server.verifyFirebaseToken(null), null);
   });
 });
+
+// Staff sign-in with Google: which address opens which dashboard.
+describe('staff Google sign-in', { skip: haveCerts ? false : 'no test certificate available' }, () => {
+  const fs2 = require('fs');
+  const privateKey = fs2.readFileSync(path.join(CERT_DIR, 'key.pem'), 'utf8');
+  const cert = fs2.readFileSync(path.join(CERT_DIR, 'cert.pem'), 'utf8');
+
+  const owner = 'owner-person@example.com';
+  const guruji = 'guruji-person@example.net';
+
+  let server, base, store;
+  const verify = async (email) => {
+    const token = makeToken(goodClaims({ email }), { key: privateKey });
+    const res = await fetch(base + '/api/admin/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token })
+    });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  };
+
+  test('each list opens its own dashboard, and nobody else gets in', async () => {
+    process.env.ADMIN_EMAILS = owner;
+    process.env.GURUJI_EMAILS = guruji;
+    process.env.RATE_LIMIT_MULTIPLIER = '100';
+    delete process.env.MONGODB_URI;
+    delete require.cache[require.resolve('../server')];
+    delete require.cache[require.resolve('../db')];
+    const freshServer = require('../server');
+    const { createStore } = require('../db');
+    freshServer._setGoogleCertsForTest({ 'test-key': cert });
+
+    store = await createStore({ uri: '' });
+    server = freshServer.createServer(store);
+    await new Promise(r => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${server.address().port}`;
+
+    const asOwner = await verify(owner);
+    assert.equal(asOwner.status, 200);
+    assert.equal(asOwner.body.role, 'owner');
+    assert.ok(asOwner.body.token);
+
+    const asGuruji = await verify(guruji);
+    assert.equal(asGuruji.status, 200);
+    assert.equal(asGuruji.body.role, 'guruji', "Guruji's address must not get the owner role");
+
+    const stranger = await verify('someone-else@example.org');
+    assert.equal(stranger.status, 403);
+
+    // Capitals and stray spaces in the stored list must not lock anyone out.
+    assert.equal((await verify(owner.toUpperCase())).body.role, 'owner');
+
+    server.close();
+    await store.close();
+  });
+});
