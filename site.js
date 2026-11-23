@@ -3110,7 +3110,7 @@
   // -------------------------------------------------------------------------
   // Guruji's case area
   // -------------------------------------------------------------------------
-  const GURUJI = { list: [], current: null, filter: '', view: 'pending', q: '', sort: 'soonest' };
+  const GURUJI = { list: [], current: null, filter: '', view: 'pending', section: '', q: '', sort: 'soonest' };
   const gurujiFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
     if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
@@ -3181,28 +3181,39 @@
     const waiting = all.filter(c => c.status !== 'COMPLETED');
     const today = new Date().toISOString().slice(0, 10);
     const row = (c) => {
+      const enquiry = c.kind === 'enquiry';
       const marks = [];
-      const photos = (c.photos || []).length;
-      if (photos) marks.push(photos + (photos === 1 ? ' photo' : ' photos'));
-      if (c.chart) marks.push('chart cast');
-      if (c.report && c.report.status === 'ready') marks.push('reading ready');
-      return `<a href="/guruji/${esc(c.orderId)}" data-link class="gm-row${c.unread ? ' is-unread' : ''}">
+      if (enquiry) {
+        if ((c.devotee || {}).mobile) marks.push((c.devotee || {}).mobile);
+        if (c.preferredDate) marks.push('wants ' + c.preferredDate);
+        if (c.message) marks.push(c.message.slice(0, 60));
+      } else {
+        const photos = (c.photos || []).length;
+        if (photos) marks.push(photos + (photos === 1 ? ' photo' : ' photos'));
+        if (c.chart) marks.push('chart cast');
+        if (c.report && c.report.status === 'ready') marks.push('reading ready');
+      }
+      const body = `
         <span class="gm-row__dot" aria-hidden="true"></span>
         <span class="gm-row__who">${esc((c.devotee || {}).name || 'Seeker')}</span>
-        <span class="gm-row__service">${esc((c.service && c.service.title) || 'Consultation')}</span>
+        <span class="gm-row__service">${esc((c.service && c.service.title) || 'Consultation')}
+          ${c.section ? `<em class="gm-row__section">${esc(c.section)}</em>` : ''}</span>
         <span class="gm-row__ref">${esc(c.orderId)}${marks.length ? `<em>${esc(marks.join(' · '))}</em>` : ''}</span>
         <span class="gm-row__tags">
-          <span class="sp-pill sp-pill--${STATUS_TONE[c.status] || 'muted'}">${esc(c.status.replace(/_/g, ' ').toLowerCase())}</span>
+          <span class="sp-pill sp-pill--${enquiry ? 'gold' : (STATUS_TONE[c.status] || 'muted')}">${esc(enquiry ? 'enquiry' : c.status.replace(/_/g, ' ').toLowerCase())}</span>
           ${c.unread ? `<span class="gm-row__unread">${c.unread} new</span>` : ''}
-          ${c.assignedTo ? '' : '<span class="gm-row__free">unclaimed</span>'}
-        </span>
-      </a>`;
+          ${enquiry || c.assignedTo ? '' : '<span class="gm-row__free">unclaimed</span>'}
+        </span>`;
+      // An enquiry is not a paid case, so there is no case page to open.
+      return enquiry
+        ? `<div class="gm-row is-enquiry">${body}</div>`
+        : `<a href="/guruji/${esc(c.orderId)}" data-link class="gm-row${c.unread ? ' is-unread' : ''}">${body}</a>`;
     };
     const startsAt = (c) => (c.slotStart || '');
     const isToday = (c) => startsAt(c).slice(0, 10) === today;
     // Guruji works a case through three stages, so the folders follow the status.
     const STAGE = {
-      pending: (c) => c.status === 'PAID',
+      pending: (c) => c.status === 'PAID' || c.kind === 'enquiry',
       inprogress: (c) => ['DETAILS_RECEIVED', 'SCHEDULED', 'AWAITING_REPORT'].includes(c.status),
       completed: (c) => c.status === 'COMPLETED'
     };
@@ -3221,6 +3232,7 @@
     };
     const q = GURUJI.q.trim().toLowerCase();
     let list = (views[GURUJI.view] || views.pending)();
+    if (GURUJI.section) list = list.filter((c) => c.section === GURUJI.section);
     if (q) list = list.filter(c => [c.orderId, (c.devotee || {}).name, (c.devotee || {}).mobile, (c.service || {}).title]
       .filter(Boolean).join(' ').toLowerCase().includes(q));
     list = list.slice().sort((a, b) => GURUJI.sort === 'newest'
@@ -3230,6 +3242,10 @@
     const chip = (id, label, n) => `<a href="#" class="${GURUJI.view === id ? 'is-active' : ''}" onclick="event.preventDefault(); gurujiView('${id}')">${label}${n ? ` (${n})` : ''}</a>`;
     const next = all.filter(c => startsAt(c) > new Date().toISOString() && c.status !== 'COMPLETED')
       .sort((a, b) => startsAt(a).localeCompare(startsAt(b)))[0];
+
+    const sections = [...new Set(all.map((c) => c.section).filter(Boolean))].sort();
+    // The label can hold quotes or an ampersand, so it travels encoded.
+    const sectionLink = (id, label, n) => `<a href="#" class="gm-folder gm-folder--sm${GURUJI.section === id ? ' is-active' : ''}" onclick="event.preventDefault(); gurujiSection(decodeURIComponent('${encodeURIComponent(id)}'))"><span>${esc(label)}</span>${n ? `<em>${n}</em>` : ''}</a>`;
 
     const folder = (id, label, icon, n) => `<a href="#" class="gm-folder${GURUJI.view === id ? ' is-active' : ''}" onclick="event.preventDefault(); gurujiView('${id}')">
         <i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
@@ -3255,6 +3271,11 @@
               ${folder('inprogress', 'In progress', 'fa-spinner', counts.inprogress)}
               ${folder('completed', 'Completed', 'fa-circle-check', counts.completed)}
             </nav>
+            ${sections.length > 1 ? `<nav class="gm-folders gm-folders--sections" aria-label="Sections">
+              <span class="gm-sectionhead">Sections</span>
+              ${sectionLink('', 'All services', all.length)}
+              ${sections.map((sn) => sectionLink(sn, sn, all.filter((c) => c.section === sn).length)).join('')}
+            </nav>` : ''}
             <div class="gm-next">
               <span>Next appointment</span>
               <strong>${next ? esc(new Date(next.slotStart).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })) : '—'}</strong>
@@ -3326,6 +3347,7 @@
     } catch (e) { tag.classList.add('hidden'); }
   };
 
+  window.gurujiSection = (v) => { GURUJI.section = v; renderCaseList(); };
   window.gurujiView = (v) => { GURUJI.view = v; renderCaseList(); };
   window.gurujiSort = (v) => { GURUJI.sort = v; renderCaseList(); };
   window.gurujiSearch = (v) => {

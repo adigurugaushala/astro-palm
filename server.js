@@ -706,6 +706,22 @@ const progressOf = (lessons, done) => {
 };
 // What Guruji sees in his case list
 const CASE_STATUSES = ['PAID', 'DETAILS_RECEIVED', 'SCHEDULED', 'AWAITING_REPORT', 'COMPLETED'];
+
+/**
+ * Which part of the practice a booking or an enquiry belongs to, so Guruji's
+ * panel can be read section by section. Falls back to the category id, then
+ * to 'Other', because a row must never go missing just because it is odd.
+ */
+function sectionFor(record, services, categories) {
+  const title = (id) => (categories.find((c) => c.id === id) || {}).title || id;
+  if (record.type === 'pooja') return title('puja-rituals');
+  if (record.type === 'course' || record.kind === 'course') return 'Courses';
+  const svc = record.service || {};
+  const found = (svc.slug && services.find((x) => x.slug === svc.slug))
+    || (svc.id && services.find((x) => x.consultationId === svc.id))
+    || (svc.id && services.find((x) => x.poojaId === svc.id));
+  return found ? title(found.category) : 'Other';
+}
 const ENQUIRY_STATUSES = ['NEW', 'CONTACTED', 'CONFIRMED', 'COMPLETED', 'CLOSED', 'CANCELLED'];
 const ENQUIRY_KINDS = ['booking', 'course', 'contact'];
 const MEDIA_TYPES = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
@@ -1453,10 +1469,33 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       requireGuruji(req);
       const filter = { status: str(url.searchParams.get('status'), 30), q: str(url.searchParams.get('q'), 60) };
       const all = await store.listBookings(filter, 300);
-      const cases = all.filter(b => CASE_STATUSES.includes(b.status));
       const unread = await store.unreadCounts();
+      const { services = [], serviceCategories = [] } = await getContent(store);
+
+      const cases = all.filter((b) => CASE_STATUSES.includes(b.status))
+        .map((b) => ({ ...b, kind: 'case', section: sectionFor(b, services, serviceCategories), unread: unread[b.orderId] || 0 }));
+
+      // Services booked by enquiry (Reiki, courses, anything without a price)
+      // never become bookings, so Guruji would otherwise never see them.
+      const enquiries = (await store.listEnquiries({}, 200))
+        .filter((e) => e.status !== 'CLOSED')
+        .map((e) => ({
+          orderId: e.reference,
+          kind: 'enquiry',
+          status: 'ENQUIRY',
+          section: sectionFor(e, services, serviceCategories),
+          service: e.service || { title: 'Enquiry' },
+          devotee: { name: (e.contact || {}).name || 'Seeker', mobile: (e.contact || {}).phone || '' },
+          message: e.message || '',
+          preferredDate: e.preferredDate || '',
+          preferredTime: e.preferredTime || '',
+          createdAt: e.createdAt,
+          unread: 0
+        }));
+
       return [200, {
-        cases: cases.map(b => ({ ...b, unread: unread[b.orderId] || 0 })),
+        cases: cases.concat(enquiries),
+        sections: [...new Set(cases.concat(enquiries).map((r) => r.section))].sort(),
         statuses: CASE_STATUSES
       }];
     }],

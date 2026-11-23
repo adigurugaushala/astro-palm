@@ -159,6 +159,34 @@ for (const backend of ['mongodb', 'file']) {
       assert.ok(new Date(r.body.opensAt) > new Date());
     });
 
+    test('every service reaches Guruji, enquiries included, tagged by section', async () => {
+      const paid = await newBooking(90, '9100000021');
+      await pay(paid.orderId, '9100000021');
+      // Reiki and courses are booked by enquiry, so they never become bookings.
+      const enq = await call('POST', '/api/enquiries', {
+        kind: 'booking', service: 'reiki-individual-session',
+        name: 'Reiki Seeker', phone: '9100000022', message: 'An in-person session please.'
+      });
+      assert.equal(enq.status, 201);
+
+      const res = await call('GET', '/api/guruji/cases', null, guruji);
+      assert.equal(res.status, 200);
+      const rows = res.body.cases;
+
+      const theCase = rows.find((r) => r.orderId === paid.orderId);
+      assert.ok(theCase, 'the paid booking is listed');
+      assert.equal(theCase.kind, 'case');
+      assert.ok(theCase.section, 'a case carries its section');
+
+      const theEnquiry = rows.find((r) => r.orderId === enq.body.enquiry.reference);
+      assert.ok(theEnquiry, 'the enquiry reaches the panel too');
+      assert.equal(theEnquiry.kind, 'enquiry');
+      assert.equal(theEnquiry.status, 'ENQUIRY');
+      assert.equal(theEnquiry.devotee.mobile, '9100000022', 'Guruji can see who to call');
+      assert.ok(res.body.sections.includes(theEnquiry.section), 'its section is offered as a filter');
+    });
+
+
     test('409 ended after the window has closed', async () => {
       const past = await newBooking(-300, '9100000013');
       await pay(past.orderId, '9100000013');
