@@ -1,7 +1,9 @@
 # Dependencies
 node_modules/
 
-# Secrets — never commit real credentials
+# Archives
+*.zip
+*.tar.gz
 .env
 .env.*
 !.env.example
