@@ -263,7 +263,7 @@ for (const backend of ['mongodb', 'file']) {
       const pub = await call('GET', '/api/content');
       assert.equal(pub.status, 200);
       const core = pub.body.content.services.filter(x => x.core);
-      assert.equal(core.length, 3, 'three core consultations');
+      assert.equal(core.length, 4, 'four core consultations');
       assert.ok(pub.body.content.services.every(x => x.published !== false), 'drafts are not public');
 
       assert.equal((await call('GET', '/api/admin/content')).status, 401);

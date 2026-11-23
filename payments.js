@@ -52,7 +52,7 @@ function createCashfree(config = cashfreeConfig(), fetchImpl = globalThis.fetch)
     let data = {};
     try { data = await res.json(); } catch (e) { /* empty body */ }
     if (!res.ok) {
-      // Log Cashfree's reason for the server logs; show the devotee a plain message
+      // Log Cashfree's reason for the server logs; show the seeker a plain message
       console.error(`[payments] Cashfree ${method} ${path} → ${res.status}: ${data.message || data.code || 'error'}`);
       throw new PaymentGatewayError('The payment gateway could not process this request. Please try again in a moment.');
     }

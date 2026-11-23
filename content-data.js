@@ -117,7 +117,7 @@
         title: 'Japa Performed by Experienced Purohits',
         paragraphs: [
           'Guruji Palmistry facilitates traditional Japa and Mantra observances by engaging experienced Purohits/Brahmins to undertake the prescribed prayers and rituals on behalf of devotees.',
-          'The devotee is required to provide the relevant Gothra, names and Tithi details, along with the Sankalpa or purpose for which the Japa is intended. Based on these details, the appropriate Mantra and prescribed observance are arranged.',
+          'The seeker is required to provide the relevant Gothra, names and Tithi details, along with the Sankalpa or purpose for which the Japa is intended. Based on these details, the appropriate Mantra and prescribed observance are arranged.',
           'The Japa is conducted with reverence to tradition, adherence to the prescribed count and a sincere devotional intention.'
         ],
         highlight: 'You provide the Sankalpa. We arrange the Japa. The Mantra becomes an offering.'
@@ -179,7 +179,7 @@
   }, extra);
 
   const services = [
-    // --- Three core consultations ------------------------------------------
+    // --- Four core consultations (the fourth, Reiki Healing, is further down) --
     S('palmistry', 'detailed-palm-analysis', 'Detailed Palm Analysis',
       'A complete study of your hands — shape, fingers, mounts, major and minor lines and special marks.',
       ['Health and vitality', 'Wealth and prosperity', 'Education and intelligence', 'Career and profession', 'Marriage and relationships', 'Children and siblings', 'Travel, spiritual inclination and life periods'],
@@ -397,9 +397,9 @@
     S('muhurta', 'naming-ceremony-muhurta', 'Naming Ceremony (Namakaranam) Muhurta', 'An auspicious time for the naming ceremony, and suggested starting syllables.', ['Suitable dates', 'Nakshatra syllables for the name'], { image: '/assets/services/muhurta_naming_ceremony.jpg' }),
 
     // --- Reiki -------------------------------------------------------------
-    S('reiki', 'reiki-individual-session', 'Reiki Healing Session (In-Person at Adiguru Wellness Centre)', 'A one-to-one in-person Reiki session at Adiguru Wellness Centre for deep relaxation, vitality and inner balance.', ['Deep relaxation & stress relief', 'Calm and grounding', 'Time to rest the mind and body', 'Personalised in-person care at Adiguru Wellness Centre'], { duration: 'About 45–60 minutes', featured: true, image: '/assets/courses/reiki_level_1_beginner.jpg' }),
+    S('reiki', 'reiki-individual-session', 'Reiki Healing Session (In-Person at Adiguru Wellness Centre)', 'A one-to-one in-person Reiki session at Adiguru Wellness Centre for deep relaxation, vitality and inner balance.', ['Deep relaxation & stress relief', 'Calm and grounding', 'Time to rest the mind and body', 'Personalised in-person care at Adiguru Wellness Centre'], { core: true, duration: 'About 45–60 minutes', featured: true, image: '/assets/courses/reiki_level_1_beginner.jpg' }),
     S('reiki', 'distance-reiki-session', 'Distance Reiki Session (Online / Remote)', 'A gentle Reiki session offered remotely at an agreed time, while you rest comfortably in your own space.', ['Convenient remote session from anywhere', 'Rest in your personal sacred space', 'Subtle energy balancing and calm'], { duration: 'About 30–45 minutes', featured: true, image: '/assets/courses/reiki_level_2_practitioner.jpg' }),
-    S('reiki', 'reiki-extended-session', 'Reiki Healing — Extended Session', 'A longer session that allows more time for relaxation and integration.', ['More time to settle', 'Includes guided breathing'], { duration: 'About 90 minutes' }),
+    S('reiki', 'reiki-extended-session', 'Reiki Healing — Extended Session', 'A longer session that allows more time for relaxation and integration.', ['More time to settle', 'Includes guided breathing'], { duration: 'About 90 minutes', published: false }),
     S('reiki', 'stress-relaxation-session', 'Stress Relaxation Session', 'A session focused on relaxation for busy, stressful periods.', ['Pause and unwind', 'Simple breathing practices for home'], { published: false }),
     S('reiki', 'chakra-balancing-session', 'Chakra Awareness & Balancing Session', 'Reiki with attention to each of the seven chakras, and an introduction to chakra awareness.', ['Introduction to the seven chakras', 'Guided awareness practice'], { published: false }),
     S('reiki', 'reiki-meditation-session', 'Reiki Meditation Session', 'A guided meditation session using Reiki principles.', ['Guided meditation', 'Reiki principles for daily life'], { published: false }),
@@ -699,7 +699,7 @@
         ],
         [
           '9. Testimonials and Individual Experiences',
-          'Testimonials, reviews, case examples, feedback and stories shared on Guruji Palmistry represent individual experiences of specific devotees and seekers. They do not represent typical or guaranteed outcomes for any other person.'
+          'Testimonials, reviews, case examples, feedback and stories shared on Guruji Palmistry represent individual experiences of specific seekers and seekers. They do not represent typical or guaranteed outcomes for any other person.'
         ],
         [
           '10. Voluntary Participation',
@@ -727,7 +727,7 @@
       sections: [
         [
           '1. Commitment to Privacy & Statutory Compliance',
-          'Guruji Palmistry ("we", "us", "our") is deeply committed to protecting the privacy and personal data of our devotees, seekers and website visitors ("Data Principals"). This Privacy Policy complies with India\'s Digital Personal Data Protection Act, 2023 (DPDP Act 2023), the Information Technology Act, 2000, and the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011.'
+          'Guruji Palmistry ("we", "us", "our") is deeply committed to protecting the privacy and personal data of our seekers, seekers and website visitors ("Data Principals"). This Privacy Policy complies with India\'s Digital Personal Data Protection Act, 2023 (DPDP Act 2023), the Information Technology Act, 2000, and the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011.'
         ],
         [
           '2. Categories of Personal Data Collected',
@@ -735,7 +735,7 @@
         ],
         [
           '3. Lawful Purpose of Data Processing',
-          'Your personal data is processed strictly for legitimate spiritual and administrative purposes:\n• To compute astrological charts (Kundali), planetary dashas, and analyze palm images for your booked reading.\n• To perform sacred Sankalpa Poojas, Japas and Homams with ordained Vedic purohits.\n• To communicate appointment confirmations, room joining links, and deliver PDF consultation reports.\n• To maintain secure devotee portal accounts and booking history tracking.\n• To comply with applicable statutory laws, tax regulations and audit requirements in India.\nWe NEVER sell, trade, rent or monetize your personal data to any third-party advertisers or marketing brokers.'
+          'Your personal data is processed strictly for legitimate spiritual and administrative purposes:\n• To compute astrological charts (Kundali), planetary dashas, and analyze palm images for your booked reading.\n• To perform sacred Sankalpa Poojas, Japas and Homams with ordained Vedic purohits.\n• To communicate appointment confirmations, room joining links, and deliver PDF consultation reports.\n• To maintain secure seeker portal accounts and booking history tracking.\n• To comply with applicable statutory laws, tax regulations and audit requirements in India.\nWe NEVER sell, trade, rent or monetize your personal data to any third-party advertisers or marketing brokers.'
         ],
         [
           '4. Payment Security & Financial Data',
@@ -747,7 +747,7 @@
         ],
         [
           '6. Data Storage, Retention & Security Safeguards',
-          'Devotee information is stored in secure, encrypted cloud databases protected by role-based access control, firewall layers, and 256-bit SSL encryption in transit. Personal data is retained only for as long as necessary to fulfill the services requested or meet legal compliance periods, after which it is securely purged or anonymized.'
+          'Seeker information is stored in secure, encrypted cloud databases protected by role-based access control, firewall layers, and 256-bit SSL encryption in transit. Personal data is retained only for as long as necessary to fulfill the services requested or meet legal compliance periods, after which it is securely purged or anonymized.'
         ],
         [
           '7. Grievance Redressal Officer Contact Details',
@@ -763,7 +763,7 @@
       sections: [
         [
           '1. Scope of Agreement & Acceptance',
-          'These Terms & Conditions constitute a legally binding agreement between you ("Seeker", "Devotee", or "User") and Guruji Palmistry. By accessing our website, creating a devotee account, booking a consultation, ordering a pooja or enrolling in a course, you unconditionally agree to these Terms and our incorporated Disclaimer and Privacy Policy.'
+          'These Terms & Conditions constitute a legally binding agreement between you ("Seeker" or "User") and Guruji Palmistry. By accessing our website, creating a seeker account, booking a consultation, ordering a pooja or enrolling in a course, you unconditionally agree to these Terms and our incorporated Disclaimer and Privacy Policy.'
         ],
         [
           '2. Eligibility & Age Verification',
@@ -795,7 +795,7 @@
       title: 'Cancellation & Refund Policy',
       version: '1.0',
       updated: '2026-11-22',
-      badge: 'Fair, Transparent & Devotee-Centric Policy',
+      badge: 'Fair, Transparent & Seeker-Centric Policy',
       sections: [
         [
           '1. Consultation Rescheduling & Cancellation',
@@ -831,11 +831,11 @@
       title: 'Customer Consent & Acknowledgement Policy',
       version: '1.0',
       updated: '2026-11-22',
-      badge: 'Informed Consent, Digital Audit & Devotee Rights',
+      badge: 'Informed Consent, Digital Audit & Seeker Rights',
       sections: [
         [
           '1. Principle of Mandatory Informed Consent',
-          'At Guruji Palmistry, customer consent is fundamental to ethical spiritual practice. Before any devotee account is created, consultation booked, or payment processed, clients are presented with a clear, mandatory legal consent checkbox that must be affirmatively checked by the user. Pre-ticked boxes are strictly prohibited.'
+          'At Guruji Palmistry, customer consent is fundamental to ethical spiritual practice. Before any seeker account is created, consultation booked, or payment processed, clients are presented with a clear, mandatory legal consent checkbox that must be affirmatively checked by the user. Pre-ticked boxes are strictly prohibited.'
         ],
         [
           '2. Exact Consent Statement',
@@ -863,7 +863,7 @@
       sections: [
         [
           '1. Objective & Redressal Commitment',
-          'Guruji Palmistry is dedicated to maintaining the highest ethical standards in spiritual consultation, pooja services and devotee communication. We believe every seeker deserves attentive, empathetic and transparent resolution of any grievances regarding appointments, payments, reports or data privacy.'
+          'Guruji Palmistry is dedicated to maintaining the highest ethical standards in spiritual consultation, pooja services and seeker communication. We believe every seeker deserves attentive, empathetic and transparent resolution of any grievances regarding appointments, payments, reports or data privacy.'
         ],
         [
           '2. Designated Grievance Officer',

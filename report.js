@@ -1,7 +1,7 @@
 // GURUJI PALMISTRY — the written report, as a PDF
 //
 // Guruji writes the sections in his case area; this turns them, with the birth
-// chart, into a document the devotee can download. PDFKit only — no browser,
+// chart, into a document the seeker can download. PDFKit only — no browser,
 // no external service.
 
 'use strict';
@@ -57,7 +57,7 @@ const paragraphs = (doc, text) => {
 
 /**
  * Builds the PDF and resolves with a Buffer.
- * @param {object} booking - the booking, with devotee, service, chart and report
+ * @param {object} booking - the booking, with seeker, service, chart and report
  * @param {object} settings - site settings (brand, email, phone)
  */
 function buildReportPdf(booking, settings = {}) {

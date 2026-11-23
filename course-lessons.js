@@ -125,7 +125,7 @@ function courseOutline(slug) {
   };
 }
 
-/** Full lessons, for an enrolled devotee only. */
+/** Full lessons, for an enrolled seeker only. */
 function courseLessons(slug) {
   const c = COURSES[slug];
   return c ? c.lessons : null;

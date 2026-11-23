@@ -54,7 +54,7 @@ function signJwt(payload, { alg, key, kid }) {
 
 /**
  * The token for one person for one room. Moderator rights go to Guruji only;
- * the devotee is always a guest.
+ * the seeker is always a guest.
  */
 function sessionToken(config, { room, name, moderator, expiresAt }) {
   const now = Math.floor(Date.now() / 1000);

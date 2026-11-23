@@ -1,6 +1,6 @@
 // GURUJI - Production Application Controller
 
-// Devotee Session & Booking State
+// Seeker Session & Booking State
 const state = {
   currentPage: "home",
   selectedService: {
@@ -46,7 +46,7 @@ const state = {
 };
 
 // =========================================================================
-// SLOT PERSISTENCE ENGINE (Protects devotee appointment slot across reloads & auth)
+// SLOT PERSISTENCE ENGINE (Protects seeker appointment slot across reloads & auth)
 // =========================================================================
 function persistHeldSlot() {
   try {
@@ -126,7 +126,7 @@ function showPage(pageId) {
   if (pageId === "book-pooja") initPoojaDatePicker();
   if (pageId === "book-status") prepareTrackPage();
 
-  // The 10-minute slot hold starts when the devotee enters the booking flow
+  // The 10-minute slot hold starts when the seeker enters the booking flow
   if ((pageId === "book-consultation" || pageId === "book-pooja") && !state.slotTimerInterval && state.paymentStatus !== "SUCCESS") {
     state.isSlotHeld = true;
     state.slotTimerSeconds = 600;
@@ -265,7 +265,7 @@ function rememberBooking(b) {
   try { localStorage.setItem(LAST_BOOKING_KEY, JSON.stringify({ orderId: b.orderId, mobile: b.devotee.mobile })); } catch (e) {}
 }
 
-/** Pre-fills the lookup with the devotee's latest booking (this session, or saved on this device). */
+/** Pre-fills the lookup with the seeker's latest booking (this session, or saved on this device). */
 function prepareTrackPage() {
   let last = state.booking ? { orderId: state.booking.orderId, mobile: state.booking.devotee.mobile } : null;
   if (!last) { try { last = JSON.parse(localStorage.getItem(LAST_BOOKING_KEY) || "null"); } catch (e) {} }
@@ -433,7 +433,7 @@ function renderTrackedBooking(b) {
       <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-[15px] border-t border-line pt-6">
         <div><dt class="text-ink-3 text-sm">${isPooja ? "Poojas" : isCourse ? "Course" : "Service"}</dt><dd class="font-semibold text-ink">${escapeHTML(what)}</dd></div>
         <div><dt class="text-ink-3 text-sm">${isPooja ? "Pooja date & slot" : isCourse ? "Lessons" : "Consultation slot"}</dt><dd class="font-semibold text-ink">${escapeHTML(when || "—")}</dd></div>
-        <div><dt class="text-ink-3 text-sm">Devotee</dt><dd class="font-semibold text-ink">${escapeHTML(b.devotee.name)}${b.devotee.gotram ? ` · ${escapeHTML(b.devotee.gotram)}` : ""}</dd></div>
+        <div><dt class="text-ink-3 text-sm">Seeker</dt><dd class="font-semibold text-ink">${escapeHTML(b.devotee.name)}${b.devotee.gotram ? ` · ${escapeHTML(b.devotee.gotram)}` : ""}</dd></div>
         <div><dt class="text-ink-3 text-sm">Amount</dt><dd class="font-semibold text-ink">₹ ${Number(b.amount).toLocaleString("en-IN")}</dd></div>
         ${isPooja ? `<div class="sm:col-span-2"><dt class="text-ink-3 text-sm">Prasadam delivery</dt><dd class="font-semibold text-ink">${escapeHTML(addr)}</dd></div>` : ""}
       </dl>
@@ -1255,7 +1255,7 @@ function proceedToPoojaPayment() {
   }
   const deliver = document.getElementById("prasadam-deliver").checked;
   const rules = [
-    { id: "pooja-name", rule: "name", msg: "Please enter the devotee's full name." },
+    { id: "pooja-name", rule: "name", msg: "Please enter the seeker's full name." },
     { id: "pooja-gotram", rule: "required", msg: "Please enter your gotram, or choose “I don't know my gotram”." },
     { id: "pooja-mobile", rule: "mobile", msg: "Enter a valid 10-digit Indian mobile number." },
     { id: "pooja-date", rule: "isoDateInWindow", msg: "Choose a pooja date from tomorrow up to 90 days ahead." }
@@ -1399,7 +1399,7 @@ function selectTimeSlot(slotTime) {
 }
 
 // ==========================================
-// DEVOTEE AUTH CONTROLLER (PRESERVES SLOT!)
+// SEEKER AUTH CONTROLLER (PRESERVES SLOT!)
 // ==========================================
 
 async function handleAuthSubmit(event) {
@@ -1662,7 +1662,7 @@ function handleSendChatMessage(event) {
 
   const container = document.getElementById("chat-messages-container");
   
-  // Devotee message
+  // Seeker message
   const userMsg = document.createElement("div");
   userMsg.className = "flex justify-end";
   userMsg.innerHTML = `
@@ -1879,14 +1879,14 @@ function generateAndDownloadPDF() {
   doc.setTextColor(212, 175, 55);
   doc.text("HASTAREKHA SAMUDRIKA SHASTRA & KUNDALI DOSSIER", pageWidth / 2, 65, { align: 'center' });
 
-  // Devotee Meta
+  // Seeker Meta
   doc.setFillColor(250, 245, 236);
   doc.rect(40, 105, pageWidth - 80, 50, 'F');
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(44, 18, 20);
-  doc.text(`Devotee Name: ${state.user.name}`, 55, 125);
+  doc.text(`Seeker Name: ${state.user.name}`, 55, 125);
   doc.text(`Date of Birth: ${state.user.dob}`, 55, 142);
   doc.text(`Order ID: ${state.orderId}`, pageWidth - 200, 125);
   doc.text(`Consultant: Adiguru Swamiji`, pageWidth - 200, 142);
@@ -3294,7 +3294,7 @@ function openCourseModal(type = 'palmistry') {
   if (titleEl) titleEl.innerText = course.title;
   if (badgeEl) badgeEl.innerText = course.badge;
   if (durationEl) durationEl.innerText = course.duration;
-  if (priceEl) priceEl.innerText = course.price;
+  if (priceEl) priceEl.innerText = 'On enquiry';
   if (descEl) descEl.innerText = course.desc;
 
   document.getElementById('course-details-modal')?.classList.remove('hidden');
@@ -3385,7 +3385,7 @@ if (typeof window !== 'undefined' && window.TEST_ONE_RUPEE) {
 }
 
 // =========================================================================
-// DEVOTEE ACCOUNT PORTAL CONTROLLER
+// SEEKER ACCOUNT PORTAL CONTROLLER
 // =========================================================================
 window.toggleAuthTab = function(tab) {
   const signinForm = document.getElementById("cust-signin-form");
@@ -3625,7 +3625,7 @@ window.renderAccountPortal = async function() {
           <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-xl mb-2">
             <i class="fa-regular fa-user"></i>
           </div>
-          <h2 class="font-serif text-2xl font-bold text-night-2">Devotee Account</h2>
+          <h2 class="font-serif text-2xl font-bold text-night-2">Seeker Account</h2>
           <p class="text-xs text-ink-3">Sign in or create an account to view your consultations, pooja bookings and reports.</p>
         </div>
 
@@ -3655,7 +3655,7 @@ window.renderAccountPortal = async function() {
         <form id="cust-signin-form" onsubmit="handleCustomerLogin(event)" class="space-y-4 text-xs">
           <div>
             <label class="block font-semibold text-ink mb-1">Mobile Number or Email</label>
-            <input type="text" id="cust-login-id" required placeholder="98765 43210 or devotee@example.com" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
+            <input type="text" id="cust-login-id" required placeholder="98765 43210 or seeker@example.com" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
           </div>
           <div>
             <label class="block font-semibold text-ink mb-1">Password</label>
@@ -3756,7 +3756,7 @@ window.renderAccountPortal = async function() {
         <div class="bg-gradient-to-br from-amber-50 to-white p-6 sm:p-7 rounded-3xl border-2 border-amber-300 shadow-sm space-y-4" data-profile-complete>
           <div class="text-center space-y-1">
             <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-xl"><i class="fa-regular fa-user-circle"></i></div>
-            <h2 class="font-serif text-xl font-bold text-night-2">Almost there, ${(cust.name || 'Devotee').split(' ')[0]}</h2>
+            <h2 class="font-serif text-xl font-bold text-night-2">Almost there, ${(cust.name || 'Seeker').split(' ')[0]}</h2>
             <p class="text-xs text-ink-3 max-w-sm mx-auto">Guruji needs a mobile number to confirm your appointment and reach you on the day. Nothing else is missing.</p>
           </div>
           <form onsubmit="saveCustomerProfile(event, this)" class="max-w-sm mx-auto space-y-3">
@@ -3781,7 +3781,7 @@ window.renderAccountPortal = async function() {
                 ${(cust.name || 'D').charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 class="font-serif text-xl sm:text-2xl font-bold text-night-2">${cust.name || 'Devotee'}</h2>
+                <h2 class="font-serif text-xl sm:text-2xl font-bold text-night-2">${cust.name || 'Seeker'}</h2>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3 mt-0.5">
                   <span><i class="fa-solid fa-phone text-2xs text-amber-700"></i> ${cust.mobile ? '+91 ' + cust.mobile : 'No mobile number yet'}</span>
                   <span>•</span>

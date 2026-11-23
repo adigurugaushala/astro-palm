@@ -25,11 +25,11 @@ When `MONGODB_URI` is set in `.env`, the server stores everything in MongoDB (da
 
 | Collection | Contents |
 |---|---|
-| `bookings` | Consultation and pooja bookings: order ID, service, server-calculated amount, slot, devotee details, uploaded photo names, payment status and history |
+| `bookings` | Consultation and pooja bookings: order ID, service, server-calculated amount, slot, seeker details, uploaded photo names, payment status and history |
 | `enquiries` | Contact / booking / course enquiries from the contact form, with their reference and status |
 | `content` | Admin edits to the site content (one document per section; anything not edited comes from `content-data.js`) |
 | `media` | Images uploaded in the admin dashboard, served from `/api/media/:id` |
-| `reviews` | Devotee reviews (marked *verified* only when tied to a paid booking) |
+| `reviews` | Seeker reviews (marked *verified* only when tied to a paid booking) |
 | `mantras`, `mantra_categories` | The Mantras & Stotras library — copied from `data/mantras.json` automatically the first time the server connects |
 
 If `MONGODB_URI` is empty, still contains `<db_password>`, or the cluster can't be reached, the server logs why and falls back to JSON files in `./data`, so the site never goes down.
@@ -63,7 +63,7 @@ If `MONGODB_URI` is empty, still contains `<db_password>`, or the cluster can't 
 | `GET /api/bookings/:orderId/session` | The consultation room: domain, room name, token, window. 401/404/409 (`not_paid`, `too_early`, `ended`) |
 | `POST /api/bookings/:orderId/session/joined` | Records the first join (idempotent) |
 | `POST /api/bookings/:orderId/session/end` | Closes the room — Guruji or the owner only |
-| `GET/POST /api/bookings/:orderId/messages` | Chat between the devotee and Guruji |
+| `GET/POST /api/bookings/:orderId/messages` | Chat between the seeker and Guruji |
 | `GET/POST /api/bookings/:orderId/chart` | The birth chart: read it, or cast it (Guruji) |
 | `GET /api/bookings/:orderId/report.pdf?mobile=` | The written reading, once Guruji marks it ready |
 | `GET /api/guruji/cases[/:orderId]` | Guruji's case list and one case — needs `GURUJI_PIN` or `ADMIN_PIN` |
@@ -89,7 +89,7 @@ On first connection the server creates its indexes and copies `data/mantras.json
 
 ## Consultations, chat and courses
 
-Each paid consultation gets a private video and audio room of its own, open from ten minutes before the appointment until thirty minutes after it. Guruji joins as moderator from `/guruji`; the devotee joins as a guest from Track Status. Chat sits beside it, in the app only — no email, no WhatsApp. Guruji casts the birth chart, writes the reading, and the devotee downloads it as a PDF.
+Each paid consultation gets a private video and audio room of its own, open from ten minutes before the appointment until thirty minutes after it. Guruji joins as moderator from `/guruji`; the seeker joins as a guest from Track Status. Chat sits beside it, in the app only — no email, no WhatsApp. Guruji casts the birth chart, writes the reading, and the seeker downloads it as a PDF.
 
 Set the Jitsi keys before taking real consultations: with none set the room falls back to the public `meet.jit.si` service, which anyone with the link could enter. `docs/SESSIONS.md` has the three ways to run it, the 401/404/409 contract and the manual two-browser check.
 
@@ -133,7 +133,7 @@ Prices shown on the site and charged by the server both come from the admin's se
 With `CASHFREE_APP_ID` and `CASHFREE_SECRET_KEY` set, the site uses Cashfree Checkout:
 
 1. The browser asks the server to start a payment for a booking; the **server** sets the amount.
-2. Cashfree checkout opens; the devotee pays by UPI, card, net banking or wallet.
+2. Cashfree checkout opens; the seeker pays by UPI, card, net banking or wallet.
 3. On return, the server asks Cashfree for the order status and only then marks the booking paid. The webhook does the same — the webhook body is never trusted on its own, and a payment for the wrong amount is refused.
 
 Without the keys the site runs in test mode (`PAYMENT_MODE=simulated`): the whole flow works, with simulate-success / simulate-failure buttons, and no money moves. **Keys live only in environment variables — never in the repository.**

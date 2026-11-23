@@ -3,7 +3,7 @@
  * How this works: every string below is keyed by its exact English text. After
  * each render the page is walked and any text node, placeholder, aria-label or
  * title whose trimmed text matches a key is swapped for the chosen language.
- * Nothing is guessed — a string with no entry stays in English, so devotees
+ * Nothing is guessed — a string with no entry stays in English, so seekers
  * never see half-machine-translated sentences.
  *
  * Long-form writing (articles, course lessons, Guruji's readings) stays in
@@ -33,7 +33,7 @@
       'Help': 'సహాయం',
       'Astro-Palmistry': 'జ్యోతిష్య-హస్తసాముద్రికం',
       'Palm Analysis': 'హస్త విశ్లేషణ',
-      'Kundali Analysis': 'కుండలి విశ్లేషణ',
+      'Comprehensive Kundali Analysis': 'సమగ్ర కుండలి విశ్లేషణ',
       'Puja & Seva': 'పూజ & సేవ',
       'Japa & Mantra': 'జపం & మంత్రం',
       'Muhurta': 'ముహూర్తం',
@@ -87,7 +87,7 @@
       'Consultation': 'సంప్రదింపు',
       'Pooja Seva': 'పూజా సేవ',
       'Course': 'కోర్సు',
-      'Devotee': 'భక్తులు',
+      'Seeker': 'భక్తులు',
       'Amount': 'మొత్తం',
       'Service': 'సేవ',
       'Lessons': 'పాఠాలు',
@@ -180,7 +180,7 @@
       'Help': 'सहायता',
       'Astro-Palmistry': 'ज्योतिष-हस्तरेखा',
       'Palm Analysis': 'हस्त विश्लेषण',
-      'Kundali Analysis': 'कुंडली विश्लेषण',
+      'Comprehensive Kundali Analysis': 'व्यापक कुंडली विश्लेषण',
       'Puja & Seva': 'पूजा और सेवा',
       'Japa & Mantra': 'जप और मंत्र',
       'Muhurta': 'मुहूर्त',
@@ -230,7 +230,7 @@
       'Consultation': 'परामर्श',
       'Pooja Seva': 'पूजा सेवा',
       'Course': 'पाठ्यक्रम',
-      'Devotee': 'भक्त',
+      'Seeker': 'भक्त',
       'Amount': 'राशि',
       'Service': 'सेवा',
       'Lessons': 'पाठ',

@@ -200,7 +200,7 @@ const GURUJI_MANTRAS_SEED = [
       "facing_direction": "South or East",
       "dhyana_shloka": "धरणीगर्भसम्भूतं विद्युत्कान्तिसमप्रभम् । कुमारं शक्तिहस्तं च मङ्गलं प्रणमाम్యहम् ॥"
     },
-    "important_notes": "Devotees practicing this should maintain truthfulness and avoid anger.",
+    "important_notes": "Seekers practicing this should maintain truthfulness and avoid anger.",
     "image": "assets/offer_icon_2_astrology.png",
     "audio": "assets/audio/mangala_beeja_mantra.mp3",
     "featured": false,
@@ -379,7 +379,7 @@ const GURUJI_MANTRAS_SEED = [
     "english_transliteration": "Om Praam Preem Proum Sah Shanaishcharaaya Namah ||",
     "telugu_meaning": "న్యాయాధిపతి, కర్మఫల ప్రదాత అయిన శనీశ్వర భగవానునికి భయభక్తులతో నమస్కరిస్తున్నాను.",
     "english_meaning": "Om, prostrations to Lord Shanaishchara (Saturn), the solemn dispeller of illusions and dispenser of righteous karmic rewards.",
-    "traditional_significance": "Essential remedy for devotees undergoing 7.5 years Sade Sati, Kantaka Shani, Ashtama Shani, or severe career delays.",
+    "traditional_significance": "Essential remedy for seekers undergoing 7.5 years Sade Sati, Kantaka Shani, Ashtama Shani, or severe career delays.",
     "recitation_method": "Light a sesame oil (Til) diya facing West, sit on a dark woollen blanket with humility.",
     "recitation_guidance": {
       "recommended_count": "108 times (total 23,000 times over 40 Saturdays)",
@@ -888,7 +888,7 @@ const GURUJI_MANTRAS_SEED = [
       "Karmic Armor"
     ],
     "short_description": "The essence of the 700-verse Durga Saptashati distilled into 7 omnipotent verses for rapid divine protection.",
-    "introduction": "Contained within the Devi Mahatmyam of Markandeya Purana, Lord Shiva summarized the entire 700 verses of Chandi Path into these seven verses for devotees who lack time for long rituals.",
+    "introduction": "Contained within the Devi Mahatmyam of Markandeya Purana, Lord Shiva summarized the entire 700 verses of Chandi Path into these seven verses for seekers who lack time for long rituals.",
     "sanskrit_text": "ॐ अस्य श्रीदुर्गासप्तश्लोकीस्तोत्रमन्त्रस्य नारायण ऋषिः, अनुष्टुप् छन्दः, श्रीमहाकाली-महालक्ष्मी-महासरस्वत्यो देवताः, श्रीदुर्गाप्रीत्यर्थं सप्तश्लोकीदुर्गापाठे विनियोगः ॥\nज्ञानिनामपि चेतांसि देवी भगवती हि सा । बलादाकृष्य मोहाय महामाया प्रयच्छति ॥ १ ॥\nदुर्गे स्मृता हरसि भीतिमशेषजन्तोः स्वस्थैः स्मृता मतिमतीव शुभां ददासि ।\nदारिद्र्यदुःखभयहारिणि का त्वदन्या सर्वोपकारकरणाय सदार्द्रचित्ता ॥ २ ॥\nसर्वमङ्गलमाङ्गल्ये शिवे सर्वार्थसाधिके । शरण्ये त्र्यम्बके गौरि नारायणि नमोऽस्तु ते ॥ ३ ॥\nशरणागतदीनार्तपरित्राणपरायणे । सर्वस्यार्तिहरे देवि नारायणि नमोऽस्तु ते ॥ ४ ॥\nसर्वस्वरूपे सर्वेशे सर्वशक्तिसमन्विते । भयेभ्यस्त्राहि नो देवि दुर्गे देवि नमोऽस्तु ते ॥ ५ ॥\nरोगानशेषानपहंसि तुष्टा रुष्टा तु कामान् सकलानभीष्टान् ।\nत्वामाश्रितानां न विपन्नराणां त्वामाश्रिता ह्याश्रयतां प्रयान्ति ॥ ६ ॥\nसर्वाबाधाप्रशमनं त्रैलोक्यस्याखिलेश्वरि । एवमेव त्वया कार्यमस्मद्वैरिविनाशनम् ॥ ७ ॥",
     "telugu_text": "జ్ఞానినామపి చేతాంసి దేవీ భగవతీ హి సా | బలాదాకృష్య మోహాయ మహామాయా ప్రయచ్ఛతి || 1 ||\nదుర్గే స్మృతా హరసి భీతిమశేషజంతోః స్వస్థైః స్మృతా మతిమతీవ శుభాం దదాసి |\nదారిద్ర్యదుఃఖభయహారిణి కా త్వదన్యా సర్వోపకారకరణాయ సదార్ద్రచిత్తా || 2 ||\nసర్వమంగళమాంగళ్యే శివే సర్వార్థసాధికే | శరణ్యే త్ర్యంబకే గౌరి నారాయణి నమోऽస్తు తే || 3 ||\nశరణాగతదీనార్తపరిత్రాణపరాయణే | సర్వస్యార్తిహరే దేవి నారాయణి నమోऽస్తు తే || 4 ||\nసర్వస్వరూపే సర్వేశే సర్వశక్తిసమన్వితే | భయేభ్యస్త్రాహి నో దేవి దుర్గే దేవి నమోऽస్తు తే || 5 ||\nరోగానశేషానపహంసి తుష్టా రుష్టా తు కామాన్ సకలానభీష్టాన్ |\nత్వామాశ్రితానాం న విపన్నరాణాం త్వామాశ్రితా హ్యాశ్రయతాం ప్రయాంతి || 6 ||\nసర్వాబాధాప్రశమనం త్రైలోక్యస్యాఖిలేశ్వరి | ఏవమేవ త్వయా కార్యమస్మద్వైరివినాశనమ్ || 7 ||",
     "english_transliteration": "Jnaaninaam api chetaamsi devee bhagavatee hi saa | Balaad aakrishya mohaaya mahaamaayaa prayacchati || 1 ||\nDurge smritaa harasi bheetim asheshajantoh swasthaih smritaa matim ateeva shubhaam dadaasi |\nDaaridrya duhkha bhayahaarini kaa tvadanyaa sarvopakaara karanaaya sadaardrachittaa || 2 ||\nSarvamangala maangalye shive sarvaartha saadhike | Sharanye tryambake gauri naaraayani namostu te || 3 ||\nSharanaagata deenaarta paritraana paraayane | Sarvasyaartihare devi naaraayani namostu te || 4 ||\nSarvasvaroope sarveshe sarvashakti samanvite | Bhayebhyas traahi no devi durge devi namostu te || 5 ||\nRogaan asheshaan apahamsi tushtaa rushtaa tu kaamaan sakalaan abheeshtaan |\nTvaam aashritaanaam na vipannaraanaam tvaam aashritaa hyaashrayataam prayaanti || 6 ||\nSarvaabaadhaa prashamanam trailokyasyaakhileshvari | Evameva tvayaa kaaryam asmadvairi vinaashanam || 7 ||",
@@ -1316,7 +1316,7 @@ const GURUJI_MANTRAS_SEED = [
       "Humility"
     ],
     "short_description": "The essential morning Vedic prayer recited immediately upon stepping out of bed, seeking Mother Earth's forgiveness.",
-    "introduction": "A fundamental Pillar of Vedic daily discipline (Dinacharya). Before placing one's feet upon Mother Earth in the morning, the devotee touches the ground with reverence and begs forgiveness for treading upon her sacred body.",
+    "introduction": "A fundamental Pillar of Vedic daily discipline (Dinacharya). Before placing one's feet upon Mother Earth in the morning, the seeker touches the ground with reverence and begs forgiveness for treading upon her sacred body.",
     "sanskrit_text": "समुद्रवसने देवि पर्वतस्तनमण्डले । विष्णुपत्नि नमस्तुभ्यं पादस्पर्शं क्षमस्व मे ॥",
     "telugu_text": "సముద్రవసనే దేవి పర్వతస్తనమండలే | విష్ణుపత్ని నమస్తుభ్యం పాదస్పర్శం క్షమస్వ మే ||",
     "english_transliteration": "Samudravasane Devi Parvatastanamandale | Vishnupatni Namastubhyam Paadasparsham Kshamasva Me ||",
@@ -1464,7 +1464,7 @@ const GURUJI_MANTRAS_SEED = [
     "english_transliteration": "Om Bhoor Bhuvah Svah Tat Savitur Varenyam Bhargo Devasya Dheemahi Dhiyo Yo Nah Prachodayaat ||",
     "telugu_meaning": "భూలోకము, భువర్లోకము, సువర్లోకములను వ్యాపించియున్న ఆ తేజోమయుడైన సూర్యదేవుని పరమ శ్రేష్ఠమైన దివ్య కాంతిని మేము ధ్యానిస్తున్నాము; ఆ పరమాత్మ మా బుద్ధిని సత్యమార్గమున నడిపించుగాక.",
     "english_meaning": "Om, throughout the physical, astral, and celestial realms, we meditate upon the adorable, radiant splendor of the divine Sun of consciousness. May that Supreme Light awaken and inspire our understanding.",
-    "traditional_significance": "Purifies all sins, balances the neuroendocrine system, sharpens intuitive cognition, and protects the devotee's family line for generations.",
+    "traditional_significance": "Purifies all sins, balances the neuroendocrine system, sharpens intuitive cognition, and protects the seeker's family line for generations.",
     "recitation_method": "Recite in the three Sandhyas (sunrise, midday, sunset), facing East in the morning and West in the evening.",
     "recitation_guidance": {
       "recommended_count": "24, 54, or 108 times",

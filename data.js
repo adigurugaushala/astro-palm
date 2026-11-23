@@ -7,7 +7,7 @@ const GURUJI_DATA = {
     status: "Online | Palmistry Consultant",
     experience: "32+ Years of Vedic Hastarekha & Kundali Shastra",
     avatar: "/assets/adiguru_swamiji_portrait.jpg",
-    bio: "Initiated in the sacred lineage of Varanasi and Tirupati. Blessed over 40,000 devotees across India and 34 countries with accurate Hastarekha (Palmistry) interpretations, dosha remedies, and Vedic spiritual guidance."
+    bio: "Initiated in the sacred lineage of Varanasi and Tirupati. Blessed over 40,000 seekers across India and 34 countries with accurate Hastarekha (Palmistry) interpretations, dosha remedies, and Vedic spiritual guidance."
   },
 
   services: [

@@ -42,7 +42,7 @@ const EDITOR_PIN = process.env.EDITOR_PIN || '';   // optional second role: can 
 // Google sign-in for staff. Set these in the environment, comma separated.
 // Never hard-code a personal address here: this file lives in a public
 // repository. ADMIN_EMAILS opens the whole admin dashboard; GURUJI_EMAILS
-// opens only Guruji's case area (devotees, chat, charts, readings, sessions).
+// opens only Guruji's case area (seekers, chat, charts, readings, sessions).
 const emailList = (value) => String(value || '')
   .split(',')
   .map(s => s.trim().toLowerCase())
@@ -546,7 +546,7 @@ function bookingActor(req, booking, body = {}) {
   if (!mobile) return undefined;
   if (!booking) return null;
   return booking.devotee && booking.devotee.mobile === mobile
-    ? { who: 'devotee', name: booking.devotee.name || 'Devotee', moderator: false }
+    ? { who: 'devotee', name: booking.devotee.name || 'Seeker', moderator: false }
     : null;
 }
 
@@ -1034,7 +1034,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { chart: updated.chart }];
     }],
 
-    // Chat between the devotee and Guruji ---------------------------------------
+    // Chat between the seeker and Guruji ---------------------------------------
     ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/messages$/, async (req, [, orderId], url) => {
       rateLimit(req, 'chat-read', 600);
       const booking = await store.getBooking(orderId);
@@ -1341,7 +1341,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         name: str(d.name, 120), mobile: normaliseMobile(d.mobile), email: str(d.email, 160).toLowerCase(),
         gotram: str(d.gotram, 80), dob: str(d.dob, 20)
       };
-      if (devotee.name.length < 2) throw new HttpError(422, 'Please enter the devotee\'s full name');
+      if (devotee.name.length < 2) throw new HttpError(422, 'Please enter the seeker\'s full name');
       if (!devotee.mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
       if (type !== 'pooja' && !isEmail(devotee.email)) throw new HttpError(422, 'Please enter a valid email address');
       if (devotee.email && !isEmail(devotee.email)) throw new HttpError(422, 'Please enter a valid email address');
@@ -1603,7 +1603,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       }
 
       const email = user.email.toLowerCase().trim();
-      const name = str(user.displayName || b.name, 120) || 'Devotee';
+      const name = str(user.displayName || b.name, 120) || 'Seeker';
       const mobile = normaliseMobile(b.mobile);
 
       const customer = await store.createOrUpdateCustomer({
@@ -1720,7 +1720,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       }
       const review = {
         id: 'rev-' + Date.now().toString(36) + crypto.randomBytes(2).toString('hex'),
-        name: str(r.name, 80) || 'Devotee', location: str(r.location, 80), rating, comment,
+        name: str(r.name, 80) || 'Seeker', location: str(r.location, 80), rating, comment,
         consultation: str(r.consultation, 120), verified, createdAt: nowIso()
       };
       await store.createReview(review);

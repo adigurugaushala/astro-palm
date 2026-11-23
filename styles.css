@@ -822,6 +822,7 @@ textarea:focus {
 .sp-book__img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
 .sp-book__body { padding: 1.2rem; }
 .sp-book__price { font-family: var(--font-serif); font-size: 1.7rem; font-weight: 700; color: rgb(var(--c-maroon)); }
+.sp-book__price--muted { font-size: 1.15rem; color: rgb(var(--c-ink-2)); }
 .sp-book__meta { font-size: .86rem; color: rgb(var(--c-ink-2)); margin-top: .45rem; display: flex; gap: .5rem; align-items: flex-start; }
 .sp-book__meta i { color: rgb(var(--c-gold)); margin-top: .18rem; }
 .sp-wa-link { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-top: .7rem; height: 2.6rem; border-radius: var(--radius-md); border: 1px solid #1ea952; color: #0d6b33; font-weight: 600; font-size: .9rem; }

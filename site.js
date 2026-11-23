@@ -24,7 +24,6 @@
   // -------------------------------------------------------------------------
   const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const $ = (sel, root = document) => root.querySelector(sel);
-  const priceText = (p) => (window.TEST_ONE_RUPEE && Number(p) > 0 ? '₹1' : Number(p) > 0 ? '₹' + Number(p).toLocaleString('en-IN') : 'Price on request');
   const category = (id) => (C().serviceCategories || []).find(c => c.id === id);
   const servicesIn = (cat) => (C().services || []).filter(s => s.category === cat && s.published !== false);
   const serviceBySlug = (slug) => (C().services || []).find(s => s.slug === slug && s.published !== false);
@@ -107,7 +106,7 @@
         <h3 class="sp-card__title"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
         ${compact ? '' : `<p class="sp-card__text">${esc(s.short)}</p>`}
         <div class="sp-card__foot">
-          <span class="sp-price ${Number(s.price) > 0 ? '' : 'sp-price--muted'}">${priceText(s.price)}${s.duration ? `<small> · ${esc(s.duration)}</small>` : ''}</span>
+          <span class="sp-price sp-price--muted">${s.duration ? esc(s.duration) : 'Fee on enquiry'}</span>
           <a href="/services/${esc(s.slug)}" data-link class="sp-link">Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </div>
       </div>
@@ -124,7 +123,7 @@
         <h3 class="sp-card__title"><a href="/courses/${esc(c.slug)}" data-link>${esc(c.title)}</a></h3>
         <p class="sp-card__text">${esc(c.overview)}</p>
         <div class="sp-card__foot">
-          <span class="sp-price ${Number(c.price) > 0 ? '' : 'sp-price--muted'}">${Number(c.price) > 0 ? priceText(c.price) : 'Fee on enquiry'}</span>
+          <span class="sp-price sp-price--muted">Fee on enquiry</span>
           <div class="flex items-center gap-2">
             <button type="button" onclick="openCourseRegisterModal('${esc(c.slug)}', '${esc(c.title)}')" class="gold-gradient-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs">Register Interest</button>
             <a href="/courses/${esc(c.slug)}" data-link class="sp-link">Details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
@@ -221,8 +220,8 @@
       ${hero({ eyebrow: 'Services', title: 'Guidance, healing and devotion', sub: 'Palmistry, astrology, japa, puja, pitru rituals, muhurta, Reiki and spiritual guidance — choose a service to see what it involves, what we need from you, and how to book.', crumbs: crumbs([['Home', '/'], ['Services']]) })}
       <section class="sp-section">
         <div class="sp-wrap">
-          ${sectionHead('Three core consultations', 'Start here', 'Most seekers begin with one of these. The Astro-Palmistry Correlation brings both sciences together.')}
-          <div class="grid gap-6 md:grid-cols-3">${core.map(s => serviceCard(s)).join('')}</div>
+          ${sectionHead('Four core consultations', 'Start here', 'Most seekers begin with one of these. The Astro-Palmistry Correlation brings both sciences together, and Reiki Healing offers rest alongside them.')}
+          <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">${core.map(s => serviceCard(s)).join('')}</div>
         </div>
       </section>
       <section class="sp-section sp-section--tint">
@@ -241,16 +240,6 @@
               </span>
             </a>`;
     }).join('')}</div>
-        </div>
-      </section>
-      <section class="sp-section">
-        <div class="sp-wrap">
-          ${sectionHead('', 'Every service at a glance')}
-          <div class="grid gap-8 md:grid-cols-2">${cats.map(c => `
-            <div class="sp-panel">
-              <h3 class="sp-h3 flex items-center gap-2"><i class="fa-solid ${esc(c.icon)} text-gold-deep" aria-hidden="true"></i>${esc(c.title)}</h3>
-              <ul class="sp-list">${servicesIn(c.id).map(s => `<li><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a><span>${priceText(s.price)}</span></li>`).join('')}</ul>
-            </div>`).join('')}</div>
         </div>
       </section>
       ${ctaBand()}`;
@@ -376,11 +365,11 @@
             <aside class="sp-book">
               <img src="${esc(imageFor(s))}" alt="" class="sp-book__img">
               <div class="sp-book__body">
-                <div class="sp-book__price">${priceText(s.price)}</div>
+                <div class="sp-book__price sp-book__price--muted">Fee on enquiry</div>
                 ${s.duration ? `<p class="sp-book__meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> ${esc(s.duration)}</p>` : ''}
                 <p class="sp-book__meta"><i class="fa-solid fa-video" aria-hidden="true"></i> ${s.category === 'puja-rituals' || s.category === 'pitru' || s.category === 'japa-mantra' ? 'Performed on your behalf, with Sankalpa in your name' : 'Online (phone / video) or in person'}</p>
                 <button type="button" class="gold-gradient-btn w-full h-12 rounded-xl mt-4" onclick="bookService('${esc(s.slug)}')">${bookLabel(s)}</button>
-                ${Number(s.price) > 0 ? '' : '<p class="text-xs text-ink-3 mt-2">Send an enquiry — we will confirm the details and price before anything is booked.</p>'}
+                <p class="text-xs text-ink-3 mt-2">Send an enquiry — we will confirm the details and the fee on WhatsApp before anything is booked.</p>
                 ${waLink() ? `<a class="sp-wa-link" href="${waLink('Namaste, I would like to know more about ' + s.title)}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Ask on WhatsApp</a>` : ''}
               </div>
             </aside>
@@ -403,7 +392,6 @@
 
   RENDER.reiki = () => {
     const sessions = servicesIn('reiki');
-    const faq = (C().faqCategories || []).find(f => f.id === 'reiki');
     const reikiCourses = (C().courses || []).filter(c => c.track === 'reiki' && c.published !== false);
     return `
       ${hero({
@@ -437,14 +425,13 @@
               <h3 class="sp-h3"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
               <p class="sp-text">${esc(s.short)}</p>
               <div class="sp-session__foot">
-                <span class="sp-price ${Number(s.price) > 0 ? '' : 'sp-price--muted'}">${priceText(s.price)}${s.duration ? `<small> · ${esc(s.duration)}</small>` : ''}</span>
-                <button type="button" class="sp-btn-outline" onclick="bookService('${esc(s.slug)}')">${bookLabel(s)}</button>
+                <span class="sp-price sp-price--muted">${s.duration ? esc(s.duration) : 'Fee on enquiry'}</span>
+                ${waLink() ? `<a class="sp-btn-outline" href="${waLink('Namaste, I would like to enquire about ' + s.title)}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Enquire on WhatsApp</a>` : `<button type="button" class="sp-btn-outline" onclick="bookService('${esc(s.slug)}')">${bookLabel(s)}</button>`}
               </div>
             </article>`).join('')}</div>
         </div>
       </section>
       ${reikiCourses.length ? `<section class="sp-section sp-section--tint"><div class="sp-wrap">${sectionHead('Learn Reiki', 'Reiki courses', ((C().courseTracks || []).find(t => t.id === 'reiki') || {}).note)}<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">${reikiCourses.map(courseCard).join('')}</div></div></section>` : ''}
-      ${faq ? `<section class="sp-section"><div class="sp-wrap sp-narrow">${sectionHead('Questions', 'Reiki FAQs')}${faqList(faq.items, 'reiki-faq')}</div></section>` : ''}
       ${ctaBand('Book a Reiki session', 'Choose a session above, or send an enquiry and we will help you choose.')}`;
   };
 
@@ -462,7 +449,6 @@
           </div>
         </section>`;
     }).join('')}
-      ${(() => { const f = (C().faqCategories || []).find(x => x.id === 'courses'); return f ? `<section class="sp-section"><div class="sp-wrap sp-narrow">${sectionHead('Questions', 'Courses FAQs')}${faqList(f.items, 'course-faq')}</div></section>` : ''; })()}
       ${ctaBand('Interested in a course?', 'Register your interest and we will contact you with dates, fees and the format of the next batch.')}`;
   };
 
@@ -482,7 +468,7 @@
           </div>
           <aside class="sp-book">
             <div class="sp-book__body">
-              <div class="sp-book__price">${Number(c.price) > 0 ? priceText(c.price) : 'Fee on enquiry'}</div>
+              <div class="sp-book__price sp-book__price--muted">Fee on enquiry</div>
               <dl class="sp-facts">
                 <div><dt>Duration</dt><dd>${esc(c.duration)}</dd></div>
                 <div><dt>Mode</dt><dd>${esc(c.mode)}</dd></div>
@@ -806,9 +792,9 @@
               </div>
             </div>
             <div class="sp-panel">
-              <h2 class="sp-h3">Pay online instead</h2>
-              <p class="sp-text">These consultations can be booked and paid straight away:</p>
-              <ul class="sp-list">${(C().services || []).filter(s => s.core && s.published !== false).map(s => `<li><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a><span>${priceText(s.price)}</span></li>`).join('')}</ul>
+              <h2 class="sp-h3">Book a consultation</h2>
+              <p class="sp-text">Most seekers begin with one of these. Message us and we will confirm the fee and a time:</p>
+              <ul class="sp-list">${(C().services || []).filter(s => s.core && s.published !== false).map(s => `<li><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a><span>${esc(s.duration || 'On enquiry')}</span></li>`).join('')}</ul>
             </div>
             ${st.mapEmbedUrl && /^https:\/\/(www\.)?google\.com\/maps\/embed/.test(st.mapEmbedUrl) ? `<div class="sp-map"><iframe src="${esc(st.mapEmbedUrl)}" title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>` : ''}
           </aside>
@@ -823,7 +809,7 @@
       }
     }, 0);
     return `
-      ${hero({ eyebrow: 'Devotee Portal', title: 'My Account', sub: 'Access your consultation bookings, pooja sevas, reports and account profile.', crumbs: crumbs([['Home', '/'], ['My Account']]) })}
+      ${hero({ eyebrow: 'Seeker Portal', title: 'My Account', sub: 'Access your consultation bookings, pooja sevas, reports and account profile.', crumbs: crumbs([['Home', '/'], ['My Account']]) })}
       <section class="sp-section">
         <div class="sp-wrap max-w-4xl" id="account-portal-container">
           <div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-2xl text-maroon"></i><p class="text-xs text-ink-3 mt-2">Loading account portal...</p></div>
@@ -1059,8 +1045,8 @@
       </section>
       <section class="sp-section sp-section--tint">
         <div class="sp-wrap">
-          ${sectionHead('Featured services', 'Three core consultations', 'Detailed Palm Analysis, Comprehensive Kundali Analysis — and the Astro-Palmistry Correlation that brings them together.')}
-          <div class="grid gap-6 md:grid-cols-3">${core.map(s => serviceCard(s)).join('')}</div>
+          ${sectionHead('Featured services', 'Four core consultations', 'Detailed Palm Analysis, Comprehensive Kundali Analysis, the Astro-Palmistry Correlation that brings them together — and Reiki Healing.')}
+          <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">${core.map(s => serviceCard(s)).join('')}</div>
           <div class="text-center mt-8"><a href="/services" data-link class="sp-btn-outline">Explore all services</a></div>
         </div>
       </section>
@@ -1338,8 +1324,8 @@
         mainEntityOfPage: location.origin + '/resources/' + a.slug
       });
     }
-    if (pageId === 'faqs' || pageId === 'reiki') {
-      const cats = pageId === 'reiki' ? (C().faqCategories || []).filter(c => c.id === 'reiki') : (C().faqCategories || []);
+    if (pageId === 'faqs') {
+      const cats = C().faqCategories || [];
       const items = cats.flatMap(c => c.items).slice(0, 40);
       if (items.length) graph.push({
         '@type': 'FAQPage',
@@ -1531,7 +1517,7 @@
     test.classList.toggle('hidden', live);
     btn.classList.toggle('hidden', !live);
 
-    // Create (or reuse) the booking now, so the devotee can see the reference and
+    // Create (or reuse) the booking now, so the seeker can see the reference and
     // the amount the server will actually charge before paying.
     if (typeof ensureBooking !== 'function' || state.paymentStatus === 'SUCCESS') return;
     try {
@@ -1620,7 +1606,7 @@
   }
 
   // -------------------------------------------------------------------------
-  // Chat between the devotee and Guruji (polled; no websocket on serverless)
+  // Chat between the seeker and Guruji (polled; no websocket on serverless)
   // -------------------------------------------------------------------------
   const CHAT = { timer: null, lastAt: '', orderId: null, auth: null, el: null };
 
@@ -1643,7 +1629,7 @@
     </div>`;
   }
 
-  /** auth is { mobile } for a devotee, or { pin } for Guruji. */
+  /** auth is { mobile } for a seeker, or { pin } for Guruji. */
   function startChat(container, orderId, auth) {
     stopChat();
     CHAT.orderId = orderId; CHAT.auth = auth; CHAT.el = container; CHAT.lastAt = '';
@@ -1912,7 +1898,7 @@
       <div class="sp-panel learn-offer">
         <h2 class="sp-h3">Start today — self-paced</h2>
         <p class="sp-text">${esc(o.blurb)}</p>
-        <p class="learn-meta">${o.lessonCount} lessons · about ${o.minutes} minutes in total · ${free ? 'no fee' : priceText(o.price)}</p>
+        <p class="learn-meta">${o.lessonCount} lessons · about ${o.minutes} minutes in total${free ? ' · no fee' : ''}</p>
         <ol class="learn-outline">${o.lessons.map(l => `<li><strong>${esc(l.title)}</strong><span>${l.minutes} min</span><em>${esc(l.summary)}</em></li>`).join('')}</ol>
         <form class="learn-enrol" onsubmit="event.preventDefault(); enrolCourse(this, '${esc(slug)}')">
           <h3 class="sp-h4">Enrol</h3>
@@ -2362,7 +2348,7 @@
             <thead class="bg-amber-50/70 text-amber-950 font-bold border-b border-line uppercase tracking-wider text-[11px]">
               <tr>
                 <th class="p-3">Timestamp (IST)</th>
-                <th class="p-3">Devotee Name</th>
+                <th class="p-3">Seeker Name</th>
                 <th class="p-3">Contact Details</th>
                 <th class="p-3 text-center">Consents Granted</th>
                 <th class="p-3">Service</th>
@@ -2729,7 +2715,7 @@
         <div class="sp-panel sp-form max-w-md mx-auto text-center space-y-4">
           <i class="fa-solid fa-hands-praying text-3xl text-gold-deep" aria-hidden="true"></i>
           <h1 class="sp-h2">Namaste${ADMIN.email ? ', ' + esc(ADMIN.email) : ''}</h1>
-          <p class="sp-text">This sign-in opens Guruji's case area: the devotees waiting, their palms and charts, the chat and the readings.</p>
+          <p class="sp-text">This sign-in opens Guruji's case area: the seekers waiting, their palms and charts, the chat and the readings.</p>
           <div class="flex gap-3 justify-center flex-wrap">
             <a href="/guruji" data-link class="gold-gradient-btn h-11 px-5 rounded-xl inline-flex items-center">Go to my cases</a>
             <button type="button" onclick="adminLogout()" class="sp-btn-outline">Sign out</button>
@@ -2763,7 +2749,7 @@
   }
 
   // -------------------------------------------------------------------------
-  // What the devotee sees under their booking: session, chat, chart, reading
+  // What the seeker sees under their booking: session, chat, chart, reading
   // -------------------------------------------------------------------------
   window.renderBookingExtras = function (b) {
     const host = $('#track-live');
@@ -2846,7 +2832,7 @@
           <i class="fa-solid fa-hands-praying text-3xl text-gold-deep" aria-hidden="true"></i>
           <div>
             <h1 class="sp-h2">Guruji's Cases</h1>
-            <p class="sp-text">Sign in to see devotees waiting, palms and charts, chat and readings.</p>
+            <p class="sp-text">Sign in to see seekers waiting, palms and charts, chat and readings.</p>
             <p class="text-xs text-ink-3 mt-1">For Guruji and temple staff only</p>
           </div>
 
@@ -2957,7 +2943,7 @@
         <div class="case-layout">
           <div class="case-main">
             <div class="sp-panel">
-              <h2 class="sp-h3">Devotee</h2>
+              <h2 class="sp-h3">Seeker</h2>
               <dl class="case-facts">
                 ${field('Mobile', d.mobile)}${field('Email', d.email)}${field('Gotram', d.gotram)}
                 ${field('Date of birth', [d.dob, d.tob].filter(Boolean).join(' at '))}
@@ -2971,7 +2957,7 @@
               <h2 class="sp-h3">Palm photos</h2>
               ${(c.photos || []).length
         ? `<ul class="case-photos">${c.photos.map(p => `<li><span>${esc(p.name)}</span><small>slot ${p.slot} · ${Math.round((p.size || 0) / 1024)} KB</small></li>`).join('')}</ul>
-                   <p class="text-xs text-ink-3 mt-2">The devotee's photos are listed by name here. Ask for them on WhatsApp or by email until file storage is connected.</p>`
+                   <p class="text-xs text-ink-3 mt-2">The seeker's photos are listed by name here. Ask for them on WhatsApp or by email until file storage is connected.</p>`
         : '<p class="sp-text">No photos uploaded yet.</p>'}
             </div>
 
@@ -2992,11 +2978,11 @@
                 <label class="sp-field"><span>Suggested practices</span><textarea name="remedies" rows="4">${esc(r.remedies || '')}</textarea></label>
                 <div class="flex flex-wrap items-center gap-3">
                   <button class="gold-gradient-btn h-11 px-6 rounded-xl">Save draft</button>
-                  <button type="button" class="sp-btn-outline" onclick="markReportReady('${esc(c.orderId)}')">Mark ready for the devotee</button>
+                  <button type="button" class="sp-btn-outline" onclick="markReportReady('${esc(c.orderId)}')">Mark ready for the seeker</button>
                   <a class="sp-link" href="/api/bookings/${esc(c.orderId)}/report.pdf" target="_blank" rel="noopener">Preview the PDF ↗</a>
                   ${r.status === 'ready' ? `<span class="sp-pill sp-pill--green">sent ${esc((r.readyAt || '').slice(0, 10))}</span>` : r.version ? `<span class="sp-pill sp-pill--muted">draft v${r.version}</span>` : ''}
                 </div>
-                <p class="text-xs text-ink-3">Snippets: leave a blank line between paragraphs. The devotee sees this only after you mark it ready.</p>
+                <p class="text-xs text-ink-3">Snippets: leave a blank line between paragraphs. The seeker sees this only after you mark it ready.</p>
               </form>
             </div>
           </div>
@@ -3037,8 +3023,8 @@
     } catch (err) { toast(err.message, 'error'); }
   };
   window.markReportReady = async (orderId) => {
-    if (!confirm('Mark this reading ready? The devotee will be able to download it.')) return;
-    try { await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/ready`, { method: 'POST' }); toast('The devotee can now download the reading.'); renderCase(orderId); }
+    if (!confirm('Mark this reading ready? The seeker will be able to download it.')) return;
+    try { await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/ready`, { method: 'POST' }); toast('The seeker can now download the reading.'); renderCase(orderId); }
     catch (err) { toast(err.message, 'error'); }
   };
   window.endSession = async (orderId) => {

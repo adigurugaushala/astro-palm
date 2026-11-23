@@ -143,7 +143,7 @@ class FileStore {
     return review;
   }
 
-  // Chat messages between a devotee and Guruji
+  // Chat messages between a seeker and Guruji
   async addMessage(message) {
     const all = readJson(MESSAGES_FILE, []);
     all.push(message);
