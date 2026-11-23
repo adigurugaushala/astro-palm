@@ -179,10 +179,11 @@ class FileStore {
     if (n) writeJson(MESSAGES_FILE, all);
     return n;
   }
-  async unreadCounts() {
+  /** Unread messages per booking, from one side of the chat ('devotee' or 'guruji'). */
+  async unreadCounts(from = 'devotee') {
     const counts = {};
     for (const m of readJson(MESSAGES_FILE, [])) {
-      if (m.from === 'devotee' && !m.readAt) counts[m.orderId] = (counts[m.orderId] || 0) + 1;
+      if (m.from === from && !m.readAt) counts[m.orderId] = (counts[m.orderId] || 0) + 1;
     }
     return counts;
   }
@@ -518,8 +519,9 @@ class MongoStore {
       { $set: { readAt: new Date().toISOString() } });
     return res.modifiedCount || 0;
   }
-  async unreadCounts() {
-    const docs = await this.messages.find({ from: 'devotee', readAt: { $exists: false } }).toArray();
+  /** Unread messages per booking, from one side of the chat ('devotee' or 'guruji'). */
+  async unreadCounts(from = 'devotee') {
+    const docs = await this.messages.find({ from, readAt: { $exists: false } }).toArray();
     const counts = {};
     for (const m of docs) counts[m.orderId] = (counts[m.orderId] || 0) + 1;
     return counts;

@@ -1460,6 +1460,14 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { case: booking, messages }];
     }],
 
+    // Unread chat from seekers, for the notification bell on the staff dashboards.
+    ['GET', /^\/api\/staff\/unread$/, async (req) => {
+      requireGuruji(req);
+      const counts = await store.unreadCounts('devotee');
+      const unread = Object.values(counts).reduce((t, n) => t + n, 0);
+      return [200, { ok: true, unread, threads: Object.keys(counts).length, byBooking: counts }];
+    }],
+
     ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/claim$/, async (req, [, orderId]) => {
       requireGuruji(req);
       const booking = await store.getBooking(orderId);
@@ -2030,6 +2038,24 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       const bookings = await store.listCustomerBookings(mobile, email);
       return [200, { ok: true, bookings: bookings.map(publicBooking) }];
+    }],
+
+    // How many chat messages from Guruji the seeker has not read yet.
+    ['GET', /^\/api\/customer\/unread$/, async (req, _, url) => {
+      rateLimit(req, 'customer-unread', 120);
+      const customer = customerFromToken(req);
+      const mobile = normaliseMobile(url.searchParams.get('mobile')) || (customer && customer.mobile);
+      const email = (url.searchParams.get('email') || (customer && customer.email) || '').trim().toLowerCase();
+      if (!mobile && !email) throw new HttpError(401, 'Please sign in to see your messages');
+      const bookings = await store.listCustomerBookings(mobile, email);
+      const fromGuruji = await store.unreadCounts('guruji');
+      const perBooking = {};
+      let unread = 0;
+      for (const b of bookings) {
+        const n = fromGuruji[b.orderId] || 0;
+        if (n) { perBooking[b.orderId] = n; unread += n; }
+      }
+      return [200, { ok: true, unread, bookings: perBooking }];
     }],
 
     // Reviews ----------------------------------------------------------------

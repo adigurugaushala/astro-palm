@@ -1159,6 +1159,9 @@
     }
     if (pageId === 'admin') renderAdmin();
     if (pageId !== 'guruji' && pageId !== 'book-status') stopChat();
+    // Guruji's portal is a staff workspace: the public header and footer are hidden there.
+    document.body.classList.toggle('staff-portal', pageId === 'guruji');
+    if (pageId !== 'guruji' && pageId !== 'admin') refreshSeekerBadge();
     if (pageId === 'guruji') renderGuruji(params.slug || '');
     if (pageId === 'session') setTimeout(() => openSession(params.slug), 0);
     if (pageId === 'learn') setTimeout(() => openCourse(params.slug), 0);
@@ -3011,11 +3014,18 @@
           <button onclick="adminLogout()" class="adm-nav__logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>Sign out</button>
         </aside>
         <div class="adm-main">
-          <h1 class="sp-h2 mb-4">${esc((tabs.find(t => t[0] === ADMIN.tab) || [])[1] || '')}</h1>
+          <div class="adm-head">
+            <h1 class="sp-h2">${esc((tabs.find(t => t[0] === ADMIN.tab) || [])[1] || '')}</h1>
+            <button type="button" class="adm-bell" id="adm-bell" title="Unread messages from seekers"
+                    aria-label="Unread messages from seekers" onclick="adminOpenMessages()">
+              <i class="fa-regular fa-bell" aria-hidden="true"></i>
+            </button>
+          </div>
           <div id="adm-body"></div>
         </div>
       </section>`;
     adminLoad();
+    adminRefreshBell();
   }
 
   // -------------------------------------------------------------------------
@@ -3153,19 +3163,27 @@
     const all = GURUJI.list;
     const waiting = all.filter(c => c.status !== 'COMPLETED');
     const today = new Date().toISOString().slice(0, 10);
-    const card = (c) => {
+    const row = (c) => {
       const when = c.slotStart ? new Date(c.slotStart) : null;
-      const isToday = when && when.toISOString().slice(0, 10) === today;
-      return `<a href="/guruji/${esc(c.orderId)}" data-link class="case-card ${isToday ? 'case-card--today' : ''}">
-        <div class="case-card__top">
+      const todayRow = when && when.toISOString().slice(0, 10) === today;
+      const photos = (c.photos || []).length;
+      const marks = [];
+      if (photos) marks.push(photos + (photos === 1 ? ' photo' : ' photos'));
+      if (c.chart) marks.push('chart cast');
+      if (c.report && c.report.status === 'ready') marks.push('reading ready');
+      return `<a href="/guruji/${esc(c.orderId)}" data-link class="gm-row${c.unread ? ' is-unread' : ''}${todayRow ? ' is-today' : ''}">
+        <span class="gm-row__dot" aria-hidden="true"></span>
+        <span class="gm-row__who">${esc((c.devotee || {}).name || 'Seeker')}</span>
+        <span class="gm-row__main">
+          <span class="gm-row__subject">${esc((c.service && c.service.title) || 'Consultation')}</span>
+          <span class="gm-row__snippet">${esc(c.orderId)}${marks.length ? ' · ' + esc(marks.join(' · ')) : ''}</span>
+        </span>
+        <span class="gm-row__tags">
           <span class="sp-pill sp-pill--${STATUS_TONE[c.status] || 'muted'}">${esc(c.status.replace(/_/g, ' ').toLowerCase())}</span>
-          ${c.unread ? `<span class="case-card__unread">${c.unread} new</span>` : ''}
-          ${c.assignedTo ? `<span class="case-card__who">${esc(c.assignedTo)}</span>` : '<span class="case-card__who case-card__who--free">unclaimed</span>'}
-        </div>
-        <h3>${esc(c.devotee.name)}</h3>
-        <p>${esc((c.service && c.service.title) || '')}</p>
-        <p class="case-card__when">${when ? when.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'No appointment time'}</p>
-        <p class="case-card__meta">${esc(c.orderId)} · ${(c.photos || []).length} photo${(c.photos || []).length === 1 ? '' : 's'}${c.chart ? ' · chart cast' : ''}${c.report && c.report.status === 'ready' ? ' · reading sent' : ''}</p>
+          ${c.unread ? `<span class="gm-row__unread">${c.unread} new</span>` : ''}
+          ${c.assignedTo ? '' : '<span class="gm-row__free">unclaimed</span>'}
+        </span>
+        <span class="gm-row__when">${when ? esc(when.toLocaleString('en-IN', todayRow ? { hour: 'numeric', minute: '2-digit' } : { day: 'numeric', month: 'short' })) : '—'}</span>
       </a>`;
     };
     const startsAt = (c) => (c.slotStart || '');
@@ -3196,43 +3214,96 @@
     const next = all.filter(c => startsAt(c) > new Date().toISOString() && c.status !== 'COMPLETED')
       .sort((a, b) => startsAt(a).localeCompare(startsAt(b)))[0];
 
+    const folder = (id, label, icon, n) => `<a href="#" class="gm-folder${GURUJI.view === id ? ' is-active' : ''}" onclick="event.preventDefault(); gurujiView('${id}')">
+        <i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
+
     root.innerHTML = `
-      <div class="sp-wrap py-8">
-        <div class="session-head">
-          <div><p class="sp-eyebrow sp-eyebrow--maroon">Guruji</p><h1 class="sp-h2">Cases</h1>
-            <p class="sp-text">${waiting.length} waiting · ${all.length - waiting.length} finished</p></div>
-          <div class="flex gap-2">
-            <button class="sp-btn-outline sp-btn-sm" onclick="gurujiPrintDay()"><i class="fa-solid fa-print"></i> Day sheet</button>
-            <button class="sp-btn-outline sp-btn-sm" onclick="renderGuruji()"><i class="fa-solid fa-rotate"></i> Refresh</button>
-            <button class="sp-btn-outline sp-btn-sm" onclick="adminLogout(); renderGuruji()">Sign out</button>
+      <div class="gm">
+        <header class="gm-top">
+          <a href="/guruji" data-link class="gm-logo"><i class="fa-solid fa-hands-praying" aria-hidden="true"></i><span>Guruji <b>cases</b></span></a>
+          <input class="gm-search" type="search" value="${esc(GURUJI.q)}" placeholder="Search name, mobile or reference…" oninput="gurujiSearch(this.value)" aria-label="Search cases">
+          <div class="gm-tools">
+            <button type="button" class="gm-icon" title="Unread messages from seekers" aria-label="${counts.unread} unread message${counts.unread === 1 ? '' : 's'}" onclick="gurujiView('unread')">
+              <i class="fa-regular fa-bell" aria-hidden="true"></i>${counts.unread ? `<span class="gm-badge">${counts.unread > 99 ? '99+' : counts.unread}</span>` : ''}
+            </button>
+            <button type="button" class="gm-icon" title="Refresh" aria-label="Refresh the case list" onclick="renderGuruji()"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+            <button type="button" class="gm-signout" onclick="adminLogout(); renderGuruji()">Sign out</button>
           </div>
+        </header>
+        <div class="gm-body">
+          <aside class="gm-side">
+            <button type="button" class="gm-compose" onclick="gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i> Day sheet</button>
+            <nav class="gm-folders" aria-label="Case folders">
+              ${folder('all', 'All cases', 'fa-inbox', all.length)}
+              ${folder('today', 'Today', 'fa-calendar-day', counts.today)}
+              ${folder('unread', 'Unread', 'fa-envelope', counts.unread)}
+              ${folder('unclaimed', 'Unclaimed', 'fa-hand-holding-heart', counts.unclaimed)}
+              ${folder('reports', 'Readings due', 'fa-feather-pointed', counts.reports)}
+              ${folder('finished', 'Finished', 'fa-circle-check', 0)}
+            </nav>
+            <div class="gm-next">
+              <span>Next appointment</span>
+              <strong>${next ? esc(new Date(next.slotStart).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })) : '—'}</strong>
+              ${next ? `<span>${esc((next.devotee || {}).name || '')}</span>` : '<span>Nothing booked ahead</span>'}
+            </div>
+          </aside>
+          <main class="gm-main">
+            <div class="gm-listhead">
+              <span class="gm-count">${waiting.length} waiting · ${all.length - waiting.length} finished</span>
+              <select class="sp-select" aria-label="Sort the cases" onchange="gurujiSort(this.value)">
+                <option value="soonest" ${GURUJI.sort === 'soonest' ? 'selected' : ''}>Soonest appointment</option>
+                <option value="newest" ${GURUJI.sort === 'newest' ? 'selected' : ''}>Newest booking</option>
+              </select>
+            </div>
+            <div class="gm-rows">${list.length ? list.map(row).join('')
+              : `<p class="gm-empty">${all.length ? 'Nothing matches that.' : 'No paid bookings yet.'}</p>`}</div>
+          </main>
         </div>
-
-        <div class="case-stats">
-          <div class="case-stat"><span>Today</span><strong>${counts.today}</strong></div>
-          <div class="case-stat"><span>Unread messages</span><strong>${counts.unread}</strong></div>
-          <div class="case-stat"><span>Unclaimed</span><strong>${counts.unclaimed}</strong></div>
-          <div class="case-stat"><span>Readings to write</span><strong>${counts.reports}</strong></div>
-          <div class="case-stat"><span>Next appointment</span><strong>${next ? esc(new Date(next.slotStart).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })) : '—'}</strong>
-            ${next ? `<span>${esc((next.devotee || {}).name || '')}</span>` : ''}</div>
-        </div>
-
-        <div class="case-toolbar">
-          <div class="sp-chips sp-chips--nav">
-            ${chip('all', 'All', all.length)}${chip('today', 'Today', counts.today)}${chip('unread', 'Unread', counts.unread)}
-            ${chip('unclaimed', 'Unclaimed', counts.unclaimed)}${chip('reports', 'Readings due', counts.reports)}${chip('finished', 'Finished', 0)}
-          </div>
-          <input type="search" value="${esc(GURUJI.q)}" placeholder="Search name, mobile or reference…" oninput="gurujiSearch(this.value)">
-          <select class="sp-select" aria-label="Sort the cases" onchange="gurujiSort(this.value)">
-            <option value="soonest" ${GURUJI.sort === 'soonest' ? 'selected' : ''}>Soonest appointment</option>
-            <option value="newest" ${GURUJI.sort === 'newest' ? 'selected' : ''}>Newest booking</option>
-          </select>
-        </div>
-
-        <div class="case-grid">${list.length ? list.map(card).join('')
-          : `<p class="sp-text">${all.length ? 'Nothing matches that.' : 'No paid bookings yet.'}</p>`}</div>
       </div>`;
   }
+
+  /** Unread chat from seekers, shown on the bell in the admin dashboard. */
+  window.adminRefreshBell = async () => {
+    const bell = $('#adm-bell');
+    if (!bell) return;
+    try {
+      const data = await gurujiFetch('/api/staff/unread');
+      const n = (data && data.unread) || 0;
+      bell.querySelector('.adm-bell__count')?.remove();
+      if (n) {
+        const tag = document.createElement('span');
+        tag.className = 'adm-bell__count';
+        tag.textContent = n > 99 ? '99+' : String(n);
+        bell.appendChild(tag);
+      }
+      bell.setAttribute('aria-label', n ? `${n} unread message${n === 1 ? '' : 's'} from seekers` : 'No unread messages');
+    } catch (e) { /* the bell is a convenience; a failure here must not break the dashboard */ }
+  };
+
+  /** The chats live on the cases, so the bell opens the unread cases. */
+  window.adminOpenMessages = () => { GURUJI.view = 'unread'; navigate('/guruji'); };
+
+  /** Unread chat from Guruji, shown on the seeker's Track Status button. */
+  let seekerBadgeAt = 0;
+  window.refreshSeekerBadge = async () => {
+    const tag = document.getElementById('seeker-unread');
+    if (!tag) return;
+    let token = '';
+    try { token = localStorage.getItem('guruji_cust_token') || ''; } catch (e) { /* storage blocked */ }
+    if (!token) { tag.classList.add('hidden'); return; }
+    if (Date.now() - seekerBadgeAt < 30000) return;
+    seekerBadgeAt = Date.now();
+    try {
+      const res = await fetch('/api/customer/unread', { headers: { 'x-customer-token': token } });
+      if (!res.ok) { tag.classList.add('hidden'); return; }
+      const data = await res.json();
+      const n = (data && data.unread) || 0;
+      tag.textContent = n > 99 ? '99+' : String(n);
+      tag.classList.toggle('hidden', !n);
+      const btn = document.getElementById('header-track-btn');
+      if (btn) btn.setAttribute('aria-label', n ? `Track status — ${n} new message${n === 1 ? '' : 's'} from Guruji` : 'Track status');
+    } catch (e) { tag.classList.add('hidden'); }
+  };
 
   window.gurujiView = (v) => { GURUJI.view = v; renderCaseList(); };
   window.gurujiSort = (v) => { GURUJI.sort = v; renderCaseList(); };

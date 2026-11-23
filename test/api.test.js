@@ -296,6 +296,25 @@ for (const backend of ['mongodb', 'file']) {
       assert.ok(!JSON.stringify(res.body).includes('@gmail.com'));
     });
 
+    test('the staff notification bell has a count to show, and only for staff', async () => {
+      assert.equal((await call('GET', '/api/staff/unread')).status, 401, 'staff only');
+      const res = await call('GET', '/api/staff/unread', null, admin);
+      assert.equal(res.status, 200);
+      assert.equal(typeof res.body.unread, 'number');
+      assert.ok(res.body.unread >= 0);
+      assert.equal(typeof res.body.byBooking, 'object');
+      // threads and byBooking describe the same set, so they cannot disagree
+      assert.equal(res.body.threads, Object.keys(res.body.byBooking).length);
+      const summed = Object.values(res.body.byBooking).reduce((t, n) => t + n, 0);
+      assert.equal(res.body.unread, summed, 'the total is the sum of the threads');
+    });
+
+    test('a seeker cannot read an unread count without identifying themselves', async () => {
+      const res = await call('GET', '/api/customer/unread');
+      assert.equal(res.status, 401);
+    });
+
+
     test('bookings and enquiries download as CSV', async () => {
       const res = await fetch(base + '/api/admin/bookings/export', { headers: admin });
       assert.equal(res.status, 200);
