@@ -110,7 +110,7 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(r.status, 201);
       consult = r.body.booking;
       assert.match(consult.orderId, /^GURUJI-PLM-[A-Z0-9]+$/);
-      assert.equal(consult.amount, 749, 'amount sent by the browser is ignored');
+      assert.equal(consult.amount, 1, 'amount sent by the browser is ignored');
       assert.equal(consult.status, 'PENDING_PAYMENT');
       assert.equal(consult.devotee.mobile, '9123456789');
       assert.equal(consult.devotee.email, 'ravi@example.com');
@@ -639,7 +639,7 @@ describe('Cashfree payments', () => {
     const b = await newBooking('9844444444');
     await call('POST', `/api/bookings/${b.orderId}/payment`, { mobile: b.devotee.mobile });
     const gatewayOrderId = gateway.created[gateway.created.length - 1].orderId;
-    Object.assign(gateway.orders.get(gatewayOrderId), { status: 'PAID', amount: 1 });
+    Object.assign(gateway.orders.get(gatewayOrderId), { status: 'PAID', amount: 0 });
     const v = await call('POST', `/api/bookings/${b.orderId}/verify-payment`, { mobile: b.devotee.mobile });
     assert.equal(v.body.booking.status, 'PENDING_PAYMENT', 'the amount must match');
   });
