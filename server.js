@@ -143,7 +143,7 @@ const PRIVATE_PATHS = [
 const CONSULTATIONS = {
   palmistry_reading:     { title: 'Detailed Palm Analysis', price: 549, duration: '30 Mins' },
   astrology_correlation: { title: 'Comprehensive Kundali Analysis', price: 549, duration: '30 Mins' },
-  combined_consultation: { title: 'Astro-Palmistry Correlation', price: 749, duration: '45 Mins' },
+  combined_consultation: { title: 'Astro-Palmistry Correlation', price: 1, duration: '45 Mins' },
   followup_session:      { title: '15-Min Follow-up Consultation', price: 750, duration: '15 Mins' }
 };
 const POOJAS = {

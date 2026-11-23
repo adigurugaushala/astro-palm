@@ -50,7 +50,7 @@ const GURUJI_DATA = {
       title: "Astro-Palmistry Correlation",
       sanskrit: "हस्तरेखा + जन्मकुंडली संगम",
       icon: "✨",
-      price: 749,
+      price: 1,
       duration: "45 Mins",
       badge: "Highest Accuracy (Recommended)",
       description: "Palmistry and Astrology synthesized together for a deeper, comprehensive and accurate reading.",

@@ -261,7 +261,7 @@
       'Two Ancient Sciences. One Integrated Perspective.',
       ['See where the chart and the hand agree', 'Understand where they add to each other', 'Notice where they differ — and why', 'A single, combined report'],
       {
-        core: true, featured: true, consultationId: 'combined_consultation', bookingType: 'consultation', price: 749, duration: '45 minutes', image: '/assets/svc/astro-palmistry.webp',
+        core: true, featured: true, consultationId: 'combined_consultation', bookingType: 'consultation', price: 1, duration: '45 minutes', image: '/assets/svc/astro-palmistry.webp',
         tagline: 'Two Ancient Sciences. One Integrated Perspective.',
         intro: 'Astrology reveals life patterns through planetary configuration at birth, while palmistry reveals them through the physical characteristics of the hand. This report examines where these indications align, complement, or differ.',
         description: 'Astro-Palmistry Correlation combines a Comprehensive Kundali Analysis with a Detailed Palm Analysis and then compares the two, area by area. Where both sciences point the same way, the indication is stronger; where they differ, Guruji explains how to read the difference.',
