@@ -162,3 +162,13 @@ describe('staff Google sign-in', { skip: haveCerts ? false : 'no test certificat
     await store.close();
   });
 });
+
+describe('masking a staff address', () => {
+  test('shows enough to recognise it and not enough to harvest it', () => {
+    const m = server.maskEmail('someperson99@example.com');
+    assert.equal(m, 'som***99@example.com');
+    assert.ok(!m.includes('someperson99'));
+    assert.equal(server.maskEmail('ab@x.com'), 'ab***@x.com', 'a short name keeps no tail');
+    assert.equal(server.maskEmail('not-an-address'), '***');
+  });
+});

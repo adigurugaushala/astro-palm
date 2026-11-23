@@ -47,6 +47,14 @@ const emailList = (value) => String(value || '')
   .split(',')
   .map(s => s.trim().toLowerCase())
   .filter(Boolean);
+/** "someperson99@example.com" -> "som***99@example.com": enough for the owner
+ *  to recognise which address is configured, without printing it in full. */
+const maskEmail = (e) => {
+  const [user, domain] = String(e).split('@');
+  if (!domain) return '***';
+  const head = user.slice(0, 3), tail = user.length > 5 ? user.slice(-2) : '';
+  return `${head}***${tail}@${domain}`;
+};
 const ADMIN_EMAILS = emailList(process.env.ADMIN_EMAILS);
 const GURUJI_EMAILS = emailList(process.env.GURUJI_EMAILS);
 
@@ -247,24 +255,25 @@ const GOOGLE_CERT_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/secur
 let googleCerts = { keys: null, expiresAt: 0 };
 
 /** Google's public signing certificates, cached until their max-age runs out. */
-function fetchGoogleCerts() {
-  if (googleCerts.keys && Date.now() < googleCerts.expiresAt) return Promise.resolve(googleCerts.keys);
+function fetchGoogleCerts({ fresh = false } = {}) {
+  if (!fresh && googleCerts.keys && Date.now() < googleCerts.expiresAt) return Promise.resolve(googleCerts.keys);
   return new Promise((resolve) => {
+    const done = (keys, why) => { fetchGoogleCerts.lastError = why || ''; resolve(keys); };
     const req = https.get(GOOGLE_CERT_URL, { timeout: 6000 }, (res) => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
         try {
-          if (res.statusCode !== 200) return resolve(null);
+          if (res.statusCode !== 200) return done(null, `http_${res.statusCode}`);
           const keys = JSON.parse(body);
           const maxAge = Number((res.headers['cache-control'] || '').match(/max-age=(\d+)/)?.[1] || 3600);
           googleCerts = { keys, expiresAt: Date.now() + maxAge * 1000 };
-          resolve(keys);
-        } catch (_) { resolve(null); }
+          done(keys);
+        } catch (e) { done(null, 'bad_response'); }
       });
     });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', (e) => done(null, e.code || e.message || 'network_error'));
+    req.on('timeout', () => { req.destroy(); done(null, 'timeout'); });
   });
 }
 
@@ -945,6 +954,46 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
             !GURUJI_EMAILS.length && 'GURUJI_EMAILS'
           ].filter(Boolean)
         }
+      }];
+    }],
+
+    /** Why staff Google sign-in is or is not working, link by link. Reachable
+     *  with the PIN, so it can be read when Google sign-in itself is refusing. */
+    ['GET', /^\/api\/admin\/sign-in-check$/, async (req) => {
+      requireAdmin(req, 'editor');
+      const started = Date.now();
+      const certs = await fetchGoogleCerts({ fresh: true });
+      const checks = [
+        {
+          name: 'Staff addresses configured',
+          ok: ADMIN_EMAILS.length + GURUJI_EMAILS.length > 0,
+          detail: `ADMIN_EMAILS has ${ADMIN_EMAILS.length}, GURUJI_EMAILS has ${GURUJI_EMAILS.length}`,
+          fix: 'Set ADMIN_EMAILS (and GURUJI_EMAILS) in the hosting environment, then redeploy.'
+        },
+        {
+          name: 'Google certificates reachable',
+          ok: Boolean(certs),
+          detail: certs
+            ? `${Object.keys(certs).length} keys fetched in ${Date.now() - started} ms`
+            : `could not fetch (${fetchGoogleCerts.lastError || 'unknown'})`,
+          fix: 'The server needs to reach googleapis.com. On a host that blocks outgoing requests, staff Google sign-in cannot work — use the PIN.'
+        },
+        {
+          name: 'Firebase project',
+          ok: Boolean(FIREBASE_PROJECT_ID),
+          detail: `tokens are checked against "${FIREBASE_PROJECT_ID}"`,
+          fix: 'This must match the projectId in the page\u2019s Firebase config. Set FIREBASE_PROJECT_ID if they differ.'
+        }
+      ];
+      return [200, {
+        ok: checks.every(c => c.ok),
+        checks,
+        firebaseProjectId: FIREBASE_PROJECT_ID,
+        adminEmails: ADMIN_EMAILS.length,
+        gurujiEmails: GURUJI_EMAILS.length,
+        // the addresses themselves are masked: enough to recognise, not to harvest
+        adminEmailHints: ADMIN_EMAILS.map(maskEmail),
+        gurujiEmailHints: GURUJI_EMAILS.map(maskEmail)
       }];
     }],
 
@@ -2078,7 +2127,7 @@ if (!isTestEnv) {
 
 module.exports = {
   createServer, createHandler, getSharedStore, start, CONSULTATIONS, POOJAS,
-  SPA_ROUTE_RX, slotStartISO, minutesFromDuration, verifyFirebaseToken,
+  SPA_ROUTE_RX, slotStartISO, minutesFromDuration, verifyFirebaseToken, maskEmail,
   /** Tests only: pretend Google published these certificates. */
   _setGoogleCertsForTest(keys, ttlMs = 60000) { googleCerts = { keys, expiresAt: Date.now() + ttlMs }; }
 };

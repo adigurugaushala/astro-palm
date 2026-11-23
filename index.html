@@ -158,6 +158,9 @@
       measurementId: "G-BW4BXH4YYN"
     };
 
+    // The dashboard compares this with the project the server checks tokens
+    // against; a mismatch is the quietest cause of a 401 on staff sign-in.
+    window.GURUJI_FIREBASE_PROJECT = firebaseConfig.projectId;
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);
     const provider = new GoogleAuthProvider();

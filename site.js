@@ -2436,11 +2436,44 @@
               <div><dt>Email alerts</dt><dd>${sys.emailAlerts ? '<span class="sp-pill sp-pill--green">On</span>' : '<span class="sp-pill sp-pill--muted">Off</span>'}</dd></div>
               <div><dt>Staff Google sign-in</dt><dd>${(sys.staffGoogleSignIn || {}).admin || 0} admin · ${(sys.staffGoogleSignIn || {}).guruji || 0} Guruji</dd></div>
             </dl>
+            <button type="button" class="sp-btn-outline sp-btn-sm mt-3" onclick="adminSignInCheck()">
+              <i class="fa-solid fa-stethoscope"></i> Test staff Google sign-in
+            </button>
+            <div id="adm-signin-check" class="mt-3"></div>
             ${(sys.missing || []).length ? `<p class="text-xs text-ink-3 mt-3">Not set in the hosting environment: <strong>${sys.missing.map(esc).join('</strong>, <strong>')}</strong></p>` : ''}
           </div>
         </div>
       </div>`;
   }
+
+  /** Runs the sign-in checks on the server and shows what each one found.
+   *  This is what to reach for when the Google button returns a bare 401. */
+  window.adminSignInCheck = async () => {
+    const host = document.getElementById('adm-signin-check');
+    if (!host) return;
+    host.innerHTML = '<div class="sp-spinner" aria-hidden="true"></div>';
+    try {
+      const d = await adminFetch('/api/admin/sign-in-check');
+      const hints = [].concat(d.adminEmailHints || [], d.gurujiEmailHints || []);
+      host.innerHTML = `
+        <ul class="adm-checks">${(d.checks || []).map(c => `
+          <li class="${c.ok ? 'is-ok' : 'is-bad'}">
+            <i class="fa-solid ${c.ok ? 'fa-circle-check' : 'fa-circle-xmark'}" aria-hidden="true"></i>
+            <div>
+              <strong>${esc(c.name)}</strong>
+              <span>${esc(c.detail)}</span>
+              ${c.ok ? '' : `<em>${esc(c.fix)}</em>`}
+            </div>
+          </li>`).join('')}</ul>
+        ${hints.length ? `<p class="text-xs text-ink-3 mt-2">Configured: ${hints.map(esc).join(', ')}</p>` : ''}
+        <p class="text-xs text-ink-3 mt-1">The page signs in against Firebase project
+          <strong>${esc(window.GURUJI_FIREBASE_PROJECT || 'palm-56063')}</strong>; the server checks tokens against
+          <strong>${esc(d.firebaseProjectId || '')}</strong>.
+          ${(window.GURUJI_FIREBASE_PROJECT || 'palm-56063') === d.firebaseProjectId ? 'These match.' : 'These do not match — that alone causes a 401.'}</p>`;
+    } catch (err) {
+      host.innerHTML = `<p class="sp-notice">${esc(err.message)}</p>`;
+    }
+  };
 
   // -------------------------------------------------------------------------
   // Reviews: what the public sees, and what the owner lets them see

@@ -274,6 +274,26 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(o.bookings.total, Object.values(o.bookings.byStatus).reduce((t, n) => t + n, 0));
     });
 
+    test('the sign-in check reports each link in the chain', async () => {
+      assert.equal((await call('GET', '/api/admin/sign-in-check')).status, 401, 'staff only');
+      const res = await call('GET', '/api/admin/sign-in-check', null, admin);
+      assert.equal(res.status, 200);
+      const names = res.body.checks.map(c => c.name);
+      assert.ok(names.includes('Staff addresses configured'));
+      assert.ok(names.includes('Google certificates reachable'));
+      assert.ok(names.includes('Firebase project'));
+      assert.equal(res.body.firebaseProjectId, 'palm-56063');
+
+      // No staff address is set in these tests, so that check must fail and say how to fix it
+      const emails = res.body.checks.find(c => c.name === 'Staff addresses configured');
+      assert.equal(emails.ok, false);
+      assert.match(emails.fix, /ADMIN_EMAILS/);
+      assert.equal(res.body.ok, false);
+
+      // Addresses are never returned in full
+      assert.ok(!JSON.stringify(res.body).includes('@gmail.com'));
+    });
+
     test('bookings and enquiries download as CSV', async () => {
       const res = await fetch(base + '/api/admin/bookings/export', { headers: admin });
       assert.equal(res.status, 200);

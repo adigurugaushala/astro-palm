@@ -1373,3 +1373,13 @@ header .nav-link:hover::after { left: .55rem; right: .55rem; opacity: .9; }
 .sp-select { padding: .45rem .7rem; border: 1px solid rgb(var(--c-line)); border-radius: var(--radius-md); background: rgb(var(--c-paper)); font-size: .85rem; color: rgb(var(--c-ink)); }
 .sp-select:focus-visible { outline: 2px solid rgb(var(--c-gold)); outline-offset: 1px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.adm-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.adm-checks li { display: flex; gap: .6rem; align-items: start; font-size: .84rem; padding: .55rem .7rem; border-radius: var(--radius-md); border: 1px solid rgb(var(--c-line)); }
+.adm-checks li.is-ok { background: rgb(16 185 129 / .06); border-color: rgb(16 185 129 / .3); }
+.adm-checks li.is-ok i { color: #047857; }
+.adm-checks li.is-bad { background: rgb(190 18 60 / .05); border-color: rgb(190 18 60 / .3); }
+.adm-checks li.is-bad i { color: #9f1239; }
+.adm-checks li div { display: grid; gap: .1rem; }
+.adm-checks li span { color: rgb(var(--c-ink-3)); font-size: .78rem; }
+.adm-checks li em { font-style: normal; color: rgb(var(--c-maroon)); font-size: .78rem; }
