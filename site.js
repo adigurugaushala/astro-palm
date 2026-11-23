@@ -3233,6 +3233,17 @@
     const q = GURUJI.q.trim().toLowerCase();
     let list = (views[GURUJI.view] || views.pending)();
     if (GURUJI.section) list = list.filter((c) => c.section === GURUJI.section);
+    // Finer filters, kept separate from the stage so they can be combined with it.
+    const FILTERS = {
+      unread: (c) => (c.unread || 0) > 0,
+      unclaimed: (c) => c.kind !== 'enquiry' && !c.assignedTo && c.status !== 'COMPLETED',
+      reports: (c) => c.status === 'AWAITING_REPORT' || (c.report && c.report.status !== 'ready' && c.status !== 'COMPLETED'),
+      enquiry: (c) => c.kind === 'enquiry'
+    };
+    const narrowed = list;
+    if (FILTERS[GURUJI.filter]) list = list.filter(FILTERS[GURUJI.filter]);
+    const filterCount = (id) => (FILTERS[id] ? narrowed.filter(FILTERS[id]).length : narrowed.length);
+    const filterOpt = (id, label) => `<button type="button" class="gm-filteropt${GURUJI.filter === id ? ' is-on' : ''}" onclick="gurujiFilter('${id}')">${label}<em>${filterCount(id)}</em></button>`;
     if (q) list = list.filter(c => [c.orderId, (c.devotee || {}).name, (c.devotee || {}).mobile, (c.service || {}).title]
       .filter(Boolean).join(' ').toLowerCase().includes(q));
     list = list.slice().sort((a, b) => GURUJI.sort === 'newest'
@@ -3285,6 +3296,16 @@
           <main class="gm-main">
             <div class="gm-listhead">
               <span class="gm-count">${list.length} ${list.length === 1 ? 'case' : 'cases'}</span>
+              <details class="gm-filter"${GURUJI.filter ? ' open' : ''}>
+                <summary class="gm-filterbtn"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filter${GURUJI.filter ? ' · 1' : ''}</summary>
+                <div class="gm-filtermenu">
+                  ${filterOpt('', 'Everything')}
+                  ${filterOpt('unread', 'Unread messages')}
+                  ${filterOpt('unclaimed', 'Unclaimed')}
+                  ${filterOpt('reports', 'Readings due')}
+                  ${filterOpt('enquiry', 'Enquiries only')}
+                </div>
+              </details>
               <select class="sp-select" aria-label="Sort the cases" onchange="gurujiSort(this.value)">
                 <option value="soonest" ${GURUJI.sort === 'soonest' ? 'selected' : ''}>Soonest appointment</option>
                 <option value="newest" ${GURUJI.sort === 'newest' ? 'selected' : ''}>Newest booking</option>
@@ -3347,6 +3368,7 @@
     } catch (e) { tag.classList.add('hidden'); }
   };
 
+  window.gurujiFilter = (v) => { GURUJI.filter = v; renderCaseList(); };
   window.gurujiSection = (v) => { GURUJI.section = v; renderCaseList(); };
   window.gurujiView = (v) => { GURUJI.view = v; renderCaseList(); };
   window.gurujiSort = (v) => { GURUJI.sort = v; renderCaseList(); };
@@ -3623,9 +3645,40 @@
     }, 4000);
   };
 
+  /**
+   * Confirms a case is finished: a tick draws itself, then the panel refreshes.
+   * Resolves when the animation is done so the re-render does not cut it short.
+   * Anyone who has asked for less motion simply gets the message.
+   */
+  function completedBurst(title, line) {
+    const quiet = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (quiet) { toast(`${title} — ${line}`); return Promise.resolve(); }
+    const el = document.createElement('div');
+    el.className = 'done-burst';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.innerHTML = `<div class="done-burst__card">
+      <svg class="done-burst__tick" viewBox="0 0 52 52" aria-hidden="true">
+        <circle class="done-burst__ring" cx="26" cy="26" r="23" />
+        <path class="done-burst__check" d="M15 27.5l7.5 7.5L37 20" />
+      </svg>
+      <strong>${esc(title)}</strong>
+      <span>${esc(line)}</span>
+    </div>`;
+    document.body.appendChild(el);
+    return new Promise((resolve) => setTimeout(() => {
+      el.classList.add('is-leaving');
+      setTimeout(() => { el.remove(); resolve(); }, 260);
+    }, 1250));
+  }
+
   window.markReportReady = async (orderId) => {
     if (!confirm('Mark this reading ready? The seeker will be able to download it.')) return;
-    try { await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/ready`, { method: 'POST' }); toast('The seeker can now download the reading.'); renderCase(orderId); }
+    try {
+      await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/ready`, { method: 'POST' });
+      await completedBurst('Completed', 'The seeker can now download the reading.');
+      renderCase(orderId);
+    }
     catch (err) { toast(err.message, 'error'); }
   };
   window.endSession = async (orderId) => {
