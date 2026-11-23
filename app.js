@@ -1455,7 +1455,7 @@ async function handleAuthSubmit(event) {
       })
     });
     const data = await res.json();
-    if (data.ok && data.token) {
+    if ((data.ok || data.success) && data.token) {
       localStorage.setItem("guruji_cust_token", data.token);
       if (data.customer) {
         state.user.customerId = data.customer.id;
@@ -3431,7 +3431,7 @@ window.handleCustomerLogin = async function(e) {
       body: JSON.stringify({ identifier, password })
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || "Login failed");
+    if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Login failed");
 
     localStorage.setItem("guruji_cust_token", data.token);
     if (data.customer && typeof state !== 'undefined' && state.user) {
@@ -3507,7 +3507,7 @@ window.handleCustomerSignup = async function(e) {
       })
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || "Registration failed");
+    if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Registration failed");
 
     localStorage.setItem("guruji_cust_token", data.token);
     if (data.customer && typeof state !== 'undefined' && state.user) {
@@ -3526,6 +3526,61 @@ window.handleCustomerSignup = async function(e) {
     if (btn) { btn.disabled = false; btn.textContent = "Create Account"; }
   }
 };
+
+window.toggleProfileEdit = function() {
+  const form = document.querySelector("[data-profile-form]");
+  const label = document.querySelector("[data-edit-label]");
+  if (!form) return;
+  const opening = form.classList.contains("hidden");
+  form.classList.toggle("hidden", !opening);
+  if (label) label.textContent = opening ? "Close" : "Edit profile";
+  if (opening) form.querySelector("input")?.focus();
+};
+
+/** Saves the profile: used by the edit form and by the "almost there" card. */
+window.saveCustomerProfile = async function(e, form) {
+  e.preventDefault();
+  const token = localStorage.getItem("guruji_cust_token");
+  const errEl = form.querySelector("[data-profile-error]");
+  const btn = form.querySelector("button[type=submit]");
+  const body = {};
+  ["name", "mobile", "email"].forEach(k => {
+    const field = form.elements[k];
+    if (field) body[k] = k === "mobile" ? field.value.replace(/\D/g, "").slice(-10) : field.value.trim();
+  });
+  const pwd = form.elements.password;
+  if (pwd && pwd.value) body.password = pwd.value;
+  if (errEl) errEl.classList.add("hidden");
+  if (btn) { btn.disabled = true; btn.dataset.was = btn.textContent; btn.textContent = "Saving…"; }
+  try {
+    const res = await fetch("/api/customer/me", {
+      method: "PATCH",
+      headers: custHeaders(token, { "Content-Type": "application/json" }),
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Could not save your details.");
+    if (data.customer && typeof state !== "undefined" && state.user) {
+      state.user.name = data.customer.name;
+      state.user.email = data.customer.email;
+      state.user.mobile = data.customer.mobile;
+    }
+    if (typeof showVedicToast === "function") showVedicToast("Your details are saved.", "success");
+    renderAccountPortal();
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message; errEl.classList.remove("hidden"); }
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.was || "Save"; }
+  }
+};
+
+/** The server accepts the session token as a Bearer header, an x-customer-token
+ *  header or a cookie. Send the first two so no deployment can miss it. */
+function custHeaders(token, extra) {
+  return Object.assign({
+    "Authorization": `Bearer ${token}`,
+    "x-customer-token": token
+  }, extra || {});
+}
 
 window.handleCustomerLogout = function() {
   localStorage.removeItem("guruji_cust_token");
@@ -3651,22 +3706,18 @@ window.renderAccountPortal = async function() {
   container.innerHTML = `<div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-2xl text-maroon"></i><p class="text-xs text-ink-3 mt-2">Loading your account...</p></div>`;
 
   try {
-    const res = await fetch("/api/customer/me", {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
+    const res = await fetch("/api/customer/me", { headers: custHeaders(token) });
     const data = await res.json();
-    if (!res.ok || !data.ok) {
+    if (!res.ok || !(data.ok || data.success || data.customer)) {
       localStorage.removeItem("guruji_cust_token");
       renderAccountPortal();
       return;
     }
 
     const cust = data.customer;
-    const bRes = await fetch("/api/customer/bookings", {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
+    const bRes = await fetch("/api/customer/bookings", { headers: custHeaders(token) });
     const bData = await bRes.json();
-    const bookings = (bData.ok && bData.bookings) ? bData.bookings : [];
+    const bookings = Array.isArray(bData.bookings) ? bData.bookings : [];
 
     let slotResumeHtml = "";
     const rawSlot = sessionStorage.getItem("guruji_held_slot");
@@ -3694,24 +3745,85 @@ window.renderAccountPortal = async function() {
       <div class="space-y-6">
         ${slotResumeHtml}
 
-        <!-- Profile Card -->
-        <div class="bg-white p-6 sm:p-7 rounded-3xl border border-line shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 flex items-center justify-center text-2xl font-bold font-serif shadow-xs">
-              ${(cust.name || 'D').charAt(0).toUpperCase()}
+        ${!cust.mobile ? `
+        <!-- Profile completion: a Google sign-in brings a name and an email, never a mobile -->
+        <div class="bg-gradient-to-br from-amber-50 to-white p-6 sm:p-7 rounded-3xl border-2 border-amber-300 shadow-sm space-y-4" data-profile-complete>
+          <div class="text-center space-y-1">
+            <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-xl"><i class="fa-regular fa-user-circle"></i></div>
+            <h2 class="font-serif text-xl font-bold text-night-2">Almost there, ${(cust.name || 'Devotee').split(' ')[0]}</h2>
+            <p class="text-xs text-ink-3 max-w-sm mx-auto">Guruji needs a mobile number to confirm your appointment and reach you on the day. Nothing else is missing.</p>
+          </div>
+          <form onsubmit="saveCustomerProfile(event, this)" class="max-w-sm mx-auto space-y-3">
+            <label class="block text-xs font-semibold text-ink-2" for="profile-mobile">Mobile number</label>
+            <div class="flex items-center gap-2">
+              <span class="px-3 h-11 flex items-center rounded-xl border border-line bg-zinc-50 text-sm text-ink-2">+91</span>
+              <input id="profile-mobile" name="mobile" inputmode="numeric" maxlength="10" required
+                class="flex-1 h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm"
+                placeholder="98765 43210" value="">
             </div>
-            <div>
-              <h2 class="font-serif text-xl sm:text-2xl font-bold text-night-2">${cust.name || 'Devotee'}</h2>
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3 mt-0.5">
-                <span><i class="fa-solid fa-phone text-2xs text-amber-700"></i> +91 ${cust.mobile || '—'}</span>
-                <span>•</span>
-                <span><i class="fa-solid fa-envelope text-2xs text-amber-700"></i> ${cust.email || '—'}</span>
+            <p class="text-xs text-red-600 hidden" data-profile-error role="alert"></p>
+            <button type="submit" class="w-full gold-gradient-btn h-11 rounded-xl text-sm font-semibold">Save and continue</button>
+          </form>
+        </div>
+        ` : ''}
+
+        <!-- Profile Card -->
+        <div class="bg-white p-6 sm:p-7 rounded-3xl border border-line shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 flex items-center justify-center text-2xl font-bold font-serif shadow-xs">
+                ${(cust.name || 'D').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 class="font-serif text-xl sm:text-2xl font-bold text-night-2">${cust.name || 'Devotee'}</h2>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3 mt-0.5">
+                  <span><i class="fa-solid fa-phone text-2xs text-amber-700"></i> ${cust.mobile ? '+91 ' + cust.mobile : 'No mobile number yet'}</span>
+                  <span>•</span>
+                  <span><i class="fa-solid fa-envelope text-2xs text-amber-700"></i> ${cust.email || '—'}</span>
+                  ${cust.provider === 'google' ? '<span>•</span><span><i class="fa-brands fa-google text-2xs text-amber-700"></i> Google</span>' : ''}
+                </div>
               </div>
             </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="toggleProfileEdit()" class="px-4 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-semibold text-maroon flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-pen text-2xs"></i> <span data-edit-label>Edit profile</span>
+              </button>
+              <button type="button" onclick="handleCustomerLogout()" class="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs font-semibold text-zinc-600 flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-arrow-right-from-bracket text-2xs"></i> Sign Out
+              </button>
+            </div>
           </div>
-          <button type="button" onclick="handleCustomerLogout()" class="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs font-semibold text-zinc-600 flex items-center gap-1.5 transition">
-            <i class="fa-solid fa-arrow-right-from-bracket text-2xs"></i> Sign Out
-          </button>
+
+          <form onsubmit="saveCustomerProfile(event, this)" class="hidden border-t border-line pt-4 grid gap-3 sm:grid-cols-3" data-profile-form>
+            <div>
+              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-name">Full name</label>
+              <input id="profile-name" name="name" required minlength="2" value="${(cust.name || '').replace(/"/g, '&quot;')}"
+                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-mobile-edit">Mobile number</label>
+              <input id="profile-mobile-edit" name="mobile" inputmode="numeric" maxlength="10" required value="${cust.mobile || ''}"
+                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-email">Email</label>
+              <input id="profile-email" name="email" type="email" required value="${cust.email || ''}"
+                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
+            </div>
+            <div class="sm:col-span-3">
+              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-password">
+                ${cust.provider === 'google' ? 'Set a password (optional)' : 'New password (optional)'}
+              </label>
+              <input id="profile-password" name="password" type="password" minlength="8" autocomplete="new-password"
+                placeholder="${cust.provider === 'google' ? 'Add one if you also want to sign in without Google' : 'Leave blank to keep your current password'}"
+                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
+            </div>
+            <p class="text-xs text-red-600 hidden sm:col-span-3" data-profile-error role="alert"></p>
+            <div class="sm:col-span-3 flex gap-2 justify-end">
+              <button type="button" onclick="toggleProfileEdit()" class="px-4 h-10 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-600">Cancel</button>
+              <button type="submit" class="gold-gradient-btn px-5 h-10 rounded-xl text-xs font-semibold">Save changes</button>
+            </div>
+          </form>
         </div>
 
         <!-- Bookings Section -->

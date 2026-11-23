@@ -39,7 +39,9 @@ const HOST = process.env.HOST || '127.0.0.1';
 // Admin access. On a hosted deployment the admin area stays locked until ADMIN_PIN is set.
 const ADMIN_PIN = process.env.ADMIN_PIN || (process.env.VERCEL ? '' : '1008');
 const EDITOR_PIN = process.env.EDITOR_PIN || '';   // optional second role: can edit site content, cannot see bookings
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'gsrikar888@gmail.com')
+// Set ADMIN_EMAILS in the environment (comma separated). Never hard-code a
+// personal address here: this file lives in a public repository.
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
   .split(',')
   .map(s => s.trim().toLowerCase())
   .filter(Boolean);
@@ -226,75 +228,83 @@ function safeEqual(given, expected) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 /** Verify a Firebase Google ID Token with Google Identity Toolkit or validated JWT claims */
-async function verifyFirebaseToken(idToken) {
-  if (!idToken) return null;
-  const apiKey = process.env.FIREBASE_API_KEY || 'AIzaSyBCnhuHmyRznPJh4vidByrmujVVtr8Xyp0';
-  const payload = JSON.stringify({ idToken });
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'palm-56063';
+const GOOGLE_CERT_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
+let googleCerts = { keys: null, expiresAt: 0 };
 
-  // 1. First attempt: Google Identity Toolkit lookup
-  try {
-    const toolkitUser = await new Promise((resolve) => {
-      const req = https.request({
-        hostname: 'identitytoolkit.googleapis.com',
-        path: `/v1/accounts:lookup?key=${apiKey}`,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload)
-        },
-        timeout: 6000
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(data);
-            if (res.statusCode === 200 && json.users && json.users[0]) {
-              resolve(json.users[0]);
-            } else {
-              resolve(null);
-            }
-          } catch (_) {
-            resolve(null);
-          }
-        });
+/** Google's public signing certificates, cached until their max-age runs out. */
+function fetchGoogleCerts() {
+  if (googleCerts.keys && Date.now() < googleCerts.expiresAt) return Promise.resolve(googleCerts.keys);
+  return new Promise((resolve) => {
+    const req = https.get(GOOGLE_CERT_URL, { timeout: 6000 }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          if (res.statusCode !== 200) return resolve(null);
+          const keys = JSON.parse(body);
+          const maxAge = Number((res.headers['cache-control'] || '').match(/max-age=(\d+)/)?.[1] || 3600);
+          googleCerts = { keys, expiresAt: Date.now() + maxAge * 1000 };
+          resolve(keys);
+        } catch (_) { resolve(null); }
       });
-      req.on('error', () => resolve(null));
-      req.on('timeout', () => { req.destroy(); resolve(null); });
-      req.write(payload);
-      req.end();
     });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
 
-    if (toolkitUser && toolkitUser.email) {
-      return toolkitUser;
-    }
-  } catch (err) {
-    console.warn('[verifyFirebaseToken] Identity toolkit call failed, attempting JWT claims verification:', err?.message || err);
-  }
+/** Verifies a Firebase ID token properly: RS256 signature against Google's
+ *  published certificates, then the issuer, audience and expiry claims.
+ *  Returns the user, or null with the reason in `verifyFirebaseToken.lastError`.
+ *  A token that cannot be checked is rejected — never trusted on its word. */
+async function verifyFirebaseToken(idToken) {
+  const fail = (reason) => { verifyFirebaseToken.lastError = reason; return null; };
+  verifyFirebaseToken.lastError = '';
+  if (!idToken || typeof idToken !== 'string') return fail('no_token');
 
-  // 2. Resilient fallback: Parse and validate Firebase JWT claims directly
+  const parts = idToken.split('.');
+  if (parts.length !== 3) return fail('malformed_token');
+
+  let header, claims;
   try {
-    const parts = String(idToken).split('.');
-    if (parts.length === 3) {
-      const payloadBuf = Buffer.from(parts[1], 'base64url');
-      const claims = JSON.parse(payloadBuf.toString('utf8'));
-      const nowSec = Math.floor(Date.now() / 1000);
-      const isProject = claims.aud === 'palm-56063' || claims.iss === 'https://securetoken.google.com/palm-56063';
-      const isNotExpired = claims.exp && claims.exp > nowSec - 300; // allow 5m clock skew
-      if (isProject && isNotExpired && claims.email) {
-        return {
-          localId: claims.sub || claims.user_id,
-          email: claims.email,
-          displayName: claims.name || claims.displayName || '',
-          emailVerified: Boolean(claims.email_verified)
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('[verifyFirebaseToken] JWT decode error:', err?.message || err);
-  }
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch (_) { return fail('malformed_token'); }
 
-  return null;
+  if (header.alg !== 'RS256') return fail('bad_algorithm');
+  if (!header.kid) return fail('no_key_id');
+
+  const certs = await fetchGoogleCerts();
+  if (!certs) return fail('google_certs_unreachable');
+  const cert = certs[header.kid];
+  if (!cert) return fail('unknown_key_id');
+
+  let verified = false;
+  try {
+    const key = crypto.createPublicKey(cert);
+    verified = crypto.verify('RSA-SHA256', Buffer.from(parts[0] + '.' + parts[1]),
+      key, Buffer.from(parts[2], 'base64url'));
+  } catch (err) {
+    return fail('signature_check_failed');
+  }
+  if (!verified) return fail('bad_signature');
+
+  const now = Math.floor(Date.now() / 1000);
+  if (claims.aud !== FIREBASE_PROJECT_ID) return fail('wrong_project');
+  if (claims.iss !== 'https://securetoken.google.com/' + FIREBASE_PROJECT_ID) return fail('wrong_issuer');
+  if (!claims.exp || claims.exp < now - 60) return fail('token_expired');
+  if (claims.iat && claims.iat > now + 300) return fail('token_from_the_future');
+  if (!claims.sub) return fail('no_subject');
+  if (!claims.email) return fail('no_email');
+
+  return {
+    localId: claims.sub,
+    email: claims.email,
+    displayName: claims.name || claims.displayName || '',
+    emailVerified: Boolean(claims.email_verified),
+    picture: claims.picture || ''
+  };
 }
 
 /** 'owner' (everything), 'guruji' (cases, chat, sessions), 'editor' (site content) or null. */
@@ -312,9 +322,14 @@ function adminRole(req) {
   return null;
 }
 
-/** Resolves logged-in customer account from session token in header or cookie. */
+/** Resolves logged-in customer account from session token in header or cookie.
+ *  Accepts all three shapes the browser sends: an Authorization: Bearer header,
+ *  an x-customer-token header, or the guruji_cust_token cookie. */
 function customerFromToken(req) {
-  const token = req.headers['x-customer-token'] || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([a-f0-9]+)/) || [])[1]);
+  const bearer = (req.headers.authorization || '').match(/^Bearer\s+([A-Za-z0-9._-]+)$/);
+  const token = req.headers['x-customer-token']
+    || (bearer && bearer[1])
+    || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([a-f0-9]+)/) || [])[1]);
   if (!token || !verifiedCustomerTokens.has(token)) return null;
   const entry = verifiedCustomerTokens.get(token);
   if (Date.now() > entry.expiresAt) {
@@ -716,7 +731,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const value = validateContentSection(section, body.value);
       await store.setContentSection(section, value, { updatedBy: role });
       store.__contentCache = null;
-      return [200, { success: true, section, value }];
+      return [200, { ok: true, success: true, section, value }];
     }],
 
     ['DELETE', /^\/api\/admin\/content\/([A-Za-z]+)$/, async (req, [, section]) => {
@@ -724,7 +739,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       if (!CONTENT_SECTIONS.includes(section)) throw new HttpError(404, 'Unknown content section');
       await store.deleteContentSection(section);
       store.__contentCache = null;
-      return [200, { success: true, section, value: DEFAULT_CONTENT[section] }];
+      return [200, { ok: true, success: true, section, value: DEFAULT_CONTENT[section] }];
     }],
 
     ['GET', /^\/api\/admin\/media$/, async (req) => {
@@ -746,13 +761,13 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const item = { id, name: str(body.name, 120) || id + MEDIA_TYPES[type], type, size: bytes.length, data: bytes.toString('base64'), createdAt: nowIso() };
       await store.saveMedia(item);
       const { data: _omit, ...meta } = item;
-      return [201, { success: true, media: { ...meta, url: `/api/media/${id}` } }];
+      return [201, { ok: true, success: true, media: { ...meta, url: `/api/media/${id}` } }];
     }],
 
     ['DELETE', /^\/api\/admin\/media\/([a-z0-9-]+)$/, async (req, [, id]) => {
       requireAdmin(req, 'editor');
       if (!(await store.deleteMedia(id))) throw new HttpError(404, 'Image not found');
-      return [200, { success: true }];
+      return [200, { ok: true, success: true }];
     }],
 
     ['GET', /^\/api\/admin\/bookings$/, async (req, m, url) => {
@@ -775,7 +790,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const note = str(body.note, 500);
       if (note) set.adminNote = note;
       const updated = await store.updateBooking(orderId, set, { at, event: 'admin_update', status: set.status, note, by: 'owner' });
-      return [200, { success: true, booking: updated }];
+      return [200, { ok: true, success: true, booking: updated }];
     }],
 
     ['GET', /^\/api\/admin\/enquiries$/, async (req, m, url) => {
@@ -798,7 +813,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const note = str(body.note, 500);
       if (note) set.adminNote = note;
       const updated = await store.updateEnquiry(ref, set, { at, event: 'admin_update', status: set.status, note });
-      return [200, { success: true, enquiry: updated }];
+      return [200, { ok: true, success: true, enquiry: updated }];
     }],
 
     ['GET', /^\/api\/admin\/consents$/, async (req, m, url) => {
@@ -888,7 +903,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         await sendCustomerConfirmation(contact.email, contact.name, service ? service.title : 'PALMISTRY – THE SCIENCE OF PALM READING', enquiry.reference);
       }
       const { history, ...pub } = enquiry;
-      return [201, { success: true, enquiry: pub, emailed }];
+      return [201, { ok: true, success: true, enquiry: pub, emailed }];
     }],
 
     ['GET', /^\/api\/enquiries\/([A-Z0-9-]+)$/, async (req, [, ref], url) => {
@@ -1062,12 +1077,12 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       if (actor === undefined) throw new HttpError(401, 'Sign in to join the session');
       if (!booking || !actor) throw new HttpError(404, 'Booking not found');
       const field = actor.who === 'guruji' ? 'gurujiJoinedAt' : 'devoteeJoinedAt';
-      if (booking[field]) return [200, { success: true, already: true }];   // idempotent
+      if (booking[field]) return [200, { ok: true, success: true, already: true }];   // idempotent
       const at = nowIso();
       const set = { [field]: at };
       if (!booking.sessionStartedAt) set.sessionStartedAt = at;
       await store.updateBooking(orderId, set, { at, event: 'session_joined', by: actor.who });
-      return [200, { success: true }];
+      return [200, { ok: true, success: true }];
     }],
 
     ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/session\/end$/, async (req, [, orderId]) => {
@@ -1075,12 +1090,12 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       requireGuruji(req);
       const booking = await store.getBooking(orderId);
       if (!booking) throw new HttpError(404, 'Booking not found');
-      if (booking.sessionEndedAt) return [200, { success: true, already: true, booking: publicBooking(booking) }];
+      if (booking.sessionEndedAt) return [200, { ok: true, success: true, already: true, booking: publicBooking(booking) }];
       const at = nowIso();
       const status = booking.report && booking.report.status === 'ready' ? 'COMPLETED' : 'AWAITING_REPORT';
       const updated = await store.updateBooking(orderId, { sessionEndedAt: at, status, updatedAt: at },
         { at, event: 'session_ended', by: 'guruji', status });
-      return [200, { success: true, booking: publicBooking(updated) }];
+      return [200, { ok: true, success: true, booking: publicBooking(updated) }];
     }],
 
     // Guruji's cases -----------------------------------------------------------
@@ -1113,7 +1128,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const at = nowIso();
       const updated = await store.updateBooking(orderId, { assignedTo: by, assignedAt: at, updatedAt: at },
         { at, event: 'case_claimed', by });
-      return [200, { success: true, case: updated }];
+      return [200, { ok: true, success: true, case: updated }];
     }],
 
     ['PUT', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/report$/, async (req, [, orderId]) => {
@@ -1134,7 +1149,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       };
       const updated = await store.updateBooking(orderId, { report, updatedAt: report.updatedAt },
         { at: report.updatedAt, event: 'report_saved', version: report.version });
-      return [200, { success: true, report: updated.report }];
+      return [200, { ok: true, success: true, report: updated.report }];
     }],
 
     ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/ready$/, async (req, [, orderId]) => {
@@ -1148,7 +1163,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const report = { ...booking.report, status: 'ready', readyAt: at };
       const updated = await store.updateBooking(orderId, { report, status: 'COMPLETED', updatedAt: at },
         { at, event: 'report_ready', by: 'guruji' });
-      return [200, { success: true, case: updated }];
+      return [200, { ok: true, success: true, case: updated }];
     }],
 
     // The report, as a PDF ------------------------------------------------------
@@ -1245,7 +1260,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         throw e;
       }
       await writeMantrasSeedFile(store);
-      return [201, { success: true, mantra }];
+      return [201, { ok: true, success: true, mantra }];
     }],
 
     ['PUT', /^\/api\/mantras\/([^/]+)$/, async (req, [, id]) => {
@@ -1256,7 +1271,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const mantra = await store.updateMantra(id, updates);
       if (!mantra) throw new HttpError(404, 'Mantra not found');
       await writeMantrasSeedFile(store);
-      return [200, { success: true, mantra }];
+      return [200, { ok: true, success: true, mantra }];
     }],
 
     ['DELETE', /^\/api\/mantras\/([^/]+)$/, async (req, [, id]) => {
@@ -1264,7 +1279,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const removed = await store.deleteMantra(id);
       if (!removed) throw new HttpError(404, 'Mantra not found');
       await writeMantrasSeedFile(store);
-      return [200, { success: true, removed }];
+      return [200, { ok: true, success: true, removed }];
     }],
 
     // Pooja slots -------------------------------------------------------------
@@ -1370,7 +1385,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       if (booking.payment.status !== 'FREE') booking.payment.provider = PAYMENT_MODE;
       await store.createBooking(booking);
-      return [201, { success: true, booking: publicBooking(booking), payments: PAYMENT_MODE }];
+      return [201, { ok: true, success: true, booking: publicBooking(booking), payments: PAYMENT_MODE }];
     }],
 
     ['GET', /^\/api\/bookings\/([A-Z0-9-]+)$/, async (req, [, orderId], url) => {
@@ -1408,11 +1423,11 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         case 'payment_success':
           // With a real gateway this must come from its verified callback, never from the browser.
           if (PAYMENT_MODE !== 'simulated') throw new HttpError(403, 'Payments are confirmed by the payment gateway');
-          if (!['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(booking.status)) return [200, { success: true, booking: publicBooking(booking) }];
+          if (!['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(booking.status)) return [200, { ok: true, success: true, booking: publicBooking(booking) }];
           set = { status: 'PAID', payment: { provider: PAYMENT_MODE, status: 'SUCCESS', paidAt: at } };
           break;
         case 'payment_failed':
-          if (booking.status !== 'PENDING_PAYMENT') return [200, { success: true, booking: publicBooking(booking) }];
+          if (booking.status !== 'PENDING_PAYMENT') return [200, { ok: true, success: true, booking: publicBooking(booking) }];
           set = { status: 'PAYMENT_FAILED', payment: { provider: PAYMENT_MODE, status: 'FAILED', failedAt: at } };
           break;
         case 'details_submitted': {
@@ -1443,7 +1458,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       }
       set.updatedAt = at;
       const updated = await store.updateBooking(orderId, set, { at, event: body.event });
-      return [200, { success: true, booking: publicBooking(updated) }];
+      return [200, { ok: true, success: true, booking: publicBooking(updated) }];
     }],
 
     // Customer Authentication & Account Management -------------------------
@@ -1498,7 +1513,8 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
-      return [200, { success: true, customer, token, consentId: consentRecord?.id }];
+      // `ok` is what the browser checks; `success` is kept for older clients.
+      return [200, { ok: true, success: true, customer, token, consentId: consentRecord?.id }];
     }],
 
     ['POST', /^\/api\/customer\/login$/, async (req) => {
@@ -1511,16 +1527,19 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const customer = await store.findCustomer(identifier);
       if (!customer) throw new HttpError(404, 'No account found with this email or mobile number. Please register first.');
 
-      if (customer.passwordHash && password) {
-        if (!verifyPassword(password, customer.passwordHash)) {
-          throw new HttpError(401, 'Incorrect password. Please try again or sign in with Google.');
-        }
+      // A password is always required. An account created through Google has no
+      // password, and must not be signed into by anyone who knows the address.
+      if (!customer.passwordHash) {
+        throw new HttpError(401, 'This account was created with Google. Please use the "Continue with Google" button, then set a password from your profile if you want one.');
+      }
+      if (!password || !verifyPassword(password, customer.passwordHash)) {
+        throw new HttpError(401, 'Incorrect password. Please try again or sign in with Google.');
       }
 
       const { passwordHash, ...safeCustomer } = customer;
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer: safeCustomer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
-      return [200, { success: true, customer: safeCustomer, token }];
+      return [200, { ok: true, success: true, customer: safeCustomer, token }];
     }],
 
     ['POST', /^\/api\/customer\/google-auth$/, async (req) => {
@@ -1528,7 +1547,22 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const b = await readJsonBody(req);
       if (!b.idToken) throw new HttpError(422, 'Google authentication token is required');
       const user = await verifyFirebaseToken(b.idToken);
-      if (!user || !user.email) throw new HttpError(401, 'Google sign-in could not be verified with Firebase');
+      if (!user || !user.email) {
+        const why = verifyFirebaseToken.lastError || 'unverified';
+        console.warn('[google-auth] rejected:', why);
+        // The reason is machine-readable so a sign-in problem can be diagnosed
+        // without guesswork; it says nothing secret.
+        throw new HttpError(401, {
+          code: why,
+          message: why === 'google_certs_unreachable'
+            ? 'This server cannot reach Google to check the sign-in. Please try again in a moment.'
+            : why === 'wrong_project'
+              ? 'This sign-in belongs to a different Firebase project. Check FIREBASE_PROJECT_ID.'
+              : why === 'token_expired'
+                ? 'That sign-in has expired. Please try again.'
+                : 'Google sign-in could not be verified.'
+        });
+      }
 
       const email = user.email.toLowerCase().trim();
       const name = str(user.displayName || b.name, 120) || 'Devotee';
@@ -1560,7 +1594,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
-      return [200, { success: true, customer, token, needsMobile: !customer.mobile }];
+      return [200, { ok: true, success: true, customer, token, needsMobile: !customer.mobile }];
     }],
 
     ['GET', /^\/api\/customer\/me$/, async (req) => {
@@ -1568,6 +1602,54 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const customer = customerFromToken(req);
       if (!customer) throw new HttpError(401, 'Not signed in');
       return [200, { ok: true, customer }];
+    }],
+
+    ['PATCH', /^\/api\/customer\/me$/, async (req) => {
+      rateLimit(req, 'customer-profile', 20);
+      const current = customerFromToken(req);
+      if (!current) throw new HttpError(401, 'Please sign in again');
+      const b = await readJsonBody(req);
+
+      const name = b.name === undefined ? current.name : str(b.name, 120);
+      const mobile = b.mobile === undefined ? current.mobile : normaliseMobile(b.mobile);
+      const email = b.email === undefined ? current.email : str(b.email, 160).toLowerCase();
+
+      if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
+      if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
+      if (!isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
+
+      // A mobile or email already on someone else's account cannot be taken.
+      for (const identifier of [mobile, email]) {
+        const owner = await store.findCustomer(identifier);
+        if (owner && owner.id !== current.id) {
+          throw new HttpError(409, 'That mobile number or email already belongs to another account');
+        }
+      }
+
+      // Optional: set or change the password (a Google account starts without one).
+      let passwordHash = current.passwordHash;
+      if (b.password !== undefined && String(b.password).length > 0) {
+        const password = str(b.password, 100);
+        if (password.length < 8) throw new HttpError(422, 'A password needs at least 8 characters');
+        passwordHash = hashPassword(password);
+      }
+      if (passwordHash === undefined) {
+        const stored = await store.findCustomer(current.id);
+        passwordHash = (stored && stored.passwordHash) || '';
+      }
+
+      const saved = await store.createOrUpdateCustomer({
+        ...current, name, mobile, email, passwordHash, id: current.id, provider: current.provider || 'local'
+      });
+      const { passwordHash: _hash, ...customer } = saved;
+
+      // Keep every live session for this account in step with the new details.
+      for (const [token, entry] of verifiedCustomerTokens) {
+        if (entry.customer && entry.customer.id === current.id) {
+          verifiedCustomerTokens.set(token, { ...entry, customer });
+        }
+      }
+      return [200, { ok: true, success: true, customer }];
     }],
 
     ['GET', /^\/api\/customer\/bookings$/, async (req, _, url) => {
@@ -1578,7 +1660,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       if (!mobile && !email) throw new HttpError(401, 'Please sign in or provide your phone/email to view your bookings');
 
       const bookings = await store.listCustomerBookings(mobile, email);
-      return [200, { bookings: bookings.map(publicBooking) }];
+      return [200, { ok: true, bookings: bookings.map(publicBooking) }];
     }],
 
     // Reviews ----------------------------------------------------------------
@@ -1604,7 +1686,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         consultation: str(r.consultation, 120), verified, createdAt: nowIso()
       };
       await store.createReview(review);
-      return [201, { success: true, review }];
+      return [201, { ok: true, success: true, review }];
     }]
   ];
 }
@@ -1784,4 +1866,9 @@ if (!isTestEnv) {
   start();
 }
 
-module.exports = { createServer, createHandler, getSharedStore, start, CONSULTATIONS, POOJAS, SPA_ROUTE_RX, slotStartISO, minutesFromDuration };
+module.exports = {
+  createServer, createHandler, getSharedStore, start, CONSULTATIONS, POOJAS,
+  SPA_ROUTE_RX, slotStartISO, minutesFromDuration, verifyFirebaseToken,
+  /** Tests only: pretend Google published these certificates. */
+  _setGoogleCertsForTest(keys, ttlMs = 60000) { googleCerts = { keys, expiresAt: Date.now() + ttlMs }; }
+};

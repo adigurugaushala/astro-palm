@@ -1284,7 +1284,7 @@
     setMeta('meta[property="og:title"]', 'content', title);
     setMeta('meta[property="og:description"]', 'content', String(desc).slice(0, 300));
     setMeta('link[rel="canonical"]', 'href', location.origin + (pathFor(pageId, params) || location.pathname));
-    setMeta('meta[name="robots"]', 'content', ['admin', 'guruji', 'session', 'learn', 'payment-return'].includes(pageId) ? 'noindex' : 'index,follow');
+    setMeta('meta[name="robots"]', 'content', ['admin', 'guruji', 'session', 'learn', 'account', 'payment-return'].includes(pageId) ? 'noindex' : 'index,follow');
     setStructuredData(pageId, params, title, desc);
   }
 
@@ -2581,10 +2581,10 @@
           <i class="fa-solid fa-shield-halved text-3xl text-gold-deep" aria-hidden="true"></i>
           <div>
             <h1 class="sp-h2">Admin sign in</h1>
-            <p class="text-xs text-ink-3 mt-1">Authorized for <strong>gsrikar888@gmail.com</strong> & Temple Staff</p>
+            <p class="text-xs text-ink-3 mt-1">For temple staff only</p>
           </div>
 
-          <!-- Google 1-Click Sign-in for gsrikar888@gmail.com -->
+          <!-- Google sign-in, limited to the addresses in ADMIN_EMAILS -->
           <button type="button" onclick="adminLoginWithGoogle()" class="w-full h-11 flex items-center justify-center gap-3 border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 font-medium hover:bg-stone-50 dark:hover:bg-stone-700 transition-all shadow-sm">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -2718,10 +2718,10 @@
           <div>
             <h1 class="sp-h2">Guruji's Cases</h1>
             <p class="sp-text">Sign in to see devotees waiting, palms and charts, chat and readings.</p>
-            <p class="text-xs text-ink-3 mt-1">Authorized for <strong>gsrikar888@gmail.com</strong> &amp; Guruji</p>
+            <p class="text-xs text-ink-3 mt-1">For Guruji and temple staff only</p>
           </div>
 
-          <!-- Google 1-Click Sign-in for gsrikar888@gmail.com -->
+          <!-- Google sign-in, limited to the addresses in ADMIN_EMAILS -->
           <button type="button" onclick="adminLoginWithGoogle()" class="w-full h-11 flex items-center justify-center gap-3 border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 font-medium hover:bg-stone-50 dark:hover:bg-stone-700 transition-all shadow-sm">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

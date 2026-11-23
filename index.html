@@ -146,7 +146,7 @@
   <!-- Google Firebase App & Auth SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBCnhuHmyRznPJh4vidByrmujVVtr8Xyp0",
@@ -165,79 +165,108 @@
 
     window.firebaseAuth = auth;
 
+    /** Everything that happens once Google has told us who the devotee is —
+     *  shared by the popup flow and the redirect flow. */
+    async function handleGoogleUser(user) {
+      if (!user) return;
+      const nameInput = document.getElementById('auth-name');
+      const emailInput = document.getElementById('auth-email');
+      if (nameInput) nameInput.value = user.displayName || nameInput.value || '';
+      if (emailInput) emailInput.value = user.email || emailInput.value || '';
+      if (typeof state !== 'undefined' && state.user) {
+        if (user.displayName) state.user.name = user.displayName;
+        if (user.email) state.user.email = user.email;
+      }
+      if (typeof persistHeldSlot === 'function') persistHeldSlot();
+
+      let linked = null;
+      try {
+        const idToken = await user.getIdToken();
+        const res = await fetch('/api/customer/google-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken, name: user.displayName, email: user.email, googleId: user.uid })
+        });
+        const data = await res.json();
+        if (res.ok && (data.ok || data.success) && data.token) {
+          linked = data;
+          localStorage.setItem('guruji_cust_token', data.token);
+          if (data.customer && typeof state !== 'undefined' && state.user) {
+            state.user.customerId = data.customer.id;
+            if (data.customer.mobile) {
+              state.user.mobile = data.customer.mobile;
+              const mobInput = document.getElementById('auth-mobile');
+              if (mobInput && !mobInput.value) mobInput.value = data.customer.mobile;
+            }
+          }
+        } else if (typeof showVedicToast === 'function') {
+          // The server says why: an expired sign-in, the wrong Firebase project,
+          // or Google itself being unreachable. Say so rather than failing quietly.
+          showVedicToast(data.error || 'Google sign-in could not be verified.', 'warn');
+        }
+      } catch (e) {
+        console.warn('[Google Auth Customer Link]', e);
+        if (typeof showVedicToast === 'function') {
+          showVedicToast('Signed in with Google, but your account could not be linked. Please try again.', 'warn');
+        }
+      }
+
+      if (linked && typeof showVedicToast === 'function') {
+        showVedicToast('Namaste ' + (user.displayName || 'Devotee') + ', signed in with Google!', 'success');
+      }
+
+      // On the account page, show the portal: it asks for the mobile number if
+      // Google did not give us one.
+      if (location.pathname.replace(/\/$/, '') === '/account') {
+        if (typeof renderAccountPortal === 'function') renderAccountPortal();
+        return;
+      }
+
+      const mobileVal = document.getElementById('auth-mobile')?.value;
+      if (mobileVal && mobileVal.replace(/\D/g, '').length === 10) {
+        if (typeof showPage === 'function') showPage('book-payment');
+      } else {
+        document.getElementById('auth-mobile')?.focus();
+        if (typeof showVedicToast === 'function') {
+          showVedicToast('Please confirm your 10-digit mobile number so Guruji can reach you.', 'info');
+        }
+      }
+    }
+
     window.loginWithGoogle = async function() {
       try {
         const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        if (user) {
-          const nameInput = document.getElementById('auth-name');
-          const emailInput = document.getElementById('auth-email');
-          if (nameInput) nameInput.value = user.displayName || '';
-          if (emailInput) emailInput.value = user.email || '';
-          if (typeof state !== 'undefined' && state.user) {
-            if (user.displayName) state.user.name = user.displayName;
-            if (user.email) state.user.email = user.email;
-          }
-
-          if (typeof persistHeldSlot === 'function') persistHeldSlot();
-
-          // Securely register/link customer in database
-          try {
-            const idToken = await user.getIdToken();
-            const res = await fetch('/api/customer/google-auth', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                idToken,
-                name: user.displayName,
-                email: user.email,
-                googleId: user.uid
-              })
-            });
-            const data = await res.json();
-            if (data.ok && data.token) {
-              localStorage.setItem('guruji_cust_token', data.token);
-              if (data.customer && typeof state !== 'undefined' && state.user) {
-                state.user.customerId = data.customer.id;
-                if (data.customer.mobile) {
-                  state.user.mobile = data.customer.mobile;
-                  const mobInput = document.getElementById('auth-mobile');
-                  if (mobInput) mobInput.value = data.customer.mobile;
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('[Google Auth Customer Link]', e);
-          }
-
-          if (typeof showVedicToast === 'function') {
-            showVedicToast('Namaste ' + (user.displayName || 'Devotee') + ', signed in with Google!', 'success');
-          }
-
-          // If mobile is already filled, continue directly to payment
-          const mobileVal = document.getElementById('auth-mobile')?.value;
-          if (mobileVal && mobileVal.replace(/\D/g, '').length === 10) {
-            if (typeof showPage === 'function') showPage('book-payment');
-          } else {
-            document.getElementById('auth-mobile')?.focus();
-            if (typeof showVedicToast === 'function') {
-              showVedicToast('Please confirm your 10-digit mobile number for WhatsApp consultation updates.', 'info');
-            }
-          }
-        }
+        await handleGoogleUser(result.user);
       } catch (err) {
-        if (err.code !== 'auth/popup-closed-by-user') {
-          console.error('[Firebase Auth Error]', err);
-          if (typeof showVedicToast === 'function') {
-            if (err.code === 'auth/unauthorized-domain') {
-              showVedicToast('Domain not authorized in Firebase yet. Add ' + window.location.hostname + ' in Firebase Console → Authorized Domains.', 'warn');
-            } else {
-              showVedicToast('Google sign-in could not be completed.', 'warn');
-            }
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return;
+        // Popups are blocked on many phone browsers and by some privacy settings.
+        // Fall back to the full-page redirect, which always works.
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+          try {
+            sessionStorage.setItem('guruji_google_redirect', '1');
+            await signInWithRedirect(auth, provider);
+            return;
+          } catch (e2) { console.error('[Firebase redirect]', e2); }
+        }
+        console.error('[Firebase Auth Error]', err);
+        if (typeof showVedicToast === 'function') {
+          if (err.code === 'auth/unauthorized-domain') {
+            showVedicToast('Domain not authorized in Firebase yet. Add ' + window.location.hostname + ' in Firebase Console → Authorized Domains.', 'warn');
+          } else {
+            showVedicToast('Google sign-in could not be completed.', 'warn');
           }
         }
       }
     };
+
+    // Coming back from the redirect flow.
+    getRedirectResult(auth).then((result) => {
+      sessionStorage.removeItem('guruji_google_redirect');
+      if (result && result.user) handleGoogleUser(result.user);
+    }).catch((err) => {
+      sessionStorage.removeItem('guruji_google_redirect');
+      if (err && err.code !== 'auth/no-auth-event') console.warn('[Firebase redirect result]', err.code || err);
+    });
 
     onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -431,28 +460,28 @@
   <a href="#app-viewport" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:bg-gold focus:text-night focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold">Skip to content</a>
 
   <header class="bg-night text-white border-b border-night-line sticky top-0 z-50 shadow-lg">
-    <div class="max-w-[1440px] min-[1800px]:max-w-none mx-auto px-4 sm:px-6 lg:px-8 min-[1800px]:px-[3.5vw] h-[72px] flex items-center justify-between gap-3">
+    <div class="max-w-[1440px] min-[2000px]:max-w-none mx-auto px-4 sm:px-6 lg:px-8 min-[2000px]:px-[3.5vw] h-[72px] flex items-center justify-between gap-3">
 
       <!-- Brand -->
       <a href="/" data-link class="flex items-center gap-2 sm:gap-2.5 group min-w-0 shrink-0">
-        <svg class="w-9 h-8 sm:w-11 sm:h-10 min-[1800px]:w-[54px] min-[1800px]:h-[48px] shrink-0 text-[#e9b25c] group-hover:text-gold transition" viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg class="w-9 h-8 sm:w-11 sm:h-10 min-[2000px]:w-[54px] min-[2000px]:h-[48px] shrink-0 text-[#e9b25c] group-hover:text-gold transition" viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M32 6c-6.5 7.5-8.5 17.5 0 30 8.5-12.5 6.5-22.5 0-30z"/>
           <path d="M31 36c-3-10.5-10.5-17-21-18 0 11 8.5 18 21 18zM33 36c3-10.5 10.5-17 21-18 0 11-8.5 18-21 18z"/>
           <path d="M29 37.5C22 37 12.5 34 4 26.5c2 9.5 12 14.5 25 11zM35 37.5c7-.5 16.5-3.5 25-11-2 9.5-12 14.5-25 11z"/>
           <path d="M14 45c5.5 3 11.5 4.5 18 4.5S44.5 48 50 45"/>
         </svg>
         <div class="leading-tight">
-          <div class="font-cinzel text-[15px] min-[400px]:text-[17px] sm:text-xl min-[1800px]:text-[26px] font-semibold tracking-[0.06em] min-[400px]:tracking-[0.08em] sm:tracking-[0.1em] text-[#f1d9b0] leading-none whitespace-nowrap">GURUJI PALMISTRY</div>
+          <div class="font-cinzel text-[15px] min-[400px]:text-[17px] sm:text-xl min-[2000px]:text-[26px] font-semibold tracking-[0.06em] min-[400px]:tracking-[0.08em] sm:tracking-[0.1em] text-[#f1d9b0] leading-none whitespace-nowrap">GURUJI PALMISTRY</div>
           <div class="hidden sm:block lg:hidden min-[1500px]:block text-2xs tracking-[0.14em] text-cream/90 font-medium uppercase mt-1 whitespace-nowrap">Palmistry · Reiki · Conscious Living</div>
         </div>
       </a>
 
       <!-- Desktop navigation -->
-      <nav class="hidden min-[1000px]:flex items-center gap-0 min-[1050px]:gap-0.5 xl:gap-1 text-[12px] min-[1120px]:text-[13px] xl:text-[14px] min-[1800px]:text-[16px] whitespace-nowrap" aria-label="Primary">
-        <a href="/" data-link data-nav="home" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-home">Home</a>
-        <a href="/about" data-link data-nav="about" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-about">About Guruji</a>
+      <nav class="hidden min-[1100px]:flex items-center gap-0 min-[1050px]:gap-0.5 xl:gap-1 text-[12px] min-[1120px]:text-[13px] xl:text-[14px] min-[2000px]:text-[16px] whitespace-nowrap" aria-label="Primary">
+        <a href="/" data-link data-nav="home" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-home">Home</a>
+        <a href="/about" data-link data-nav="about" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-about">About Guruji</a>
         <div class="relative group nav-dropdown">
-          <a href="/services" data-link data-nav="services" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10 flex items-center gap-1" id="nav-services" aria-haspopup="true">
+          <a href="/services" data-link data-nav="services" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10 flex items-center gap-1" id="nav-services" aria-haspopup="true">
             Services <i class="fa-solid fa-chevron-down text-2xs ml-0.5 opacity-80" aria-hidden="true"></i>
           </a>
           <div class="nav-dropdown-panel absolute left-0 top-full pt-2 w-72 hidden group-hover:block group-focus-within:block z-50">
@@ -471,9 +500,9 @@
             </div>
           </div>
         </div>
-        <a href="/reiki-healing" data-link data-nav="reiki" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-reiki">Reiki Healing</a>
+        <a href="/reiki-healing" data-link data-nav="reiki" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-reiki">Reiki Healing</a>
         <div class="relative group nav-dropdown">
-          <a href="/courses" data-link data-nav="courses" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10 flex items-center gap-1" id="nav-courses" aria-haspopup="true">
+          <a href="/courses" data-link data-nav="courses" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10 flex items-center gap-1" id="nav-courses" aria-haspopup="true">
             Courses <i class="fa-solid fa-chevron-down text-2xs ml-0.5 opacity-80" aria-hidden="true"></i>
           </a>
           <div class="nav-dropdown-panel absolute left-0 top-full pt-2 w-60 hidden group-hover:block group-focus-within:block z-50">
@@ -487,7 +516,7 @@
           </div>
         </div>
         <div class="relative group nav-dropdown">
-          <a href="/resources" data-link data-nav="resources" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10 flex items-center gap-1" id="nav-resources" aria-haspopup="true">
+          <a href="/resources" data-link data-nav="resources" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10 flex items-center gap-1" id="nav-resources" aria-haspopup="true">
             Resources <i class="fa-solid fa-chevron-down text-2xs ml-0.5 opacity-80" aria-hidden="true"></i>
           </a>
           <div class="nav-dropdown-panel absolute left-0 top-full pt-2 w-72 hidden group-hover:block group-focus-within:block z-50">
@@ -503,41 +532,41 @@
             </div>
           </div>
         </div>
-        <a href="/faqs" data-link data-nav="faqs" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-faqs">FAQs</a>
-        <a href="/contact" data-link data-nav="contact" class="nav-link px-2 xl:px-3 min-[1800px]:px-[18px] py-1.5 min-[1800px]:py-2 rounded-full min-[1800px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-contact">Contact</a>
+        <a href="/faqs" data-link data-nav="faqs" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-faqs">FAQs</a>
+        <a href="/contact" data-link data-nav="contact" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-contact">Contact</a>
       </nav>
 
       <!-- Actions -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <div class="lang-switch lang-switch--header" data-lang-switch="short" role="group" aria-label="Language"></div>
 
-        <button type="button" onclick="openSiteSearch()" class="hidden sm:flex w-10 h-10 min-[1800px]:w-12 min-[1800px]:h-12 rounded-full border border-white/20 text-cream hover:text-white hover:border-amber-500/60 items-center justify-center" aria-label="Search the site">
+        <button type="button" onclick="openSiteSearch()" class="hidden sm:flex w-10 h-10 min-[2000px]:w-12 min-[2000px]:h-12 rounded-full border border-white/20 text-cream hover:text-white hover:border-amber-500/60 items-center justify-center" aria-label="Search the site">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
         </button>
 
-        <a href="/account" data-link id="header-account-btn" class="hidden min-[1100px]:flex items-center gap-1.5 px-3 min-[1800px]:px-4 h-10 min-[1800px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[1800px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="My Account">
+        <a href="/account" data-link id="header-account-btn" class="hidden min-[1200px]:flex items-center gap-1.5 px-3 min-[2000px]:px-4 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="My Account">
           <i class="fa-regular fa-user text-amber-400" aria-hidden="true"></i>
-          <span class="hidden min-[1250px]:inline">My Account</span>
+          <span class="hidden min-[1560px]:inline">My Account</span>
         </a>
 
-        <a href="/track" data-link id="header-track-btn" class="hidden min-[1150px]:flex items-center gap-2 px-3 min-[1800px]:px-5 h-10 min-[1800px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[1800px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="Track Status">
+        <a href="/track" data-link id="header-track-btn" class="hidden min-[1280px]:flex items-center gap-2 px-3 min-[2000px]:px-5 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="Track Status">
           <i class="fa-solid fa-magnifying-glass-location text-amber-400" aria-hidden="true"></i>
-          <span class="hidden min-[1360px]:inline">Track Status</span>
+          <span class="hidden min-[1700px]:inline">Track Status</span>
         </a>
 
-        <a href="/services/astro-palmistry-correlation" data-link class="gold-gradient-btn px-3.5 sm:px-5 min-[1800px]:px-6 h-10 min-[1800px]:h-12 rounded-full text-sm min-[1800px]:text-[16px] whitespace-nowrap">
+        <a href="/services/astro-palmistry-correlation" data-link class="gold-gradient-btn px-3.5 sm:px-5 min-[2000px]:px-6 h-10 min-[2000px]:h-12 rounded-full text-sm min-[2000px]:text-[16px] whitespace-nowrap">
           <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
-          <span class="hidden min-[1800px]:inline">Book Consultation</span><span class="min-[1800px]:hidden">Book</span>
+          <span class="hidden min-[2000px]:inline">Book Consultation</span><span class="min-[2000px]:hidden">Book</span>
         </a>
 
-        <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="min-[1000px]:hidden w-10 h-10 rounded-full border border-white/20 text-cream flex items-center justify-center hover:border-amber-500/60" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+        <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="min-[1100px]:hidden w-10 h-10 rounded-full border border-white/20 text-cream flex items-center justify-center hover:border-amber-500/60" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
           <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
       </div>
     </div>
 
     <!-- Mobile navigation -->
-    <div id="mobile-menu" class="is-closed min-[1000px]:hidden absolute inset-x-0 top-full bg-night border-b border-night-line shadow-2xl max-h-[calc(100vh-72px)] overflow-y-auto">
+    <div id="mobile-menu" class="is-closed min-[1100px]:hidden absolute inset-x-0 top-full bg-night border-b border-night-line shadow-2xl max-h-[calc(100vh-72px)] overflow-y-auto">
       <nav class="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid gap-1 text-[15px]" aria-label="Mobile">
         <div class="grid grid-cols-2 gap-2 mb-2">
           <a href="/account" data-link class="px-3 py-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-gold-soft font-semibold flex items-center justify-center gap-2 text-sm"><i class="fa-regular fa-user text-amber-400"></i>My Account</a>

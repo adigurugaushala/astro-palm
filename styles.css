@@ -1107,3 +1107,11 @@ html[lang="te"] header .nav-link, html[lang="hi"] header .nav-link { font-size: 
 html[lang="te"] #header-track-btn span, html[lang="hi"] #header-track-btn span { display: none; }
 .lang-switch--header .lang-switch__btn { padding: .4rem .5rem; min-width: 2.1rem; text-align: center; }
 html[lang="te"] .uppercase, html[lang="hi"] .uppercase { text-transform: none; }
+
+/* The header carries a lot at middling widths (ten nav links, the language
+   switcher, search, account, track and Book). Tighten the links rather than
+   let the bar overflow into a horizontal scrollbar. */
+@media (min-width: 1000px) and (max-width: 1459px) {
+  header .nav-link { padding-left: .45rem; padding-right: .45rem; font-size: .82rem; }
+  header .lang-switch__btn { padding: .35rem .45rem; }
+}

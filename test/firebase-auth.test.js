@@ -1,0 +1,109 @@
+// The Google sign-in check: a real signature is accepted, anything else is not.
+'use strict';
+const { test, describe } = require('node:test');
+const assert = require('node:assert/strict');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+process.env.FIREBASE_PROJECT_ID = 'palm-56063';
+const server = require('../server');
+
+const CERT_DIR = process.env.TEST_CERT_DIR || '/tmp/certgen';
+const haveCerts = fs.existsSync(path.join(CERT_DIR, 'cert.pem'));
+
+const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
+
+function makeToken(claims, { kid = 'test-key', alg = 'RS256', key, tamper = false } = {}) {
+  const head = b64({ alg, kid });
+  const body = b64(claims);
+  let sig = 'AAAA';
+  if (key) {
+    sig = crypto.sign('RSA-SHA256', Buffer.from(head + '.' + body), key).toString('base64url');
+    if (tamper) sig = sig.slice(0, -4) + (sig.endsWith('AAAA') ? 'BBBB' : 'AAAA');
+  }
+  return `${head}.${body}.${sig}`;
+}
+
+const goodClaims = (over = {}) => ({
+  aud: 'palm-56063',
+  iss: 'https://securetoken.google.com/palm-56063',
+  sub: 'firebase-uid-123',
+  email: 'devotee@example.com',
+  email_verified: true,
+  name: 'Satish M',
+  iat: Math.floor(Date.now() / 1000) - 10,
+  exp: Math.floor(Date.now() / 1000) + 3600,
+  ...over
+});
+
+describe('Firebase ID token verification', { skip: haveCerts ? false : 'no test certificate available' }, () => {
+  const privateKey = fs.readFileSync(path.join(CERT_DIR, 'key.pem'), 'utf8');
+  const cert = fs.readFileSync(path.join(CERT_DIR, 'cert.pem'), 'utf8');
+  server._setGoogleCertsForTest({ 'test-key': cert });
+
+  test('a properly signed token is accepted', async () => {
+    const user = await server.verifyFirebaseToken(makeToken(goodClaims(), { key: privateKey }));
+    assert.ok(user, 'token should verify: ' + server.verifyFirebaseToken.lastError);
+    assert.equal(user.email, 'devotee@example.com');
+    assert.equal(user.displayName, 'Satish M');
+    assert.equal(user.localId, 'firebase-uid-123');
+  });
+
+  test('an unsigned token is refused — this was an account-takeover hole', async () => {
+    const forged = makeToken(goodClaims({ email: 'attacker@example.com' }));
+    assert.equal(await server.verifyFirebaseToken(forged), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'bad_signature');
+  });
+
+  test('a tampered signature is refused', async () => {
+    const t = makeToken(goodClaims(), { key: privateKey, tamper: true });
+    assert.equal(await server.verifyFirebaseToken(t), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'bad_signature');
+  });
+
+  test('a token whose payload was edited after signing is refused', async () => {
+    const real = makeToken(goodClaims(), { key: privateKey });
+    const [h, , sig] = real.split('.');
+    const swapped = [h, b64(goodClaims({ email: 'attacker@example.com' })), sig].join('.');
+    assert.equal(await server.verifyFirebaseToken(swapped), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'bad_signature');
+  });
+
+  test('alg: none is refused', async () => {
+    const t = makeToken(goodClaims(), { alg: 'none' });
+    assert.equal(await server.verifyFirebaseToken(t), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'bad_algorithm');
+  });
+
+  test('a token for another Firebase project is refused', async () => {
+    const t = makeToken(goodClaims({ aud: 'some-other-project' }), { key: privateKey });
+    assert.equal(await server.verifyFirebaseToken(t), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'wrong_project');
+  });
+
+  test('an expired token is refused', async () => {
+    const t = makeToken(goodClaims({ exp: Math.floor(Date.now() / 1000) - 600 }), { key: privateKey });
+    assert.equal(await server.verifyFirebaseToken(t), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'token_expired');
+  });
+
+  test('an unknown signing key is refused', async () => {
+    const t = makeToken(goodClaims(), { key: privateKey, kid: 'not-a-google-key' });
+    assert.equal(await server.verifyFirebaseToken(t), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'unknown_key_id');
+  });
+
+  test('a token with no email is refused', async () => {
+    const c = goodClaims(); delete c.email;
+    const t = makeToken(c, { key: privateKey });
+    assert.equal(await server.verifyFirebaseToken(t), null);
+    assert.equal(server.verifyFirebaseToken.lastError, 'no_email');
+  });
+
+  test('rubbish is refused', async () => {
+    assert.equal(await server.verifyFirebaseToken('not-a-token'), null);
+    assert.equal(await server.verifyFirebaseToken(''), null);
+    assert.equal(await server.verifyFirebaseToken(null), null);
+  });
+});
