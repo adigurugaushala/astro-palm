@@ -116,10 +116,24 @@ document.addEventListener("DOMContentLoaded", () => {
 // NATURAL WEBSITE PAGE NAVIGATION
 // ==========================================
 
+/** True once the seeker has registered or signed in (token kept by /api/customer/register). */
+function isCustomerSignedIn() {
+  try { return Boolean(localStorage.getItem("guruji_cust_token")); } catch (e) { return false; }
+}
+
 function showPage(pageId) {
   if (!document.getElementById(`page-${pageId}`)) {
     console.warn(`Unknown page "${pageId}", showing home instead.`);
     pageId = "home";
+  }
+
+  // Login first: the consultation booking flow needs a signed-in seeker.
+  if (pageId === "book-consultation" && !isCustomerSignedIn()) pageId = "book-auth";
+
+  // The "slot held" banner on the sign-in page only makes sense once a slot exists.
+  if (pageId === "book-auth") {
+    const slotBanner = document.getElementById("auth-slot-banner");
+    if (slotBanner) slotBanner.classList.toggle("hidden", !state.slotTimerInterval);
   }
   state.currentPage = pageId;
   closeMobileMenu();
@@ -640,7 +654,7 @@ function startSlotTimer() {
       state.slotTimerSeconds = 600;
       updateSlotTimerDisplays();
       document.getElementById("slot-timer-container")?.classList.add("hidden");
-      if (["book-auth", "book-payment"].includes(state.currentPage)) {
+      if (state.currentPage === "book-payment") {
         showPage(state.selectedService.id === "pooja_sevas" ? "book-pooja" : "book-consultation");
       }
       showVedicToast("Your 10-minute slot hold expired. Please choose your slot again.", "error");
@@ -1435,8 +1449,8 @@ async function handleAuthSubmit(event) {
   state.user.mobile = mobile;
   state.user.email = email;
 
-  // Persist slot hold immediately so it cannot be lost
-  persistHeldSlot();
+  // Persist slot hold immediately so it cannot be lost (only when one is held)
+  if (state.slotTimerInterval) persistHeldSlot();
 
   // Securely register or update customer account in DB with legal consent record
   try {
@@ -1472,8 +1486,8 @@ async function handleAuthSubmit(event) {
   const devName = document.getElementById("devotee-fullname");
   if (devName) devName.value = state.user.name;
 
-  // Move directly to payment without losing slot
-  showPage("book-payment");
+  // Signed in: now choose the service and the slot.
+  showPage("book-consultation");
 }
 
 // ==========================================

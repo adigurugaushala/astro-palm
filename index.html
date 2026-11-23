@@ -1542,7 +1542,7 @@
         <!-- Main card -->
         <div class="bk-card bk-card--main space-y-6">
           <ol class="bk-steps bk-steps--five" aria-label="Booking steps">
-            <li class="bk-step is-active"><span class="bk-step__dot">1</span><span class="bk-step__label">Select Service</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">2</span><span class="bk-step__label">Details</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">3</span><span class="bk-step__label">Payment</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">4</span><span class="bk-step__label">Upload</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">5</span><span class="bk-step__label">Confirmation</span></li>
+            <li class="bk-step is-done"><span class="bk-step__dot">1</span><span class="bk-step__label">Sign In</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step is-active"><span class="bk-step__dot">2</span><span class="bk-step__label">Select Service</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">3</span><span class="bk-step__label">Payment</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">4</span><span class="bk-step__label">Your Details</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">5</span><span class="bk-step__label">Confirmation</span></li>
           </ol>
 
           <div>
@@ -1813,8 +1813,8 @@
                 </span>
               </label>
             </div>
-            <button onclick="showPage('book-auth')" class="bk-cta">
-              <span>Continue to Details</span><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <button onclick="showPage('book-payment')" class="bk-cta">
+              <span>Continue to Payment</span><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
           </div>
 
@@ -1840,7 +1840,7 @@
       <div class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-line shadow-md space-y-6">
         
         <!-- Slot Safe Banner -->
-        <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-900">
+        <div id="auth-slot-banner" class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-900">
           <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
           <div>
             <span class="font-semibold">Slot Held: </span>
