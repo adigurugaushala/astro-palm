@@ -7,7 +7,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'public');
-const PUBLIC_FILES = ['index.html', 'styles.css', 'app.js', 'site.js', 'chart-ui.js', 'i18n.js', 'motion.js', 'guruji-assist.js', 'data.js', 'content-data.js', 'gotras-data.js', 'mantras-data.js', 'mantras-db.js', 'manifest.webmanifest'];
+const PUBLIC_FILES = ['index.html', 'styles.css', 'app.js', 'site.js', 'chart-ui.js', 'i18n.js', 'motion.js', 'guruji-assist.js', 'palm-assessment-data.js', 'palm-assessment.js', 'data.js', 'content-data.js', 'gotras-data.js', 'mantras-data.js', 'mantras-db.js', 'manifest.webmanifest'];
 const PUBLIC_DIRS = ['assets'];
 
 fs.rmSync(out, { recursive: true, force: true });

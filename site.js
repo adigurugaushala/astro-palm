@@ -3781,6 +3781,52 @@
     return assistLoading;
   }
 
+  // The practitioner assessment checklist (from the assessment workbook).
+  // Like the helpers above, fetched only when a Guruji case opens.
+  let assessmentLoading = null;
+  function loadAssessment() {
+    if (window.PalmAssessment && window.PALM_ASSESSMENT) return Promise.resolve(window.PalmAssessment);
+    if (!assessmentLoading) {
+      const one = (src) => new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src; el.onload = resolve; el.onerror = reject;
+        document.head.appendChild(el);
+      });
+      assessmentLoading = Promise.all([one('/palm-assessment-data.js'), one('/palm-assessment.js')])
+        .then(() => window.PalmAssessment || null)
+        .catch(() => { assessmentLoading = null; return null; });
+    }
+    return assessmentLoading;
+  }
+
+  /** Switches the case page between the case itself and the assessment checklist. */
+  window.caseTab = (tab) => {
+    const page = document.querySelector('.case-page');
+    if (!page) return;
+    GURUJI.caseTab = tab;
+    page.classList.toggle('show-assessment', tab === 'assessment');
+    page.querySelectorAll('[data-case-tab]').forEach(b => {
+      const on = b.dataset.caseTab === tab;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-selected', String(on));
+    });
+    if (tab === 'assessment') mountAssessment();
+    else if (GURUJI.assessment) GURUJI.assessment.flush().catch(() => {});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  async function mountAssessment() {
+    const host = document.querySelector('[data-assessment-root]');
+    const c = GURUJI.current;
+    if (!host || !c || host.dataset.mounted === c.orderId) return;
+    host.dataset.mounted = c.orderId;
+    const PA = await loadAssessment();
+    if (!PA) { host.dataset.mounted = ''; host.innerHTML = '<p class="sp-notice">The assessment checklist could not load. Check the connection and try again.</p>'; return; }
+    GURUJI.assessment = PA.mount(host, c, async (payload) => {
+      await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(c.orderId)}/assessment`, { method: 'PUT', body: payload });
+      c.palmAssessment = Object.assign({}, payload, { updatedAt: new Date().toISOString() });
+    });
+  }
+
   /** Adds one line to the case's private notes and saves it straight away.
    *  Used by the photo viewer, so a note written on a palm also lands in
    *  "My notes" without Guruji copying it across. */
@@ -3819,7 +3865,9 @@
     el.classList.toggle('is-ok', Boolean(ok));
   }
 
+  const countAssessment = (a) => Object.values((a && a.rows) || {}).filter(r => r && r.value).length;
   async function renderCase(orderId) {
+    GURUJI.assessment = null;
     const root = $('[data-guruji-root]');
     let data;
     const assistReady = loadAssist();
@@ -3836,6 +3884,15 @@
     const assist = await assistReady;
     root.innerHTML = `
       <div class="sp-wrap py-8 case-page">
+        <nav class="case-nav" role="tablist" aria-label="Case sections">
+          <a href="/guruji" data-link class="case-nav__home"><i class="fa-solid fa-hands-praying" aria-hidden="true"></i> Guruji <b>cases</b></a>
+          <button type="button" role="tab" data-case-tab="case" class="is-active" aria-selected="true" onclick="caseTab('case')">
+            <i class="fa-solid fa-user" aria-hidden="true"></i> Case · ${esc(d.name || c.orderId)}</button>
+          <button type="button" role="tab" data-case-tab="assessment" aria-selected="false" onclick="caseTab('assessment')">
+            <i class="fa-solid fa-table-list" aria-hidden="true"></i> Assessment checklist
+            <em data-pa-badge>${c.palmAssessment ? countAssessment(c.palmAssessment) : 0}/${window.PALM_ASSESSMENT ? window.PALM_ASSESSMENT.fields.length : 277}</em></button>
+        </nav>
+        <div class="case-assessment" data-assessment-root><div class="sp-spinner" aria-hidden="true"></div></div>
         ${assist ? assist.toolbar() + assist.steps(c) : ''}
         <div class="session-head">
           <div>
@@ -3956,6 +4013,11 @@
 
     if (c.chart) showChart(root.querySelector('[data-chart-slot]'), c.chart);
     startChat(root.querySelector('[data-case-chat]'), c.orderId, { pin: ADMIN.pin });
+
+    // Stay on the checklist if the case is redrawn (claimed, moved, …) while it is open.
+    if (GURUJI.caseTab === 'assessment' && GURUJI.caseTabFor === c.orderId) caseTab('assessment'); else GURUJI.caseTab = 'case';
+    GURUJI.caseTabFor = c.orderId;
+    loadAssessment(); // warm it up so the checklist opens instantly
 
     // My notes save themselves a moment after he stops typing.
     const notesBox = root.querySelector('[data-case-notes]');
