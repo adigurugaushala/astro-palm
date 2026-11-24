@@ -176,6 +176,38 @@ describe('SEO', () => {
     assert.match(built, /name="google-site-verification" content="token-123"/);
   });
 
+  test('the brand logo is a real square image the schema can point at', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const file = path.join(__dirname, '..', 'assets', 'guruji-palmistry-logo-512.png');
+    const bytes = fs.readFileSync(file);
+    assert.deepEqual([...bytes.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47], 'it is a PNG');
+    assert.equal(bytes.readUInt32BE(16), 512, 'width');
+    assert.equal(bytes.readUInt32BE(20), 512, 'height');
+
+    const built = seo.buildSeo({ pathname: '/', content, origin: 'https://gurujipalmistry.org' });
+    const org = built.jsonLd['@graph'].find(n => n['@type'] === 'Organization');
+    assert.equal(org.logo, 'https://gurujipalmistry.org/assets/guruji-palmistry-logo-512.png');
+    assert.ok(org.logo.startsWith('https://'), 'absolute, not a site-relative path');
+    assert.ok(org.image.includes(org.logo), 'the square mark is offered as an image too');
+
+    const res = await fetch(origin + '/assets/guruji-palmistry-logo-512.png');
+    assert.equal(res.status, 200, 'the file is actually served');
+    assert.equal(res.headers.get('content-type'), 'image/png');
+    assert.equal(res.headers.get('x-robots-tag'), null, 'nothing stops it being indexed');
+  });
+
+  test('opening hours are published for the days the owner confirmed, and no others', async () => {
+    const built = seo.buildSeo({ pathname: '/', content, origin: 'https://gurujipalmistry.org' });
+    const org = built.jsonLd['@graph'].find(n => n['@type'] === 'Organization');
+    const hours = org.openingHoursSpecification;
+    assert.equal(hours['@type'], 'OpeningHoursSpecification');
+    assert.equal(hours.opens, '09:00');
+    assert.equal(hours.closes, '20:00');
+    assert.deepEqual(hours.dayOfWeek, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
+    assert.ok(!hours.dayOfWeek.includes('Sunday'), 'the centre is closed on Sunday');
+  });
+
   test('the address is given as parts, which is what a search engine can place', async () => {
     const built = seo.buildSeo({ pathname: '/', content, origin: 'https://gurujipalmistry.org' });
     const org = built.jsonLd['@graph'].find(n => n['@type'] === 'Organization');

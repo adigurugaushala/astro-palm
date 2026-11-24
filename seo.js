@@ -22,6 +22,17 @@
 
   var BRAND = 'Guruji Palmistry';
   var DEFAULT_IMAGE = '/assets/hero_palm_art_clean.jpg';
+  // The brand lotus as a square still: the same four paths as the mark in the
+  // header and the loading screen, drawn once and saved, so neither of those
+  // animated marks had to be touched. On the brand tile, so it stays legible
+  // on a white search result.
+  var LOGO = '/assets/guruji-palmistry-logo-512.png';
+
+  // Confirmed by the owner for the Adiguru Wellness Centre. Sunday is absent
+  // because the centre is closed, not because the day is unknown.
+  var OPEN_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var OPEN_FROM = '09:00';
+  var OPEN_TO = '20:00';
 
   /** Addresses that must never reach an index: staff areas and a seeker's own pages. */
   var PRIVATE_PAGES = ['admin', 'guruji', 'session', 'learn', 'account', 'payment-return', 'book-status', 'search'];
@@ -297,7 +308,24 @@
     var addr = postalAddress(st.address || st.registeredAddress);
     if (addr) org.address = addr;
     if (st.mapUrl) org.hasMap = st.mapUrl;
-    org.image = absolute(origin, DEFAULT_IMAGE);
+    org.logo = absolute(origin, LOGO);
+    // Square mark first, then the wider brand image: Google picks the shape it needs.
+    org.image = [absolute(origin, LOGO), absolute(origin, DEFAULT_IMAGE)];
+
+    // Hours confirmed by the owner: Monday to Saturday, 09:00 to 20:00, closed
+    // on Sunday. Days are never guessed — wrong days send someone to a closed
+    // door. Settings can override them without a code change.
+    var days = st.openingDays || OPEN_DAYS;
+    var opens = st.openingFrom || OPEN_FROM;
+    var closes = st.openingTo || OPEN_TO;
+    if (days && days.length && opens && closes) {
+      org.openingHoursSpecification = {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: [].concat(days),
+        opens: opens,
+        closes: closes
+      };
+    }
     var social = Object.keys(st.social || {})
       .map(function (k) { return st.social[k]; })
       .filter(function (u) { return /^https:\/\//.test(u || ''); });
