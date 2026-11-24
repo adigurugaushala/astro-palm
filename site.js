@@ -3766,13 +3766,16 @@
 
   // Guruji's easy-use helpers (voice typing, bigger text, quick replies).
   // Fetched only when a Guruji page opens, so seekers never download them.
+  // The version tag the page put on site.js (see stampAssets in server.js);
+  // reused for the scripts loaded later so they are never stale either.
+  const ASSET_V = (() => { try { return new URL(document.querySelector('script[src*="/site.js"]').src).search; } catch (e) { return ''; } })();
   let assistLoading = null;
   function loadAssist() {
     if (window.GurujiAssist) return Promise.resolve(window.GurujiAssist);
     if (!assistLoading) {
       assistLoading = new Promise((resolve) => {
         const el = document.createElement('script');
-        el.src = '/guruji-assist.js';
+        el.src = '/guruji-assist.js' + ASSET_V;
         el.onload = () => resolve(window.GurujiAssist || null);
         el.onerror = () => { assistLoading = null; resolve(null); };
         document.head.appendChild(el);
@@ -3792,7 +3795,7 @@
         el.src = src; el.onload = resolve; el.onerror = reject;
         document.head.appendChild(el);
       });
-      assessmentLoading = Promise.all([one('/palm-assessment-data.js'), one('/palm-assessment.js')])
+      assessmentLoading = Promise.all([one('/palm-assessment-data.js' + ASSET_V), one('/palm-assessment.js' + ASSET_V)])
         .then(() => window.PalmAssessment || null)
         .catch(() => { assessmentLoading = null; return null; });
     }

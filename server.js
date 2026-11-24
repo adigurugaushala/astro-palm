@@ -2581,10 +2581,28 @@ const seoLib = require('./seo.js');
  * on every address. The browser keeps the same tags up to date afterwards,
  * from the same module, as the visitor moves around.
  */
+/** Adds ?v=<content hash> to the page's own scripts and stylesheets, so a
+ *  browser holding an older copy (they are cached for an hour) fetches the
+ *  new one as soon as a deployment changes the file. */
+let assetVersion = null;
+function stampAssets(html) {
+  if (assetVersion === null) {
+    const hash = require('crypto').createHash('sha1');
+    for (const m of html.matchAll(/(?:src|href)="\/([\w./-]+\.(?:js|css))"/g)) {
+      try { hash.update(fs.readFileSync(path.join(BASE_DIR, m[1]))); } catch (e) { /* missing file: skip */ }
+    }
+    for (const f of ['guruji-assist.js', 'palm-assessment.js', 'palm-assessment-data.js']) {
+      try { hash.update(fs.readFileSync(path.join(BASE_DIR, f))); } catch (e) { /* skip */ }
+    }
+    assetVersion = hash.digest('hex').slice(0, 10);
+  }
+  return html.replace(/((?:src|href)="\/[\w./-]+\.(?:js|css))"/g, `$1?v=${assetVersion}"`);
+}
+
 async function sendPage(req, res, status, store, pathname) {
   const file = path.join(BASE_DIR, 'index.html');
   let html;
-  try { html = fs.readFileSync(file, 'utf8'); }
+  try { html = stampAssets(fs.readFileSync(file, 'utf8')); }
   catch (e) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     return res.end('500 Internal Server Error');
