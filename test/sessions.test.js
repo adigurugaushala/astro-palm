@@ -225,6 +225,31 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal((await store.getBooking(b.orderId)).status, 'AWAITING_REPORT');
     });
 
+    test('Guruji fills the palm assessment checklist; the seeker never sees it', async () => {
+      const b = await newBooking(7, '9100000016');
+      await pay(b.orderId, '9100000016');
+      const body = {
+        rows: {
+          'GP-001': { value: 'Rectangular', hand: 'Right', status: 'Observed', confidence: 'High', notes: 'Clear photo' },
+          'GP-002': { value: '' },                 // empty rows are dropped
+          'bad-id': { value: 'x' },                // unknown ids are dropped
+        },
+        details: { 'Seeker Name': 'Satish M', 'Dominant Hand': 'Right-handed' }
+      };
+      assert.equal((await call('PUT', `/api/guruji/cases/${b.orderId}/assessment`, body)).status, 401);
+      const saved = await call('PUT', `/api/guruji/cases/${b.orderId}/assessment`, body, guruji);
+      assert.equal(saved.status, 200);
+      const a = (await store.getBooking(b.orderId)).palmAssessment;
+      assert.deepEqual(Object.keys(a.rows), ['GP-001']);
+      assert.equal(a.rows['GP-001'].value, 'Rectangular');
+      assert.equal(a.details['Seeker Name'], 'Satish M');
+
+      const caseView = await call('GET', `/api/guruji/cases/${b.orderId}`, null, guruji);
+      assert.equal(caseView.body.case.palmAssessment.rows['GP-001'].confidence, 'High');
+      const mine = await call('GET', `/api/bookings/${b.orderId}?mobile=9100000016`);
+      assert.ok(!JSON.stringify(mine.body).includes('palmAssessment'), 'the checklist stays with staff');
+    });
+
     test('with no Jitsi keys set the room is the public service, and says so', async () => {
       const r = await call('GET', `/api/bookings/${live.orderId}/session?mobile=${liveMobile}`);
       assert.equal(r.body.mode, 'public');

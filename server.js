@@ -507,7 +507,7 @@ function createRateLimiter() {
  *  stripped here, so a new staff-only field is private by default. */
 const publicBooking = (b) => {
   if (!b) return b;
-  const { history, adminNote, gurujiNotes, ...rest } = b;
+  const { history, adminNote, gurujiNotes, palmAssessment, ...rest } = b;
   return rest;
 };
 
@@ -1804,6 +1804,36 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const updated = await store.updateBooking(orderId, { gurujiNotes: notes, updatedAt: at },
         { at, event: 'notes_saved', by: role });
       return [200, { ok: true, success: true, notes: updated.gurujiNotes || '' }];
+    }],
+
+    /** Guruji's practitioner assessment checklist (the palm parameters from the
+     *  assessment workbook). Staff-only, like the notes. */
+    ['PUT', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/assessment$/, async (req, [, orderId]) => {
+      const role = requireGuruji(req);
+      const body = await readJsonBody(req).catch(() => ({}));
+      const booking = await store.getBooking(orderId);
+      if (!booking) throw new HttpError(404, 'Case not found');
+      const COLS = { value: 200, extra: 600, hand: 40, status: 40, confidence: 20, location: 400, notes: 1000 };
+      const rows = {};
+      const inRows = (body.rows && typeof body.rows === 'object') ? body.rows : {};
+      for (const [id, row] of Object.entries(inRows).slice(0, 600)) {
+        if (!/^GP-\d{3,4}$/.test(id) || !row || typeof row !== 'object') continue;
+        const clean = {};
+        for (const [k, max] of Object.entries(COLS)) { const v = str(row[k], max); if (v) clean[k] = v; }
+        if (Object.keys(clean).length) rows[id] = clean;
+      }
+      const details = {};
+      const inDetails = (body.details && typeof body.details === 'object') ? body.details : {};
+      for (const [k, v] of Object.entries(inDetails).slice(0, 40)) {
+        const key = str(k, 80); const val = str(v, 2000);
+        if (key && val) details[key] = val;
+      }
+      const at = nowIso();
+      const palmAssessment = { rows, details, updatedAt: at, updatedBy: role };
+      // The checklist autosaves, so only its first save goes on the audit trail.
+      await store.updateBooking(orderId, { palmAssessment, updatedAt: at },
+        booking.palmAssessment ? null : { at, event: 'assessment_started', by: role });
+      return [200, { ok: true, success: true, updatedAt: at }];
     }],
 
     /** Move a case along: scheduled, awaiting the reading, finished. */

@@ -2073,3 +2073,63 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .gp-auth-consent a { font-weight: 600; color: rgb(var(--c-maroon)); text-decoration: underline; }
 .gp-auth-note { margin-top: 1rem; text-align: center; font-size: .72rem; color: rgb(var(--c-ink-3)); }
 .gp-auth-note i { color: rgb(var(--c-maroon)); margin-right: .25rem; }
+
+/* ---------------------------------------------- Guruji case: top nav bar */
+.case-nav { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem;
+  margin: -0.5rem 0 1.25rem; padding: .5rem; background: rgb(var(--c-maroon)); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.case-nav__home { color: rgb(var(--c-gold-soft)); font-family: var(--font-display, serif); font-size: 1.05rem; padding: .4rem .8rem; margin-right: .5rem; white-space: nowrap; }
+.case-nav__home b { color: rgb(var(--c-gold)); }
+.case-nav button { display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .95rem; border-radius: var(--radius-md);
+  color: rgb(var(--c-cream)); font-size: .88rem; font-weight: 600; background: transparent; border: 1px solid transparent; }
+.case-nav button:hover { background: rgb(255 255 255 / .08); }
+.case-nav button.is-active { background: rgb(var(--c-paper)); color: rgb(var(--c-maroon)); }
+.case-nav button em { font-style: normal; font-size: .72rem; padding: .05rem .45rem; border-radius: var(--radius-pill); background: rgb(var(--c-gold)); color: rgb(var(--c-ink)); }
+.case-nav button:focus-visible { outline: 2px solid rgb(var(--c-gold)); outline-offset: 2px; }
+.case-assessment { display: none; }
+.case-page.show-assessment { max-width: none; }
+.case-page.show-assessment > :not(.case-nav):not(.case-assessment) { display: none !important; }
+.case-page.show-assessment > .case-assessment { display: block; }
+
+/* ------------------------------------- Practitioner assessment checklist */
+.pa-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+.pa-sheets { display: flex; gap: .25rem; border-bottom: 2px solid rgb(var(--c-line)); }
+.pa-sheets button { padding: .5rem .9rem; font-size: .86rem; font-weight: 600; color: rgb(var(--c-ink-2)); border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.pa-sheets button.is-active { color: rgb(var(--c-maroon)); border-bottom-color: rgb(var(--c-maroon)); }
+.pa-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; font-size: .8rem; color: rgb(var(--c-ink-2)); }
+.pa-progress { width: 120px; height: 6px; border-radius: 99px; background: rgb(var(--c-line)); overflow: hidden; }
+.pa-progress span { display: block; height: 100%; background: rgb(var(--c-gold-deep)); transition: width .3s ease; }
+.pa-tools { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .6rem; margin-bottom: .6rem; }
+.pa-cats { display: flex; flex-wrap: wrap; gap: .3rem; }
+.pa-cats button { font-size: .78rem; padding: .3rem .7rem; border-radius: var(--radius-pill); border: 1px solid rgb(var(--c-line-strong)); background: rgb(var(--c-paper)); color: rgb(var(--c-ink-2)); }
+.pa-cats button em { font-style: normal; color: rgb(var(--c-ink-3)); font-size: .7rem; margin-left: .15rem; }
+.pa-cats button.is-active { background: rgb(var(--c-maroon)); border-color: rgb(var(--c-maroon)); color: #fff; }
+.pa-cats button.is-active em { color: rgb(var(--c-gold-soft)); }
+.pa-filters { display: flex; gap: .4rem; }
+.pa-search { min-width: 220px; padding: .45rem .7rem; border: 1px solid rgb(var(--c-line)); border-radius: var(--radius-md); background: rgb(var(--c-paper)); font-size: .85rem; }
+.pa-sheet { max-height: calc(100vh - 230px); overflow: auto; border: 1px solid rgb(var(--c-line-strong)); border-radius: var(--radius-md); background: rgb(var(--c-paper)); }
+.pa-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1500px; font-size: .84rem; }
+.pa-table th { position: sticky; top: 0; z-index: 2; background: #6b2140; color: #fff; text-align: left; font-weight: 700; padding: .6rem .55rem; white-space: nowrap; }
+.pa-table td { border-bottom: 1px solid rgb(var(--c-line)); border-right: 1px solid rgb(var(--c-line)); padding: .2rem .3rem; vertical-align: middle; }
+.pa-table td.pa-id { font-family: ui-monospace, monospace; font-size: .76rem; color: rgb(var(--c-ink-2)); padding-left: .55rem; white-space: nowrap; }
+.pa-table td.pa-cat { background: #f7ebe7; white-space: nowrap; }
+.pa-table td.pa-aspect { background: #fbf6f0; font-weight: 600; min-width: 220px; }
+.pa-table tr.is-filled td.pa-val { background: #fdf3df; }
+.pa-table select, .pa-table input { width: 100%; min-width: 110px; border: 1px solid transparent; background: transparent; padding: .35rem .35rem; border-radius: 4px; font-size: .84rem; color: rgb(var(--c-ink)); }
+.pa-table td.pa-val select { min-width: 200px; font-weight: 600; }
+.pa-table select:hover, .pa-table input:hover { border-color: rgb(var(--c-line-strong)); }
+.pa-table select:focus, .pa-table input:focus { outline: none; border-color: rgb(var(--c-gold-deep)); background: #fff; box-shadow: 0 0 0 2px rgb(var(--c-gold) / .35); }
+.pa-table input::placeholder { color: rgb(var(--c-ink-3) / .7); }
+.pa-table tbody tr:hover td { background-color: rgb(var(--c-gold) / .08); }
+.pa-st--observed { color: #166534 !important; font-weight: 600; }
+.pa-st--not-visible { color: #9a3412 !important; }
+.pa-st--unclear { color: #a16207 !important; }
+.pa-st--not-assessed { color: rgb(var(--c-ink-3)) !important; }
+.pa-empty { text-align: center; padding: 2rem !important; color: rgb(var(--c-ink-3)); }
+.pa-details { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); max-width: 960px; }
+.pa-details h3 { grid-column: 1 / -1; }
+.pa-details input, .pa-details textarea { padding: .55rem .7rem; border: 1px solid rgb(var(--c-line-strong)); border-radius: var(--radius-md); background: rgb(var(--c-paper)); }
+.pa-guide { max-width: 860px; }
+.pa-guide dl { display: grid; gap: .6rem; margin-top: .8rem; }
+.pa-guide dl > div { display: grid; grid-template-columns: 200px 1fr; gap: 1rem; padding: .7rem .9rem; border: 1px solid rgb(var(--c-line)); border-radius: var(--radius-md); background: rgb(var(--c-paper)); }
+.pa-guide dt { font-weight: 700; color: rgb(var(--c-maroon)); }
+@media (max-width: 640px) { .pa-guide dl > div { grid-template-columns: 1fr; gap: .2rem; } .pa-search { min-width: 0; flex: 1; } }
