@@ -3304,7 +3304,10 @@
   // -------------------------------------------------------------------------
   // Guruji's case area
   // -------------------------------------------------------------------------
-  const GURUJI = { list: [], current: null, filter: '', view: 'pending', section: '', q: '', sort: 'soonest' };
+  // cols holds the filter for each column of the table, which is what the
+  // Filter button offers: seeker name, service name, booking id and status.
+  const GURUJI = { list: [], current: null, view: 'pending', section: '', q: '', sort: 'soonest',
+    cols: { seeker: '', service: '', booking: '', status: '' } };
   const gurujiFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
     if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
@@ -3374,6 +3377,12 @@
     const all = GURUJI.list;
     const waiting = all.filter(c => c.status !== 'COMPLETED');
     const today = new Date().toISOString().slice(0, 10);
+    // The words on the status badge, so the filter offers exactly what the
+    // table shows rather than a second vocabulary.
+    const statusLabel = (c) => c.kind === 'enquiry'
+      ? 'enquiry'
+      : String(c.status || '').replace(/_/g, ' ').toLowerCase();
+
     const row = (c) => {
       const enquiry = c.kind === 'enquiry';
       const marks = [];
@@ -3394,7 +3403,7 @@
           ${c.section ? `<em class="gm-row__section">${esc(c.section)}</em>` : ''}</span>
         <span class="gm-row__ref">${esc(c.orderId)}${marks.length ? `<em>${esc(marks.join(' · '))}</em>` : ''}</span>
         <span class="gm-row__tags">
-          <span class="sp-pill sp-pill--${enquiry ? 'gold' : (STATUS_TONE[c.status] || 'muted')}">${esc(enquiry ? 'enquiry' : c.status.replace(/_/g, ' ').toLowerCase())}</span>
+          <span class="sp-pill sp-pill--${enquiry ? 'gold' : (STATUS_TONE[c.status] || 'muted')}">${esc(statusLabel(c))}</span>
           ${c.unread ? `<span class="gm-row__unread">${c.unread} new</span>` : ''}
           ${enquiry || c.assignedTo ? '' : '<span class="gm-row__free">unclaimed</span>'}
         </span>`;
@@ -3427,17 +3436,35 @@
     const q = GURUJI.q.trim().toLowerCase();
     let list = (views[GURUJI.view] || views.pending)();
     if (GURUJI.section) list = list.filter((c) => c.section === GURUJI.section);
-    // Finer filters, kept separate from the stage so they can be combined with it.
-    const FILTERS = {
-      unread: (c) => (c.unread || 0) > 0,
-      unclaimed: (c) => c.kind !== 'enquiry' && !c.assignedTo && c.status !== 'COMPLETED',
-      reports: (c) => c.status === 'AWAITING_REPORT' || (c.report && c.report.status !== 'ready' && c.status !== 'COMPLETED'),
-      enquiry: (c) => c.kind === 'enquiry'
+    // The filter works on the columns of the table, one control per column.
+    const colOf = {
+      seeker: (c) => (c.devotee || {}).name || '',
+      service: (c) => (c.service || {}).title || '',
+      booking: (c) => c.orderId || '',
+      status: (c) => statusLabel(c)
     };
-    const narrowed = list;
-    if (FILTERS[GURUJI.filter]) list = list.filter(FILTERS[GURUJI.filter]);
-    const filterCount = (id) => (FILTERS[id] ? narrowed.filter(FILTERS[id]).length : narrowed.length);
-    const filterOpt = (id, label) => `<button type="button" class="gm-filteropt${GURUJI.filter === id ? ' is-on' : ''}" onclick="gurujiFilter('${id}')">${label}<em>${filterCount(id)}</em></button>`;
+    // Each dropdown lists the values actually present, counted against the
+    // other filters, so a choice never lands on an empty table.
+    const choicesFor = (key) => {
+      const others = list.filter((c) => Object.keys(colOf).every((k) =>
+        k === key || !GURUJI.cols[k] || colOf[k](c) === GURUJI.cols[k]));
+      const seen = new Map();
+      for (const c of others) {
+        const v = colOf[key](c);
+        if (v) seen.set(v, (seen.get(v) || 0) + 1);
+      }
+      return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    };
+    const colChoices = { service: choicesFor('service'), status: choicesFor('status') };
+    for (const [key, read] of Object.entries(colOf)) {
+      const want = (GURUJI.cols[key] || '').trim();
+      if (!want) continue;
+      // Names and ids are typed, so they match loosely; the dropdowns exactly.
+      list = (key === 'seeker' || key === 'booking')
+        ? list.filter((c) => read(c).toLowerCase().includes(want.toLowerCase()))
+        : list.filter((c) => read(c) === want);
+    }
+    const activeCols = Object.values(GURUJI.cols).filter((v) => String(v).trim()).length;
     if (q) list = list.filter(c => [c.orderId, (c.devotee || {}).name, (c.devotee || {}).mobile, (c.service || {}).title]
       .filter(Boolean).join(' ').toLowerCase().includes(q));
     list = list.slice().sort((a, b) => GURUJI.sort === 'newest'
@@ -3490,14 +3517,36 @@
           <main class="gm-main">
             <div class="gm-listhead">
               <span class="gm-count">${list.length} ${list.length === 1 ? 'case' : 'cases'}</span>
-              <details class="gm-filter"${GURUJI.filter ? ' open' : ''}>
-                <summary class="gm-filterbtn"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filter${GURUJI.filter ? ' · 1' : ''}</summary>
-                <div class="gm-filtermenu">
-                  ${filterOpt('', 'Everything')}
-                  ${filterOpt('unread', 'Unread messages')}
-                  ${filterOpt('unclaimed', 'Unclaimed')}
-                  ${filterOpt('reports', 'Readings due')}
-                  ${filterOpt('enquiry', 'Enquiries only')}
+              <details class="gm-filter"${activeCols ? ' open' : ''}>
+                <summary class="gm-filterbtn"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filter${activeCols ? ' · ' + activeCols : ''}</summary>
+                <div class="gm-filtermenu gm-filtermenu--cols">
+                  <label class="gm-colfilter">
+                    <span>Seeker Name</span>
+                    <input type="search" value="${esc(GURUJI.cols.seeker)}" placeholder="Any seeker"
+                           oninput="gurujiColFilter('seeker', this.value)" autocomplete="off">
+                  </label>
+                  <label class="gm-colfilter">
+                    <span>Service Name</span>
+                    <select onchange="gurujiColFilter('service', this.value)">
+                      <option value="">Any service</option>
+                      ${colChoices.service.map(([v, n]) =>
+                        `<option value="${esc(v)}"${GURUJI.cols.service === v ? ' selected' : ''}>${esc(v)} (${n})</option>`).join('')}
+                    </select>
+                  </label>
+                  <label class="gm-colfilter">
+                    <span>Booking ID</span>
+                    <input type="search" value="${esc(GURUJI.cols.booking)}" placeholder="Any reference"
+                           oninput="gurujiColFilter('booking', this.value)" autocomplete="off">
+                  </label>
+                  <label class="gm-colfilter">
+                    <span>Status</span>
+                    <select onchange="gurujiColFilter('status', this.value)">
+                      <option value="">Any status</option>
+                      ${colChoices.status.map(([v, n]) =>
+                        `<option value="${esc(v)}"${GURUJI.cols.status === v ? ' selected' : ''}>${esc(v)} (${n})</option>`).join('')}
+                    </select>
+                  </label>
+                  <button type="button" class="gm-filterclear" onclick="gurujiClearFilters()"${activeCols ? '' : ' disabled'}>Clear filters</button>
                 </div>
               </details>
               <select class="sp-select" aria-label="Sort the cases" onchange="gurujiSort(this.value)">
@@ -3564,7 +3613,18 @@
     } catch (e) { tag.classList.add('hidden'); }
   };
 
-  window.gurujiFilter = (v) => { GURUJI.filter = v; renderCaseList(); };
+  window.gurujiColFilter = (key, value) => {
+    if (!(key in GURUJI.cols)) return;
+    GURUJI.cols[key] = value;
+    renderCaseList();
+    // Typing re-renders the list, so put the cursor back where it was.
+    const back = document.querySelector(`.gm-colfilter input[oninput*="'${key}'"]`);
+    if (back) { back.focus(); back.setSelectionRange(back.value.length, back.value.length); }
+  };
+  window.gurujiClearFilters = () => {
+    GURUJI.cols = { seeker: '', service: '', booking: '', status: '' };
+    renderCaseList();
+  };
   window.gurujiSection = (v) => { GURUJI.section = v; renderCaseList(); };
   window.gurujiView = (v) => { GURUJI.view = v; renderCaseList(); };
   window.gurujiSort = (v) => { GURUJI.sort = v; renderCaseList(); };
@@ -3861,6 +3921,7 @@
     let zoom = 1, panX = 0, panY = 0;
     let drawing = false, pencil = false, strokes = [], current = null;
     let colour = '#e3342f', width = 4;
+    let noting = false, notes = [];   // words written straight onto the photo
     let lastSaved = null;   // the marked copy stored by the Save button
 
     const wrap = document.createElement('div');
@@ -3877,6 +3938,7 @@
         <button type="button" data-pv="fit" title="Fit to screen">Fit</button>
         <span class="palm-viewer__sep"></span>
         <button type="button" data-pv="pencil" title="Draw on the photo">&#9998; Mark</button>
+        <button type="button" data-pv="note" title="Write a note on the photo">&#9997; Note</button>
         <span class="palm-viewer__tools" data-pv="tools" hidden>
           ${['#e3342f', '#f6ad26', '#1f9d55', '#2f6fed', '#1b1b1b'].map(c =>
             `<button type="button" class="palm-swatch" data-pv-colour="${c}" style="background:${c}" title="${c}"></button>`).join('')}
@@ -3931,12 +3993,37 @@
         st.points.forEach((pt, n) => n ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y));
         ctx.stroke();
       }
+      // Notes sit on the same layer, so they are saved and sent with the marks.
+      // The size follows the photo, so a note reads the same on any picture.
+      const size = Math.max(16, Math.round(ink.width / 34));
+      ctx.font = `700 ${size}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.textBaseline = 'top';
+      for (const n of notes) {
+        const lines = String(n.text).split('\n');
+        const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
+        const pad = Math.round(size * 0.4);
+        const lineH = Math.round(size * 1.25);
+        const boxH = lines.length * lineH + pad * 2;
+        // A quiet backing panel, or the words vanish into the skin tones.
+        ctx.fillStyle = 'rgba(20, 14, 12, .78)';
+        ctx.beginPath();
+        const r = Math.round(size * 0.3);
+        const x = n.x, y = n.y, w = widest + pad * 2, h = boxH;
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.fill();
+        ctx.fillStyle = n.colour;
+        lines.forEach((l, i) => ctx.fillText(l, x + pad, y + pad + i * lineH));
+      }
     }
 
     function load() {
       const p = photos[i];
       if (!p) return;
-      strokes = []; 
+      strokes = []; notes = [];
       el('name').textContent = `${PALM_SLOTS[p.slot] || 'Photo'} — ${p.name || ''}`;
       img.alt = `${PALM_SLOTS[p.slot] || 'Palm photo'} sent by the seeker`;
       hint.textContent = 'Scroll to zoom, drag to move. Press M to draw, Esc to close.';
@@ -3961,17 +4048,39 @@
 
     function setPencil(on) {
       pencil = on;
-      el('tools').hidden = !on;
-      el('pencil').classList.toggle('is-on', on);
-      stage.classList.toggle('is-drawing', on);
-      hint.textContent = on
-        ? 'Draw on the photo to mark what you are reading. Drag with two fingers or hold Space to move it.'
-        : 'Scroll to zoom, drag to move. Press M to draw, Esc to close.';
+      if (on) noting = false;
+      paintTools();
+    }
+    function setNoting(on) {
+      noting = on;
+      if (on) pencil = false;
+      paintTools();
+    }
+    function paintTools() {
+      el('tools').hidden = !(pencil || noting);
+      el('pencil').classList.toggle('is-on', pencil);
+      el('note').classList.toggle('is-on', noting);
+      stage.classList.toggle('is-drawing', pencil);
+      stage.classList.toggle('is-noting', noting);
+      hint.textContent = noting
+        ? 'Tap the photo where the note should sit, then type it. The colour swatches set its colour.'
+        : pencil
+          ? 'Draw on the photo to mark what you are reading. Hold Space to move it instead.'
+          : 'Scroll to zoom, drag to move. M to draw, N for a note, Esc or Back to close.';
     }
 
     // Pointer handling covers mouse, pen and touch in one path.
     let panning = false, last = null, spaceHeld = false;
     stage.addEventListener('pointerdown', (ev) => {
+      if (noting && ev.isPrimary) {
+        const where = pointOnPhoto(ev);
+        const text = prompt('Write the note to place here:');
+        if (text && text.trim()) {
+          notes.push({ x: where.x, y: where.y, text: text.trim(), colour });
+          redraw();
+        }
+        return;
+      }
       if (pencil && !spaceHeld && ev.isPrimary) {
         drawing = true;
         current = { colour, width, points: [pointOnPhoto(ev)] };
@@ -4017,8 +4126,13 @@
         case 'prev': if (i > 0) { i--; load(); } break;
         case 'next': if (i < photos.length - 1) { i++; load(); } break;
         case 'pencil': setPencil(!pencil); break;
-        case 'undo': strokes.pop(); redraw(); break;
-        case 'clear': strokes = []; redraw(); break;
+        case 'note': setNoting(!noting); break;
+        // Undo takes back the last thing added, whichever kind it was.
+        case 'undo':
+          if (notes.length && (!strokes.length || noting)) notes.pop();
+          else strokes.pop();
+          redraw(); break;
+        case 'clear': strokes = []; notes = []; redraw(); break;
         case 'save': await saveMarked(btn); break;
         case 'send': await sendMarked(btn); break;
       }
@@ -4026,7 +4140,7 @@
     wrap.querySelector('[data-pv="width"]').addEventListener('input', (ev) => { width = Number(ev.target.value); });
 
     async function saveMarked(btn) {
-      if (!strokes.length) { toast('Draw something on the photo first.', 'error'); return; }
+      if (!strokes.length && !notes.length) { toast('Draw or write something on the photo first.', 'error'); return; }
       const out = document.createElement('canvas');
       out.width = ink.width; out.height = ink.height;
       const ctx = out.getContext('2d');
@@ -4073,6 +4187,7 @@
     function onKey(ev) {
       if (ev.key === 'Escape') close();
       else if (ev.key.toLowerCase() === 'm') setPencil(!pencil);
+      else if (ev.key.toLowerCase() === 'n') setNoting(!noting);
       else if (ev.key === ' ') { spaceHeld = true; }
       else if (ev.key === 'ArrowLeft' && i > 0) { i--; load(); }
       else if (ev.key === 'ArrowRight' && i < photos.length - 1) { i++; load(); }
@@ -4081,11 +4196,26 @@
     document.addEventListener('keydown', onKey);
     document.addEventListener('keyup', onKeyUp);
 
+    // Pressing Back while a photo is open should shut the photo, not leave the
+    // case. A history entry is pushed when it opens so Back has something of
+    // its own to undo.
+    let pushedHistory = false;
+    try {
+      history.pushState({ palmViewer: true }, '', location.href);
+      pushedHistory = true;
+    } catch (e) { /* the viewer still closes with Esc and the X */ }
+    const onPop = () => { pushedHistory = false; close(); };
+    window.addEventListener('popstate', onPop);
+
     function close() {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('popstate', onPop);
       document.body.classList.remove('palm-viewer-open');
       wrap.remove();
+      // Closing by Esc or the X leaves the pushed entry behind; take it back so
+      // the next Back goes where it normally would.
+      if (pushedHistory) { pushedHistory = false; history.back(); }
     }
 
     load();

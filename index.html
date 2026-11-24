@@ -1855,12 +1855,22 @@
               </div>
 
               <div class="mt-3">
-                <label class="w-full py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
-                  <i class="fa-solid fa-cloud-arrow-up text-maroon text-xs" aria-hidden="true"></i>
-                  <span data-upload-label class="text-2xs font-semibold text-maroon mt-1">Upload Left Palm</span>
-                  <span class="text-2xs text-ink-3">(JPG, PNG - Max 10 MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload left palm" onchange="handleHandPhotoUpload(1, event)">
-                </label>
+                <!-- Two ways in. "Take photo" carries capture, so a phone opens
+                     its camera and asks for permission itself; on a laptop it
+                     falls back to the ordinary file picker. -->
+                <div class="grid grid-cols-2 gap-1.5">
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-camera text-maroon text-xs" aria-hidden="true"></i>
+                    <span class="text-2xs font-semibold text-maroon mt-1">Take photo</span>
+                    <input type="file" accept="image/*" capture="environment" class="sr-only" aria-label="Take a photo of the left palm with the camera" onchange="handleHandPhotoUpload(1, event)">
+                  </label>
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-image text-maroon text-xs" aria-hidden="true"></i>
+                    <span data-upload-label class="text-2xs font-semibold text-maroon mt-1">Upload Left Palm</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload left palm" onchange="handleHandPhotoUpload(1, event)">
+                  </label>
+                </div>
+                <p class="text-2xs text-ink-3 text-center mt-1">JPG or PNG · we shrink it for you</p>
                 <span data-upload-badge class="inline-block mt-1.5 text-2xs font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">Required</span>
               </div>
             </div>
@@ -1877,12 +1887,22 @@
               </div>
 
               <div class="mt-3">
-                <label class="w-full py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
-                  <i class="fa-solid fa-cloud-arrow-up text-maroon text-xs" aria-hidden="true"></i>
-                  <span data-upload-label class="text-2xs font-semibold text-maroon mt-1">Upload Right Palm</span>
-                  <span class="text-2xs text-ink-3">(JPG, PNG - Max 10 MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload right palm" onchange="handleHandPhotoUpload(2, event)">
-                </label>
+                <!-- Two ways in. "Take photo" carries capture, so a phone opens
+                     its camera and asks for permission itself; on a laptop it
+                     falls back to the ordinary file picker. -->
+                <div class="grid grid-cols-2 gap-1.5">
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-camera text-maroon text-xs" aria-hidden="true"></i>
+                    <span class="text-2xs font-semibold text-maroon mt-1">Take photo</span>
+                    <input type="file" accept="image/*" capture="environment" class="sr-only" aria-label="Take a photo of the right palm with the camera" onchange="handleHandPhotoUpload(2, event)">
+                  </label>
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-image text-maroon text-xs" aria-hidden="true"></i>
+                    <span data-upload-label class="text-2xs font-semibold text-maroon mt-1">Upload Right Palm</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload right palm" onchange="handleHandPhotoUpload(2, event)">
+                  </label>
+                </div>
+                <p class="text-2xs text-ink-3 text-center mt-1">JPG or PNG · we shrink it for you</p>
                 <span data-upload-badge class="inline-block mt-1.5 text-2xs font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">Required</span>
               </div>
             </div>
@@ -1899,12 +1919,22 @@
               </div>
 
               <div class="mt-3">
-                <label class="w-full py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
-                  <i class="fa-solid fa-cloud-arrow-up text-maroon text-xs" aria-hidden="true"></i>
-                  <span data-upload-label class="text-2xs font-semibold text-maroon mt-1">Upload Side of the Palm</span>
-                  <span class="text-2xs text-ink-3">(JPG, PNG - Max 10 MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload side of the palm" onchange="handleHandPhotoUpload(3, event)">
-                </label>
+                <!-- Two ways in. "Take photo" carries capture, so a phone opens
+                     its camera and asks for permission itself; on a laptop it
+                     falls back to the ordinary file picker. -->
+                <div class="grid grid-cols-2 gap-1.5">
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-camera text-maroon text-xs" aria-hidden="true"></i>
+                    <span class="text-2xs font-semibold text-maroon mt-1">Take photo</span>
+                    <input type="file" accept="image/*" capture="environment" class="sr-only" aria-label="Take a photo of the side of the palm with the camera" onchange="handleHandPhotoUpload(3, event)">
+                  </label>
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-image text-maroon text-xs" aria-hidden="true"></i>
+                    <span data-upload-label class="text-2xs font-semibold text-maroon mt-1">Upload Side of the Palm</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload side of the palm" onchange="handleHandPhotoUpload(3, event)">
+                  </label>
+                </div>
+                <p class="text-2xs text-ink-3 text-center mt-1">JPG or PNG · we shrink it for you</p>
                 <span data-upload-badge class="inline-block mt-1.5 text-2xs font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">Required</span>
               </div>
             </div>
@@ -1921,12 +1951,22 @@
               </div>
 
               <div class="mt-3">
-                <label class="w-full py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
-                  <i class="fa-solid fa-cloud-arrow-up text-maroon text-xs" aria-hidden="true"></i>
-                  <span data-upload-label class="text-2xs font-semibold text-zinc-600 mt-1">Upload Back of Hands</span>
-                  <span class="text-2xs text-ink-3">(JPG, PNG - Max 10 MB)</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload back of hands" onchange="handleHandPhotoUpload(4, event)">
-                </label>
+                <!-- Two ways in. "Take photo" carries capture, so a phone opens
+                     its camera and asks for permission itself; on a laptop it
+                     falls back to the ordinary file picker. -->
+                <div class="grid grid-cols-2 gap-1.5">
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-camera text-maroon text-xs" aria-hidden="true"></i>
+                    <span class="text-2xs font-semibold text-zinc-600 mt-1">Take photo</span>
+                    <input type="file" accept="image/*" capture="environment" class="sr-only" aria-label="Take a photo of the back of the hands with the camera" onchange="handleHandPhotoUpload(4, event)">
+                  </label>
+                  <label class="py-2.5 px-1 border border-dashed border-maroon/40 hover:border-maroon rounded-lg flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <i class="fa-solid fa-image text-maroon text-xs" aria-hidden="true"></i>
+                    <span data-upload-label class="text-2xs font-semibold text-zinc-600 mt-1">Upload Back of Hands</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" aria-label="Upload back of hands" onchange="handleHandPhotoUpload(4, event)">
+                  </label>
+                </div>
+                <p class="text-2xs text-ink-3 text-center mt-1">JPG or PNG · we shrink it for you</p>
                 <span data-upload-badge class="inline-block mt-1.5 text-2xs font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full">Optional</span>
               </div>
             </div>

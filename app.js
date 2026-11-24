@@ -1495,10 +1495,46 @@ async function submitPalmPhotosAndProceed(btn) {
     });
   }
 
-  setTimeout(() => {
-    setButtonLoading(btn, false);
-    showPage("book-status");
-  }, 500);
+  setButtonLoading(btn, false);
+  showDetailsReceived(() => showPage("book-status"));
+}
+
+/** What the seeker sees the moment their details land: a tick that draws
+ *  itself, then plain words saying what happens next. Without this the page
+ *  simply changed and nobody knew whether anything had been received. */
+function showDetailsReceived(onDone) {
+  const prev = document.getElementById("details-done");
+  if (prev) prev.remove();
+
+  const el = document.createElement("div");
+  el.id = "details-done";
+  el.className = "details-done";
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.innerHTML = `
+    <div class="details-done__card">
+      <svg class="details-done__tick" viewBox="0 0 52 52" aria-hidden="true">
+        <circle class="details-done__circle" cx="26" cy="26" r="24" fill="none"/>
+        <path class="details-done__check" fill="none" d="M14 27l8 8 16-16"/>
+      </svg>
+      <h2>Details received</h2>
+      <p class="details-done__lead">Your palm photos and birth details are with Guruji.</p>
+      <p class="details-done__wait">Please wait a little while &mdash; we will consult you soon.</p>
+      <div class="details-done__lotus" aria-hidden="true"><span></span><span></span><span></span></div>
+      <button type="button" class="details-done__btn">See my booking</button>
+    </div>`;
+  document.body.appendChild(el);
+  document.body.classList.add("details-done-open");
+
+  const finish = () => {
+    if (!el.isConnected) return;
+    document.body.classList.remove("details-done-open");
+    el.remove();
+    if (typeof onDone === "function") onDone();
+  };
+  el.querySelector(".details-done__btn").addEventListener("click", finish);
+  // It moves on by itself if they just sit and read it.
+  setTimeout(finish, 6500);
 }
 
 // ==========================================

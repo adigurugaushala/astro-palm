@@ -1051,6 +1051,65 @@ textarea:focus {
   border: 1px solid rgb(var(--c-maroon)); color: rgb(var(--c-maroon)); background: #fff; cursor: pointer; }
 .sp-collect:hover { background: rgb(var(--c-maroon)); color: #fff; }
 
+/* ---- "Details received": the moment after the form is sent --------------- */
+body.details-done-open { overflow: hidden; }
+.details-done { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center;
+  padding: 1.25rem; background: rgb(var(--c-ink) / .55); backdrop-filter: blur(3px);
+  animation: dd-fade .25s ease both; }
+.details-done__card { width: min(26rem, 100%); text-align: center; background: #fff;
+  border: 1px solid rgb(var(--c-line)); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 2rem 1.5rem 1.5rem;
+  animation: dd-rise .32s cubic-bezier(.2,.9,.3,1.2) both; }
+.details-done__card h2 { margin: .9rem 0 .35rem; font-size: 1.3rem; font-weight: 700; }
+.details-done__lead { margin: 0; font-size: .92rem; color: rgb(var(--c-ink-2)); }
+.details-done__wait { margin: .45rem 0 0; font-size: .92rem; font-weight: 600; color: rgb(var(--c-maroon)); }
+.details-done__btn { margin-top: 1.1rem; font-size: .88rem; font-weight: 700; padding: .6rem 1.4rem;
+  border-radius: 999px; border: 1px solid rgb(var(--c-maroon)); color: rgb(var(--c-maroon));
+  background: #fff; cursor: pointer; }
+.details-done__btn:hover { background: rgb(var(--c-maroon)); color: #fff; }
+
+/* The tick draws itself rather than appearing all at once. */
+.details-done__tick { width: 4.5rem; height: 4.5rem; }
+.details-done__circle { stroke: rgb(var(--c-maroon) / .35); stroke-width: 2;
+  stroke-dasharray: 151; stroke-dashoffset: 151; animation: dd-draw .5s ease-out .1s forwards; }
+.details-done__check { stroke: #1f9d55; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 40; stroke-dashoffset: 40; animation: dd-draw .35s ease-out .5s forwards; }
+
+/* Three petals breathing in turn: waiting, not loading. */
+.details-done__lotus { display: flex; gap: .4rem; justify-content: center; margin-top: 1rem; }
+.details-done__lotus span { width: .5rem; height: .5rem; border-radius: 50%;
+  background: rgb(var(--c-gold)); animation: dd-breathe 1.4s ease-in-out infinite; }
+.details-done__lotus span:nth-child(2) { animation-delay: .2s; }
+.details-done__lotus span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes dd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dd-rise { from { opacity: 0; transform: translateY(14px) scale(.96); }
+                     to   { opacity: 1; transform: none; } }
+@keyframes dd-draw { to { stroke-dashoffset: 0; } }
+@keyframes dd-breathe { 0%, 100% { opacity: .3; transform: scale(.8); }
+                        50%      { opacity: 1;  transform: scale(1.15); } }
+
+/* Someone who asked for less motion gets the words without the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .details-done, .details-done__card { animation: none; }
+  .details-done__circle, .details-done__check { animation: none; stroke-dashoffset: 0; }
+  .details-done__lotus span { animation: none; opacity: .8; }
+}
+
+/* ---- Guruji: filter by column ------------------------------------------- */
+.gm-filtermenu--cols { display: grid; gap: .6rem; min-width: 250px; padding: .75rem; }
+.gm-colfilter { display: grid; gap: .25rem; }
+.gm-colfilter > span { font-size: .68rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: rgb(var(--c-ink-3)); }
+.gm-colfilter input, .gm-colfilter select { width: 100%; font-size: .84rem; padding: .4rem .55rem;
+  border: 1px solid rgb(var(--c-line)); border-radius: .5rem; background: #fff; color: rgb(var(--c-ink)); }
+.gm-colfilter input:focus, .gm-colfilter select:focus { outline: 2px solid rgb(var(--c-maroon) / .5); outline-offset: 1px; }
+.gm-filterclear { margin-top: .15rem; font-size: .78rem; font-weight: 700; padding: .4rem .6rem;
+  border-radius: .5rem; border: 1px solid rgb(var(--c-maroon)); color: rgb(var(--c-maroon));
+  background: #fff; cursor: pointer; }
+.gm-filterclear:hover:not(:disabled) { background: rgb(var(--c-maroon)); color: #fff; }
+.gm-filterclear:disabled { opacity: .45; cursor: default; }
+
 /* ---- Chat attachments --------------------------------------------------- */
 .chat-att { margin: 0 0 .35rem; }
 .chat-att--img { max-width: 240px; }
@@ -1159,6 +1218,7 @@ body.palm-viewer-open { overflow: hidden; }
   touch-action: none; cursor: grab; }
 .palm-viewer__stage:active { cursor: grabbing; }
 .palm-viewer__stage.is-drawing { cursor: crosshair; }
+.palm-viewer__stage.is-noting { cursor: text; }
 .palm-viewer__canvasbox { position: relative; transform-origin: center center;
   max-width: 94vw; max-height: 78vh; }
 .palm-viewer__canvasbox img { display: block; max-width: 94vw; max-height: 78vh;
