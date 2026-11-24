@@ -38,6 +38,8 @@
     const d = new Date(iso + (iso && iso.length === 10 ? 'T00:00:00' : ''));
     return isNaN(d) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   };
+  // The four slots the seeker's upload form offers, in its order.
+  const PALM_SLOTS = { 1: 'Left palm', 2: 'Right palm', 3: 'Side of the palm', 4: 'Back of the hands' };
   const toast = (msg, variant) => (typeof showVedicToast === 'function' ? showVedicToast(msg, variant) : alert(msg));
 
   async function fetchJson(url, opts = {}) {
@@ -2042,6 +2044,24 @@
     return fetchJson(url, Object.assign({}, opts, { headers }));
   };
 
+  // A palm photo is private, so the server wants the staff header. An <img>
+  // tag cannot send one, so the bytes are fetched here and handed over as an
+  // object URL. Being same-origin, it also leaves the canvas untainted, which
+  // is what lets a marked copy be exported.
+  const palmUrlCache = new Map();
+  async function palmImageUrl(orderId, photoId) {
+    const key = orderId + '/' + photoId;
+    if (palmUrlCache.has(key)) return palmUrlCache.get(key);
+    const headers = {};
+    if (ADMIN.pin) headers['x-admin-pin'] = ADMIN.pin;
+    if (ADMIN.token) headers['x-admin-token'] = ADMIN.token;
+    const res = await fetch(`/api/bookings/${encodeURIComponent(orderId)}/photos/${encodeURIComponent(photoId)}`, { headers });
+    if (!res.ok) throw new Error('That photo could not be opened.');
+    const url = URL.createObjectURL(await res.blob());
+    palmUrlCache.set(key, url);
+    return url;
+  }
+
   const SCHEMAS = {
     services: {
       label: 'Services', key: 'slug', title: 'title', fields: [
@@ -3460,8 +3480,15 @@
             <div class="sp-panel">
               <h2 class="sp-h3">Palm photos</h2>
               ${(c.photos || []).length
-        ? `<ul class="case-photos">${c.photos.map(p => `<li><span>${esc(p.name)}</span><small>slot ${p.slot} · ${Math.round((p.size || 0) / 1024)} KB</small></li>`).join('')}</ul>
-                   <p class="text-xs text-ink-3 mt-2">The seeker's photos are listed by name here. Ask for them on WhatsApp or by email until file storage is connected.</p>`
+        ? `<ul class="palm-grid">${c.photos.map((p, i) => `
+                     <li class="palm-thumb">
+                       <button type="button" class="palm-thumb__btn" data-palm-open="${i}"
+                               title="Open ${esc(p.name)}">
+                         <img data-palm-src="${esc(p.id)}" alt="${esc(PALM_SLOTS[p.slot] || 'Palm photo')} sent by ${esc(c.devotee && c.devotee.name || 'the seeker')}">
+                       </button>
+                       <small>${esc(PALM_SLOTS[p.slot] || ('Photo ' + (i + 1)))} · ${Math.round((p.size || 0) / 1024)} KB</small>
+                     </li>`).join('')}</ul>
+                   <p class="text-xs text-ink-3 mt-2">Click a photo to open it full size, zoom and draw on it.</p>`
         : '<p class="sp-text">No photos uploaded yet.</p>'}
             </div>
 
@@ -3526,6 +3553,234 @@
 
     if (c.chart) showChart(root.querySelector('[data-chart-slot]'), c.chart);
     startChat(root.querySelector('[data-case-chat]'), c.orderId, { pin: ADMIN.pin });
+
+    // Clicking a palm photo opens it full size, zoomable and drawable.
+    root.querySelectorAll('[data-palm-open]').forEach((btn) => {
+      btn.addEventListener('click', () => palmViewer(c, Number(btn.getAttribute('data-palm-open'))));
+    });
+    root.querySelectorAll('img[data-palm-src]').forEach(async (im) => {
+      try { im.src = await palmImageUrl(c.orderId, im.getAttribute('data-palm-src')); }
+      catch (e) { im.closest('.palm-thumb')?.insertAdjacentHTML('beforeend',
+        '<small class="text-rose-700">could not load</small>'); }
+    });
+  }
+
+  // ---- Palm photo viewer ---------------------------------------------------
+  // Opens one photo full size. Guruji can zoom and drag it around, draw on it
+  // to mark what he is reading, and save the marked copy. Saving stores a new
+  // private image against the case; sending it to the seeker is a second step.
+
+  function palmViewer(caseData, index) {
+    const photos = caseData.photos || [];
+    let i = Math.max(0, Math.min(index, photos.length - 1));
+    let zoom = 1, panX = 0, panY = 0;
+    let drawing = false, pencil = false, strokes = [], current = null;
+    let colour = '#e3342f', width = 4;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'palm-viewer';
+    wrap.innerHTML = `
+      <div class="palm-viewer__bar">
+        <button type="button" data-pv="prev" title="Previous photo">&#8249;</button>
+        <span class="palm-viewer__name" data-pv="name"></span>
+        <button type="button" data-pv="next" title="Next photo">&#8250;</button>
+        <span class="palm-viewer__sep"></span>
+        <button type="button" data-pv="out" title="Zoom out">&minus;</button>
+        <span class="palm-viewer__zoom" data-pv="pct">100%</span>
+        <button type="button" data-pv="in" title="Zoom in">+</button>
+        <button type="button" data-pv="fit" title="Fit to screen">Fit</button>
+        <span class="palm-viewer__sep"></span>
+        <button type="button" data-pv="pencil" title="Draw on the photo">&#9998; Mark</button>
+        <span class="palm-viewer__tools" data-pv="tools" hidden>
+          ${['#e3342f', '#f6ad26', '#1f9d55', '#2f6fed', '#1b1b1b'].map(c =>
+            `<button type="button" class="palm-swatch" data-pv-colour="${c}" style="background:${c}" title="${c}"></button>`).join('')}
+          <input type="range" min="2" max="14" value="4" data-pv="width" title="Pen thickness">
+          <button type="button" data-pv="undo" title="Undo the last mark">Undo</button>
+          <button type="button" data-pv="clear" title="Remove all marks">Clear</button>
+          <button type="button" class="palm-viewer__save" data-pv="save">Save marked copy</button>
+        </span>
+        <span class="palm-viewer__sep"></span>
+        <button type="button" data-pv="close" title="Close">&times;</button>
+      </div>
+      <div class="palm-viewer__stage" data-pv="stage">
+        <div class="palm-viewer__canvasbox" data-pv="box">
+          <img data-pv="img" alt="">
+          <canvas data-pv="ink"></canvas>
+        </div>
+      </div>
+      <p class="palm-viewer__hint" data-pv="hint"></p>`;
+    document.body.appendChild(wrap);
+    document.body.classList.add('palm-viewer-open');
+
+    const el = (k) => wrap.querySelector(`[data-pv="${k}"]`);
+    const img = el('img'), ink = el('ink'), box = el('box'), stage = el('stage');
+    const hint = el('hint');
+
+    function apply() {
+      box.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      el('pct').textContent = Math.round(zoom * 100) + '%';
+    }
+    function fit() { zoom = 1; panX = 0; panY = 0; apply(); }
+    function setZoom(next, originX, originY) {
+      const z = Math.max(0.3, Math.min(8, next));
+      if (originX != null) {
+        // Keep the point under the cursor still while the scale changes.
+        const r = box.getBoundingClientRect();
+        const dx = originX - (r.left + r.width / 2);
+        const dy = originY - (r.top + r.height / 2);
+        panX -= dx * (z / zoom - 1);
+        panY -= dy * (z / zoom - 1);
+      }
+      zoom = z; apply();
+    }
+
+    function redraw() {
+      const ctx = ink.getContext('2d');
+      ctx.clearRect(0, 0, ink.width, ink.height);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (const st of strokes) {
+        ctx.strokeStyle = st.colour; ctx.lineWidth = st.width;
+        ctx.beginPath();
+        st.points.forEach((pt, n) => n ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y));
+        ctx.stroke();
+      }
+    }
+
+    function load() {
+      const p = photos[i];
+      if (!p) return;
+      strokes = []; 
+      el('name').textContent = `${PALM_SLOTS[p.slot] || 'Photo'} — ${p.name || ''}`;
+      img.alt = `${PALM_SLOTS[p.slot] || 'Palm photo'} sent by the seeker`;
+      hint.textContent = 'Scroll to zoom, drag to move. Press M to draw, Esc to close.';
+      img.onload = () => {
+        // The ink layer matches the photo's own pixels, so a saved copy is
+        // exactly what Guruji drew, at the photo's resolution.
+        ink.width = img.naturalWidth; ink.height = img.naturalHeight;
+        redraw(); fit();
+      };
+      palmImageUrl(caseData.orderId, p.id)
+        .then((url) => { img.src = url; })
+        .catch((err) => { hint.textContent = err.message; });
+    }
+
+    function pointOnPhoto(ev) {
+      const r = img.getBoundingClientRect();
+      return {
+        x: (ev.clientX - r.left) / r.width * ink.width,
+        y: (ev.clientY - r.top) / r.height * ink.height
+      };
+    }
+
+    function setPencil(on) {
+      pencil = on;
+      el('tools').hidden = !on;
+      el('pencil').classList.toggle('is-on', on);
+      stage.classList.toggle('is-drawing', on);
+      hint.textContent = on
+        ? 'Draw on the photo to mark what you are reading. Drag with two fingers or hold Space to move it.'
+        : 'Scroll to zoom, drag to move. Press M to draw, Esc to close.';
+    }
+
+    // Pointer handling covers mouse, pen and touch in one path.
+    let panning = false, last = null, spaceHeld = false;
+    stage.addEventListener('pointerdown', (ev) => {
+      if (pencil && !spaceHeld && ev.isPrimary) {
+        drawing = true;
+        current = { colour, width, points: [pointOnPhoto(ev)] };
+        strokes.push(current);
+        stage.setPointerCapture(ev.pointerId);
+      } else {
+        panning = true; last = { x: ev.clientX, y: ev.clientY };
+        stage.setPointerCapture(ev.pointerId);
+      }
+    });
+    stage.addEventListener('pointermove', (ev) => {
+      if (drawing && current) {
+        current.points.push(pointOnPhoto(ev));
+        redraw();
+      } else if (panning && last) {
+        panX += ev.clientX - last.x; panY += ev.clientY - last.y;
+        last = { x: ev.clientX, y: ev.clientY };
+        apply();
+      }
+    });
+    const stop = () => { drawing = false; panning = false; current = null; last = null; };
+    stage.addEventListener('pointerup', stop);
+    stage.addEventListener('pointercancel', stop);
+    stage.addEventListener('wheel', (ev) => {
+      ev.preventDefault();
+      setZoom(zoom * (ev.deltaY < 0 ? 1.12 : 1 / 1.12), ev.clientX, ev.clientY);
+    }, { passive: false });
+
+    wrap.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('[data-pv], [data-pv-colour]');
+      if (!btn) return;
+      const colourPick = btn.getAttribute('data-pv-colour');
+      if (colourPick) {
+        colour = colourPick;
+        wrap.querySelectorAll('.palm-swatch').forEach(b => b.classList.toggle('is-on', b === btn));
+        return;
+      }
+      switch (btn.getAttribute('data-pv')) {
+        case 'close': close(); break;
+        case 'in': setZoom(zoom * 1.25); break;
+        case 'out': setZoom(zoom / 1.25); break;
+        case 'fit': fit(); break;
+        case 'prev': if (i > 0) { i--; load(); } break;
+        case 'next': if (i < photos.length - 1) { i++; load(); } break;
+        case 'pencil': setPencil(!pencil); break;
+        case 'undo': strokes.pop(); redraw(); break;
+        case 'clear': strokes = []; redraw(); break;
+        case 'save': await saveMarked(btn); break;
+      }
+    });
+    wrap.querySelector('[data-pv="width"]').addEventListener('input', (ev) => { width = Number(ev.target.value); });
+
+    async function saveMarked(btn) {
+      if (!strokes.length) { toast('Draw something on the photo first.', 'error'); return; }
+      const out = document.createElement('canvas');
+      out.width = ink.width; out.height = ink.height;
+      const ctx = out.getContext('2d');
+      ctx.drawImage(img, 0, 0, out.width, out.height);
+      ctx.drawImage(ink, 0, 0);
+      const data = out.toDataURL('image/jpeg', 0.9).replace(/^data:[^,]+,/, '');
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const res = await adminFetch(`/api/guruji/cases/${encodeURIComponent(caseData.orderId)}/marked-photo`, {
+          method: 'POST',
+          body: { sourceId: photos[i].id, name: `marked-${photos[i].name || 'palm'}.jpg`, type: 'image/jpeg', data }
+        });
+        toast('Marked copy saved. Send it from the chat when you are ready.', 'success');
+        if (res && res.marked) wrap.dispatchEvent(new CustomEvent('palm-marked', { bubbles: true, detail: res.marked }));
+      } catch (err) {
+        toast(err.message || 'The marked copy could not be saved.', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = label;
+      }
+    }
+
+    function onKey(ev) {
+      if (ev.key === 'Escape') close();
+      else if (ev.key.toLowerCase() === 'm') setPencil(!pencil);
+      else if (ev.key === ' ') { spaceHeld = true; }
+      else if (ev.key === 'ArrowLeft' && i > 0) { i--; load(); }
+      else if (ev.key === 'ArrowRight' && i < photos.length - 1) { i++; load(); }
+    }
+    function onKeyUp(ev) { if (ev.key === ' ') spaceHeld = false; }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('keyup', onKeyUp);
+
+    function close() {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keyup', onKeyUp);
+      document.body.classList.remove('palm-viewer-open');
+      wrap.remove();
+    }
+
+    load();
+    return { close };
   }
 
   function showChart(slot, chart) {

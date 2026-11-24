@@ -245,7 +245,9 @@ class FileStore {
     return item;
   }
   async getMedia(id) { return readJson(MEDIA_FILE, []).find(m => m.id === id) || null; }
-  async listMedia() { return readJson(MEDIA_FILE, []).map(({ data, ...m }) => m); }
+  // Palm photos share this store but belong to one seeker: they must never
+  // appear in the admin image library or any content picker.
+  async listMedia() { return readJson(MEDIA_FILE, []).filter(m => !m.private).map(({ data, ...m }) => m); }
   async deleteMedia(id) {
     const all = readJson(MEDIA_FILE, []);
     const i = all.findIndex(m => m.id === id);
@@ -571,7 +573,8 @@ class MongoStore {
   async saveMedia(item) { await this.media.insertOne({ ...item }); return item; }
   async getMedia(id) { return stripMongoId(await this.media.findOne({ id })); }
   async listMedia() {
-    const docs = await this.media.find({}).sort({ createdAt: -1 }).toArray();
+    // Private items (a seeker's palm photos) are never listed.
+    const docs = await this.media.find({ private: { $ne: true } }).sort({ createdAt: -1 }).toArray();
     return docs.map(({ _id, data, ...m }) => m);
   }
   async deleteMedia(id) { return (await this.media.deleteOne({ id })).deletedCount > 0; }

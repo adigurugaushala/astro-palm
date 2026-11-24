@@ -447,6 +447,49 @@ function renderTrackedBooking(b) {
   if (typeof renderBookingExtras === "function") renderBookingExtras(b);
 }
 
+/** Shrinks a photo before upload. A phone picture is often 4-8 MB, far more
+ *  than anyone needs to read a palm line, and the slow upload is what makes
+ *  people abandon the form. 2000px on the long edge keeps the lines crisp
+ *  under Guruji's zoom while cutting the file to a fraction of its size. */
+function shrinkPhoto(file, maxEdge = 2000, quality = 0.88) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      // A palm photo is a photograph, so JPEG beats PNG by a wide margin here.
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      resolve({ type: "image/jpeg", data: dataUrl.replace(/^data:[^,]+,/, "") });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That photo could not be read.")); };
+    img.src = url;
+  });
+}
+
+/** Sends the palm photos themselves, not just their names. Runs before the
+ *  details are submitted, so a failure here stops the form with a message
+ *  rather than silently recording a reading with no hands to read. */
+async function uploadHandPhotos(orderId, mobile, onProgress) {
+  const entries = Object.entries(state.handPhotos);
+  let done = 0;
+  for (const [slot, file] of entries) {
+    if (onProgress) onProgress(++done, entries.length);
+    const { type, data } = await shrinkPhoto(file);
+    await api(`/api/bookings/${encodeURIComponent(orderId)}/photos`, {
+      method: "POST",
+      body: { mobile, slot: Number(slot), name: file.name, type, data }
+    });
+  }
+  return entries.length;
+}
+
 async function updateBooking(event, extra = {}) {
   if (!state.booking) return null;
   const data = await api(`/api/bookings/${encodeURIComponent(state.booking.orderId)}`, {
@@ -1420,9 +1463,13 @@ async function submitPalmPhotosAndProceed(btn) {
     lon: document.getElementById("devotee-lon").value,
     questions: document.getElementById("devotee-questions").value
   };
-  const photos = Object.entries(state.handPhotos).map(([slot, f]) => ({ slot: Number(slot), name: f.name, size: f.size, type: f.type }));
   try {
-    await updateBooking("details_submitted", { details, photos });
+    // The photos go up first. Until this worked, Guruji received a list of
+    // file names and had to ask for the pictures on WhatsApp.
+    await uploadHandPhotos(state.booking.orderId, state.booking.devotee.mobile,
+      (n, total) => setButtonLoading(btn, true, `Uploading photo ${n} of ${total}…`));
+    setButtonLoading(btn, true, "Submitting…");
+    await updateBooking("details_submitted", { details });
   } catch (err) {
     setButtonLoading(btn, false);
     showVedicToast(err.message, "error");

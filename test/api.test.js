@@ -137,10 +137,19 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(paid.body.booking.status, 'PAID');
       assert.equal(paid.body.booking.payment.status, 'SUCCESS');
 
+      // Photos carry real bytes now, uploaded one at a time before the details
+      // are submitted. A 1x1 PNG is enough to prove the round trip.
+      const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      for (const [slot, name] of [[1, 'both.png'], [2, 'left.png']]) {
+        const up = await call('POST', `/api/bookings/${consult.orderId}/photos`,
+          { mobile: '9123456789', slot, name, type: 'image/png', data: PNG });
+        assert.equal(up.status, 201, 'a seeker can upload a palm photo');
+        assert.ok(up.body.photo.id.startsWith('palm-'));
+      }
+
       const details = await call('PATCH', `/api/bookings/${consult.orderId}`, {
         event: 'details_submitted', mobile: '9123456789',
-        details: { name: 'Ravi Kumar', dob: '1992-01-15', tob: '06:45', pob: 'Hyderabad', questions: 'Career' },
-        photos: [{ slot: 1, name: 'both.jpg', size: 1200, type: 'image/jpeg' }, { slot: 2, name: 'left.jpg', size: 900, type: 'image/jpeg' }]
+        details: { name: 'Ravi Kumar', dob: '1992-01-15', tob: '06:45', pob: 'Hyderabad', questions: 'Career' }
       });
       assert.equal(details.status, 200);
       const b = details.body.booking;
@@ -148,7 +157,17 @@ for (const backend of ['mongodb', 'file']) {
       assert.equal(b.devotee.dob, '1992-01-15');
       assert.equal(b.devotee.pob, 'Hyderabad');
       assert.equal(b.devotee.mobile, '9123456789', 'existing devotee fields are kept');
-      assert.equal(b.photos.length, 2);
+      assert.equal(b.photos.length, 2, 'submitting the details does not wipe the uploaded photos');
+
+      // The bytes come back to the seeker, and only to people entitled to them.
+      const shot = b.photos[0];
+      const mine = await call('GET', `/api/bookings/${consult.orderId}/photos/${shot.id}?mobile=9123456789`);
+      assert.equal(mine.status, 401, 'a GET carries no body, so an unidentified reader is refused');
+      const asStaff = await call('GET', `/api/bookings/${consult.orderId}/photos/${shot.id}`, null, admin);
+      assert.equal(asStaff.status, 200, 'Guruji can open the photo');
+      // The public image route must never serve it.
+      assert.equal((await call('GET', `/api/media/${shot.id}`)).status, 404,
+        'a palm photo is not reachable by guessing an id');
 
       assert.equal((await call('PATCH', `/api/bookings/${consult.orderId}`, { event: 'hack', mobile: '9123456789' })).status, 422);
     });

@@ -98,6 +98,7 @@ const GURUJI_PIN = process.env.GURUJI_PIN || '';
 const PAYMENT_MODE = process.env.PAYMENT_MODE || (CASHFREE.enabled ? 'cashfree' : 'simulated');
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_MEDIA_BODY_BYTES = 3 * 1024 * 1024;
+const MAX_PHOTO_BODY_BYTES = 9 * 1024 * 1024;  // a palm photo straight off a phone
 const MAX_DOC_BODY_BYTES = 8 * 1024 * 1024;   // a reading PDF is bigger than a photo
 
 if (!process.env.ADMIN_PIN) {
@@ -620,7 +621,10 @@ function minutesFromDuration(text) {
 function bookingActor(req, booking, body = {}) {
   const role = adminRole(req);
   if (role === 'guruji' || role === 'owner') return { who: 'guruji', name: 'Guruji', moderator: true };
-  const mobile = normaliseMobile(body.mobile);
+  // A seeker may identify by the mobile in the body, or simply by being signed
+  // in. The token route matters for GET requests, which carry no body.
+  const account = customerFromToken(req);
+  const mobile = normaliseMobile(body.mobile) || (account && account.mobile) || '';
   if (!mobile) return undefined;
   if (!booking) return null;
   return booking.devotee && booking.devotee.mobile === mobile
@@ -841,7 +845,9 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const item = await store.getMedia(id);
       // This route is public, so it serves images only. Readings are kept in the
       // same store and must never be reachable by guessing an id.
-      if (!item || !MEDIA_TYPES[item.type]) throw new HttpError(404, 'Image not found');
+      // Palm photos live in the same store and belong to one seeker. They are
+      // served only through the booking route, which checks who is asking.
+      if (!item || !MEDIA_TYPES[item.type] || item.private) throw new HttpError(404, 'Image not found');
       return [200, { __raw: Buffer.from(item.data, 'base64'), type: item.type }];
     }],
 
@@ -1402,6 +1408,52 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { messages, you: actor.who, seenUpTo }];
     }],
 
+    // Palm photos ------------------------------------------------------------
+    // The bytes used to stay in the browser: only a file name reached the
+    // server, so Guruji had nothing to look at. They are stored now, privately,
+    // and read back only by the seeker who sent them or by Guruji.
+    ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/photos$/, async (req, [, orderId]) => {
+      rateLimit(req, 'palm-photo', 40);
+      const body = await readJsonBody(req, MAX_PHOTO_BODY_BYTES);
+      const booking = await store.getBooking(orderId);
+      const actor = bookingActor(req, booking, body);
+      if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
+      const type = str(body.type, 40);
+      if (!MEDIA_TYPES[type]) throw new HttpError(422, 'Please upload a JPG, PNG, WebP or GIF image');
+      const bytes = Buffer.from(String(body.data || '').replace(/^data:[^,]+,/, ''), 'base64');
+      if (!bytes.length) throw new HttpError(422, 'The image is empty');
+      if (bytes.length > 6 * 1024 * 1024) throw new HttpError(413, 'Photos must be 6 MB or smaller');
+      const existing = Array.isArray(booking.photos) ? booking.photos : [];
+      if (existing.length >= 10) throw new HttpError(422, 'You can upload up to 10 photos');
+      const id = 'palm-' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      await store.saveMedia({
+        id, type, size: bytes.length, private: true, orderId,
+        name: str(body.name, 120) || id + MEDIA_TYPES[type],
+        data: bytes.toString('base64'), createdAt: nowIso()
+      });
+      const photo = {
+        id, slot: Number(body.slot) || 0, name: str(body.name, 120) || 'palm photo',
+        size: bytes.length, type, at: nowIso()
+      };
+      // A re-upload of the same slot replaces it rather than piling up.
+      const photos = existing.filter(p => p.slot !== photo.slot).concat([photo])
+        .sort((a, b) => (a.slot || 0) - (b.slot || 0));
+      await store.updateBooking(orderId, { photos });
+      return [201, { photo }];
+    }],
+
+    ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/photos\/([a-z0-9-]+)$/, async (req, [, orderId, photoId]) => {
+      rateLimit(req, 'palm-photo-read', 240);
+      const booking = await store.getBooking(orderId);
+      const actor = bookingActor(req, booking);
+      if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
+      const listed = (booking.photos || []).some(p => p.id === photoId);
+      if (!listed) throw new HttpError(404, 'Photo not found');
+      const item = await store.getMedia(photoId);
+      if (!item || !MEDIA_TYPES[item.type]) throw new HttpError(404, 'Photo not found');
+      return [200, { __raw: Buffer.from(item.data, 'base64'), type: item.type, cache: 'private, max-age=600' }];
+    }],
+
     ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/messages$/, async (req, [, orderId]) => {
       rateLimit(req, 'chat-send', 60);
       const body = await readJsonBody(req);
@@ -1585,6 +1637,35 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     }],
 
     // Guruji can hand over a finished PDF instead of typing the reading.
+    // A palm photo with Guruji's marks drawn on it. Stored privately against
+    // the case; sending it to the seeker is a separate, deliberate step.
+    ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/marked-photo$/, async (req, [, orderId]) => {
+      requireGuruji(req);
+      rateLimit(req, 'marked-photo', 60);
+      const body = await readJsonBody(req, MAX_PHOTO_BODY_BYTES);
+      const booking = await store.getBooking(orderId);
+      if (!booking) throw new HttpError(404, 'Case not found');
+      const sourceId = str(body.sourceId, 60);
+      if (!(booking.photos || []).some(p => p.id === sourceId)) throw new HttpError(404, 'Photo not found');
+      const type = str(body.type, 40);
+      if (!MEDIA_TYPES[type]) throw new HttpError(422, 'Marked copies are saved as images');
+      const bytes = Buffer.from(String(body.data || '').replace(/^data:[^,]+,/, ''), 'base64');
+      if (!bytes.length) throw new HttpError(422, 'The marked copy is empty');
+      if (bytes.length > 6 * 1024 * 1024) throw new HttpError(413, 'The marked copy is too large');
+      const id = 'palm-' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      await store.saveMedia({
+        id, type, size: bytes.length, private: true, orderId, markedFrom: sourceId,
+        name: str(body.name, 120) || 'marked palm photo',
+        data: bytes.toString('base64'), createdAt: nowIso()
+      });
+      const marked = { id, name: str(body.name, 120) || 'marked palm photo', size: bytes.length, type, markedFrom: sourceId, at: nowIso() };
+      // Listed alongside the originals so the viewer and the chat can both
+      // reach it through the same permission check.
+      const photos = (booking.photos || []).concat([{ ...marked, slot: 90 + ((booking.photos || []).filter(p => p.markedFrom).length) }]);
+      await store.updateBooking(orderId, { photos });
+      return [201, { marked }];
+    }],
+
     ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/report-file$/, async (req, [, orderId]) => {
       requireGuruji(req);
       rateLimit(req, 'report-file', 20);
@@ -1931,17 +2012,16 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         case 'details_submitted': {
           if (!['PAID', 'DETAILS_RECEIVED'].includes(booking.status)) throw new HttpError(409, 'Please complete payment first');
           const d = body.details || {};
-          const photos = Array.isArray(body.photos) ? body.photos.slice(0, 10).map(p => ({
-            slot: Number(p.slot) || 0, name: str(p.name, 120), size: Number(p.size) || 0, type: str(p.type, 40)
-          })) : [];
+          // Photos are uploaded one by one to /photos before this call, which
+          // is what puts the real bytes on the server. Submitting the rest of
+          // the details must not wipe them, so they are left exactly as stored.
           set = {
             status: 'DETAILS_RECEIVED',
             'devotee.name': str(d.name, 120) || booking.devotee.name,
             'devotee.gotram': str(d.gotram, 80), 'devotee.dob': str(d.dob, 20), 'devotee.tob': str(d.tob, 20),
             'devotee.pob': str(d.pob, 120), 'devotee.questions': str(d.questions, 1000),
             // the chart is cast from these, so they are stored as numbers or not at all
-            'devotee.lat': coord(d.lat, 90), 'devotee.lon': coord(d.lon, 180),
-            photos
+            'devotee.lat': coord(d.lat, 90), 'devotee.lon': coord(d.lon, 180)
           };
           // file store has no dot-notation: expand there
           if (store.mode.startsWith('file')) {   // 'file' and 'file-temporary' have no dot-notation
@@ -2346,7 +2426,10 @@ function createHandler(store, { serveFiles = true, gateway } = {}) {
     try {
       const [status, payload] = await route[2](req, pathname.match(route[1]), url);
       if (payload && payload.__raw) {
-        const cache = payload.filename ? 'private, no-store' : GENERATED ? 'public, max-age=3600' : 'public, max-age=86400';
+        // A route may set its own policy: a palm photo belongs to one seeker and
+        // must never sit in a shared cache.
+        const cache = payload.cache
+          || (payload.filename ? 'private, no-store' : GENERATED ? 'public, max-age=3600' : 'public, max-age=86400');
         const headers = { 'Content-Type': payload.type, 'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff' };
         if (payload.filename) headers['Content-Disposition'] = `inline; filename="${payload.filename}"`;
         res.writeHead(status, headers);
