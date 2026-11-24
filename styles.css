@@ -2000,3 +2000,39 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .rp__dots i { width: 7px; height: 7px; border-radius: 999px; background: rgb(var(--c-line-strong, 210 190 160)); transition: width .3s, background .3s; }
 .rp__dots i.is-on { width: 22px; background: #e0a53a; }
 @media (prefers-reduced-motion: reduce) { .rp-card, .rp-book, .rp-go { transition: none; animation: none; } }
+
+/* ---- Notebook beside the palm photo (saves into the case's My notes) ---- */
+.palm-viewer__body { flex: 1; min-height: 0; display: flex; }
+.palm-viewer.book-left .palm-viewer__body { flex-direction: row-reverse; }
+.palm-viewer__body .palm-viewer__stage { min-width: 0; }
+.palm-viewer.has-book .palm-viewer__canvasbox,
+.palm-viewer.has-book .palm-viewer__canvasbox img { max-width: calc(94vw - 23rem); }
+.palm-notebook { width: 22rem; flex-shrink: 0; display: flex; flex-direction: column; gap: .5rem;
+  padding: .75rem; background: #fbf6ee; color: #2a1d1a; border-left: 1px solid #3b2b28; }
+.palm-viewer.book-left .palm-notebook { border-left: 0; border-right: 1px solid #3b2b28; }
+.palm-notebook[hidden] { display: none; }
+.palm-notebook__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.2rem; }
+.palm-notebook__actions { display: flex; gap: .3rem; }
+.palm-notebook__actions button { font-family: system-ui, sans-serif; font-size: .78rem; padding: .25rem .55rem;
+  border: 1px solid #e3d6c3; border-radius: .45rem; background: #fff; color: #5c4749; cursor: pointer; }
+.palm-notebook__actions button:hover { background: #f3eadc; }
+.palm-notebook__sub { margin: 0; font-size: .75rem; color: #7a6668; }
+.palm-notebook__label { align-self: flex-start; font-size: .8rem; font-weight: 600; padding: .3rem .65rem;
+  border: 1px dashed #c8963c; border-radius: 999px; background: #fff7e8; color: #7a1f24; cursor: pointer; }
+.palm-notebook__label:hover { background: #fdeccc; }
+.palm-notebook textarea { flex: 1; min-height: 12rem; width: 100%; resize: none; padding: .75rem .85rem;
+  border: 1px solid #e3d6c3; border-radius: .6rem; background: #fff; color: #2a1d1a;
+  font-size: .95rem; line-height: 1.6;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(1.6em - 1px), #f1e7d8 calc(1.6em - 1px), #f1e7d8 1.6em);
+  background-attachment: local; background-position: 0 .75rem; }
+.palm-notebook textarea:focus { outline: none; border-color: #7a1f24; box-shadow: 0 0 0 3px rgba(122, 31, 36, .1); }
+.palm-notebook__state { font-size: .75rem; color: #7a6668; min-height: 1em; }
+.palm-notebook__state.is-ok { color: #1f7a45; }
+@media (max-width: 899px) {
+  .palm-viewer__body, .palm-viewer.book-left .palm-viewer__body { flex-direction: column; }
+  .palm-notebook { width: 100%; height: 42vh; border-left: 0; border-right: 0; border-top: 1px solid #3b2b28; }
+  .palm-viewer.has-book .palm-viewer__canvasbox,
+  .palm-viewer.has-book .palm-viewer__canvasbox img { max-width: 94vw; max-height: 40vh; }
+  [data-pv="bookside"] { display: none; }
+}
