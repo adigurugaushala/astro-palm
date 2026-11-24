@@ -802,21 +802,32 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const origin = siteOrigin(req);
       const content = await getContent(store);
       const pages = [
-        ['/', '1.0', 'weekly'], ['/about', '0.8', 'monthly'], ['/services', '0.9', 'weekly'],
+        ['/', '1.0', 'weekly', null, ['/assets/hero_palm_art_clean.jpg']],
+        ['/about', '0.8', 'monthly'], ['/services', '0.9', 'weekly'],
         ['/reiki-healing', '0.9', 'monthly'], ['/courses', '0.8', 'weekly'], ['/resources', '0.8', 'weekly'],
-        ['/faqs', '0.6', 'monthly'], ['/contact', '0.7', 'monthly'], ['/palmistry', '0.7', 'monthly'],
+        ['/faqs', '0.6', 'monthly'], ['/contact', '0.7', 'monthly'],
+        ['/palmistry', '0.7', 'monthly', null, ['/assets/svc/palm-reading-life-heart-head-fate-lines.webp']],
         ['/mantras', '0.6', 'monthly'], ['/book/consultation', '0.7', 'monthly'], ['/book/pooja', '0.7', 'monthly'],
         ['/disclaimer', '0.5', 'yearly'], ['/privacy-policy', '0.4', 'yearly'], ['/terms', '0.4', 'yearly'],
         ['/cancellation-refund-policy', '0.4', 'yearly'], ['/consent-policy', '0.4', 'yearly'], ['/grievance', '0.4', 'yearly']
       ];
       for (const c of content.serviceCategories || []) pages.push([c.link || `/services/category/${c.id}`, '0.7', 'monthly']);
-      for (const x of content.services || []) if (x.published !== false) pages.push([`/services/${x.slug}`, x.core ? '0.9' : '0.6', 'monthly']);
-      for (const x of content.courses || []) if (x.published !== false) pages.push([`/courses/${x.slug}`, '0.6', 'monthly']);
-      for (const x of content.articles || []) if (x.published !== false) pages.push([`/resources/${x.slug}`, '0.6', 'monthly', x.date]);
+      for (const x of content.services || []) if (x.published !== false) pages.push([`/services/${x.slug}`, x.core ? '0.9' : '0.6', 'monthly', null, [x.image]]);
+      for (const x of content.courses || []) if (x.published !== false) pages.push([`/courses/${x.slug}`, '0.6', 'monthly', null, [x.image]]);
+      for (const x of content.articles || []) if (x.published !== false) pages.push([`/resources/${x.slug}`, '0.6', 'monthly', x.date, [x.image]]);
       const seen = new Set();
-      const body = pages.filter(([loc]) => !seen.has(loc) && seen.add(loc)).map(([loc, pri, freq, mod]) =>
-        `  <url><loc>${origin}${loc}</loc>${mod ? `<lastmod>${mod}</lastmod>` : ''}<changefreq>${freq}</changefreq><priority>${pri}</priority></url>`).join('\n');
-      return [200, { __raw: Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`), type: 'application/xml; charset=utf-8' }];
+      const xmlText = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      // Google finds images through the pages that show them. Listing each
+      // page's image here tells it which ones belong to this site without
+      // waiting for a crawl to stumble on them.
+      const imageTags = (list) => (list || [])
+        .filter(src => typeof src === 'string' && src.startsWith('/'))
+        .filter((src, i, all) => all.indexOf(src) === i)
+        .map(src => `<image:image><image:loc>${xmlText(origin + src)}</image:loc></image:image>`)
+        .join('');
+      const body = pages.filter(([loc]) => !seen.has(loc) && seen.add(loc)).map(([loc, pri, freq, mod, imgs]) =>
+        `  <url><loc>${origin}${loc}</loc>${mod ? `<lastmod>${mod}</lastmod>` : ''}<changefreq>${freq}</changefreq><priority>${pri}</priority>${imageTags(imgs)}</url>`).join('\n');
+      return [200, { __raw: Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${body}\n</urlset>\n`), type: 'application/xml; charset=utf-8' }];
     }],
 
     // Site content -----------------------------------------------------------

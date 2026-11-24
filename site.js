@@ -101,7 +101,7 @@
   const serviceCard = (s, { compact = false } = {}) => `
     <article class="sp-card sp-card--service">
       <a href="/services/${esc(s.slug)}" data-link class="sp-card__media" tabindex="-1" aria-hidden="true">
-        <img src="${esc(imageFor(s))}" alt="${esc(s.title)}" loading="lazy">
+        <img src="${esc(imageFor(s))}" alt="${esc(s.imageAlt || s.title)}" loading="lazy">
         ${s.core ? '<span class="sp-badge">Core consultation</span>' : ''}
       </a>
       <div class="sp-card__body">
@@ -356,7 +356,7 @@
               ${s.category === 'reiki' ? reikiNotice : ''}
             </div>
             <aside class="sp-book">
-              <img src="${esc(imageFor(s))}" alt="${esc(s.title)}" class="sp-book__img">
+              <img src="${esc(imageFor(s))}" alt="${esc(s.imageAlt || s.title)}" class="sp-book__img" width="1200" height="800">
               <div class="sp-book__body">
                 <div class="sp-book__price${priceLabel(s) ? '' : ' sp-book__price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</div>
                 ${s.duration ? `<p class="sp-book__meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> ${esc(s.duration)}</p>` : ''}

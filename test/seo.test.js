@@ -230,6 +230,63 @@ describe('SEO', () => {
     assert.equal(org.address.postalCode, undefined, 'no pin code is invented');
   });
 
+  // ---- Images -------------------------------------------------------------
+  // Google finds pictures through the pages that carry them. These tests keep
+  // the three things it needs in place: the file is served, the sitemap names
+  // it, and the page says in words what the picture shows.
+
+  test('the sitemap names the image on each page that has one', async () => {
+    const res = await fetch(origin + '/sitemap.xml');
+    const xml = await res.text();
+    assert.match(xml, /xmlns:image="http:\/\/www\.google\.com\/schemas\/sitemap-image\/1\.1"/,
+      'the image namespace is declared, or the entries mean nothing');
+    const imgs = [...xml.matchAll(/<image:loc>([^<]+)<\/image:loc>/g)].map(m => m[1]);
+    assert.ok(imgs.length > 20, `the catalogue's images are listed, found ${imgs.length}`);
+    for (const u of imgs) assert.match(u, /^https:\/\/gurujipalmistry\.org\//, 'image URLs are absolute');
+    assert.ok(imgs.some(u => u.endsWith('/assets/svc/palm-reading-life-heart-head-fate-lines.webp')));
+    assert.ok(imgs.some(u => u.endsWith('/assets/svc/palmistry-one-to-one-consultation.webp')));
+  });
+
+  test('every image the sitemap names is actually served', async () => {
+    const xml = await (await fetch(origin + '/sitemap.xml')).text();
+    const paths = [...new Set([...xml.matchAll(/<image:loc>[^<]*?(\/assets\/[^<]+)<\/image:loc>/g)].map(m => m[1]))];
+    assert.ok(paths.length > 20);
+    const dead = [];
+    for (const path of paths) {
+      const r = await fetch(origin + path);
+      if (!r.ok || !/^image\//.test(r.headers.get('content-type') || '')) dead.push(`${path} -> ${r.status}`);
+    }
+    assert.deepEqual(dead, [], 'a sitemap must not point at images that are not there');
+  });
+
+  test('the social card is the 1200x630 cut, not the page image', async () => {
+    for (const [path, card] of [
+      ['/palmistry', '/assets/og/palm-reading-life-heart-head-fate-lines-1200x630.jpg'],
+      ['/services/detailed-palm-analysis', '/assets/og/palmistry-one-to-one-consultation-1200x630.jpg']
+    ]) {
+      const html = await (await fetch(origin + path)).text();
+      const og = html.match(/<meta property="og:image" content="([^"]+)"/);
+      assert.ok(og, `${path} has an og:image`);
+      assert.equal(og[1], 'https://gurujipalmistry.org' + card);
+      const r = await fetch(origin + card);
+      assert.equal(r.status, 200, `${card} is served`);
+    }
+  });
+
+  test('the banner carries alt text that says what the picture shows', async () => {
+    const html = await (await fetch(origin + '/palmistry')).text();
+    const tag = html.match(/<img[^>]*palm-reading-life-heart-head-fate-lines\.webp[^>]*>/);
+    assert.ok(tag, 'the banner is in the page, not only in the sitemap');
+    const alt = tag[0].match(/alt="([^"]*)"/);
+    assert.ok(alt && alt[1].length > 30, 'the alt text is descriptive, not a filename');
+    for (const word of ['Life Line', 'Heart Line', 'Head Line', 'Fate Line']) {
+      assert.ok(alt[1].includes(word), `alt text names the ${word}`);
+    }
+    // Width and height stop the page jumping while the image loads.
+    assert.match(tag[0], /width="1200"/);
+    assert.match(tag[0], /height="800"/);
+  });
+
   test('nothing is claimed about Guruji that the site does not already say', async () => {
     const built = seo.buildSeo({ pathname: '/about', content, origin: 'https://gurujipalmistry.org' });
     const person = built.jsonLd['@graph'].find(n => n['@type'] === 'Person');

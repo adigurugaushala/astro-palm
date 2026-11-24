@@ -27,6 +27,15 @@
   // animated marks had to be touched. On the brand tile, so it stays legible
   // on a white search result.
   var LOGO = '/assets/guruji-palmistry-logo-512.png';
+  // Some page images have a 1200x630 twin cut for social cards, which is the
+  // shape Facebook, WhatsApp, X and LinkedIn all crop to. The page keeps the
+  // lighter WebP; only the card swaps to the JPEG.
+  var SOCIAL_CARDS = {
+    '/assets/svc/palm-reading-life-heart-head-fate-lines.webp':
+      '/assets/og/palm-reading-life-heart-head-fate-lines-1200x630.jpg',
+    '/assets/svc/palmistry-one-to-one-consultation.webp':
+      '/assets/og/palmistry-one-to-one-consultation-1200x630.jpg'
+  };
 
   // Confirmed by the owner for the Adiguru Wellness Centre. Sunday is absent
   // because the centre is closed, not because the day is unknown.
@@ -223,7 +232,8 @@
       };
       case 'palmistry': return {
         title: 'Palmistry Guide',
-        description: 'Hand shapes, the major and minor lines, the mounts and the fingers explained — a plain guide to reading a hand.'
+        description: 'Hand shapes, the major and minor lines, the mounts and the fingers explained — a plain guide to reading a hand.',
+        image: '/assets/svc/palm-reading-life-heart-head-fate-lines.webp'
       };
       case 'mantras': return {
         title: 'Mantras & Stotras',
@@ -502,7 +512,7 @@
       canonical: absolute(origin, path),
       robots: isPrivate ? 'noindex,nofollow' : 'index,follow',
       ogType: found.ogType || 'website',
-      image: absolute(origin, found.image || DEFAULT_IMAGE),
+      image: absolute(origin, SOCIAL_CARDS[found.image || DEFAULT_IMAGE] || found.image || DEFAULT_IMAGE),
       indexable: !isPrivate
     };
 

@@ -184,7 +184,8 @@
       'A complete study of your hands — shape, fingers, mounts, major and minor lines and special marks.',
       ['Health and vitality', 'Wealth and prosperity', 'Education and intelligence', 'Career and profession', 'Marriage and relationships', 'Children and siblings', 'Travel, spiritual inclination and life periods'],
       {
-        core: true, featured: true, consultationId: 'palmistry_reading', bookingType: 'consultation', price: 549, duration: '30 minutes', image: '/assets/svc/palmistry.webp',
+        core: true, featured: true, consultationId: 'palmistry_reading', bookingType: 'consultation', price: 549, duration: '30 minutes', image: '/assets/svc/palmistry-one-to-one-consultation.webp',
+        imageAlt: 'A one-to-one palmistry consultation in progress \u2014 a seeker\u2019s open palm being read through a magnifying glass, with the themes covered listed alongside: life path, career, love and marriage, health and future guidance',
         description: 'Guruji examines the hand shape, fingers and fingertips, the mounts, the major lines (Life, Head, Heart, Fate, Sun) and minor lines, and special marks such as stars, crosses, islands and triangles. The reading brings these together into a picture of your temperament and the themes of health, wealth, education, career, marriage, children, siblings and life periods.',
         deliverables: ['Consultation call with Guruji', 'Written summary of the palm reading', 'Answers to your specific questions']
       }),
