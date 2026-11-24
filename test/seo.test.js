@@ -176,6 +176,28 @@ describe('SEO', () => {
     assert.match(built, /name="google-site-verification" content="token-123"/);
   });
 
+  test('the address is given as parts, which is what a search engine can place', async () => {
+    const built = seo.buildSeo({ pathname: '/', content, origin: 'https://gurujipalmistry.org' });
+    const org = built.jsonLd['@graph'].find(n => n['@type'] === 'Organization');
+    assert.equal(org.address['@type'], 'PostalAddress', 'not a bare string');
+    assert.equal(org.address.postalCode, '500039');
+    assert.equal(org.address.addressLocality, 'Hyderabad');
+    assert.equal(org.address.addressRegion, 'Telangana');
+    assert.equal(org.address.addressCountry, 'IN');
+    assert.ok(org.address.streetAddress.startsWith('2-4-123'), org.address.streetAddress);
+    // The label the line is written with is not part of the street.
+    assert.ok(!/Wellness Centre/.test(org.address.streetAddress));
+  });
+
+  test('an address it cannot read apart is still given whole, never guessed at', async () => {
+    const odd = { ...content, settings: { ...content.settings, address: 'Behind the old temple', registeredAddress: '' } };
+    const built = seo.buildSeo({ pathname: '/', content: odd, origin: 'https://gurujipalmistry.org' });
+    const org = built.jsonLd['@graph'].find(n => n['@type'] === 'Organization');
+    assert.equal(org.address.streetAddress, 'Behind the old temple');
+    assert.equal(org.address.addressLocality, undefined, 'no city is invented');
+    assert.equal(org.address.postalCode, undefined, 'no pin code is invented');
+  });
+
   test('nothing is claimed about Guruji that the site does not already say', async () => {
     const built = seo.buildSeo({ pathname: '/about', content, origin: 'https://gurujipalmistry.org' });
     const person = built.jsonLd['@graph'].find(n => n['@type'] === 'Person');

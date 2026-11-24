@@ -240,6 +240,31 @@
   /* Structured data                                                          */
   /* ----------------------------------------------------------------------- */
 
+  /**
+   * The address as its parts, which is what a search engine can place on a map.
+   * Written as one line in the site's content, so it is read back carefully:
+   * the pin code, then the state and the city before it. Anything it cannot
+   * read confidently is left in the street line rather than guessed at, and
+   * the whole thing is still an address either way.
+   */
+  function postalAddress(line) {
+    var text = plain(line).replace(/^[^:]{0,24}:\s*/, '');   // drop a "Wellness Centre:" style label
+    if (!text) return null;
+    var addr = { '@type': 'PostalAddress', addressCountry: 'IN' };
+    var pin = text.match(/(\d{6})\s*$/);
+    if (pin) {
+      addr.postalCode = pin[1];
+      text = text.slice(0, pin.index).replace(/[\s,\-–—]+$/, '');
+    }
+    var parts = text.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (parts.length >= 3) {
+      addr.addressRegion = parts.pop();
+      addr.addressLocality = parts.pop();
+    }
+    addr.streetAddress = parts.join(', ');
+    return addr.streetAddress ? addr : null;
+  }
+
   function crumbs(origin, items) {
     return {
       '@type': 'BreadcrumbList',
@@ -268,7 +293,11 @@
     };
     if (st.email) org.email = st.email;
     if (st.phone) org.telephone = st.phone;
-    if (st.registeredAddress || st.address) org.address = plain(st.registeredAddress || st.address);
+    // The visitor-facing centre is the address people are directed to.
+    var addr = postalAddress(st.address || st.registeredAddress);
+    if (addr) org.address = addr;
+    if (st.mapUrl) org.hasMap = st.mapUrl;
+    org.image = absolute(origin, DEFAULT_IMAGE);
     var social = Object.keys(st.social || {})
       .map(function (k) { return st.social[k]; })
       .filter(function (u) { return /^https:\/\//.test(u || ''); });
