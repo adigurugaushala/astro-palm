@@ -4053,6 +4053,7 @@
         <span class="palm-viewer__sep"></span>
         <button type="button" data-pv="pencil" title="Draw on the photo">&#9998; Mark</button>
         <button type="button" data-pv="note" title="Write a note on the photo">&#9997; Note</button>
+        <button type="button" data-pv="book" title="Open the notebook beside the photo (B)">&#128211; Notebook</button>
         <span class="palm-viewer__tools" data-pv="tools" hidden>
           ${['#e3342f', '#f6ad26', '#1f9d55', '#2f6fed', '#1b1b1b'].map(c =>
             `<button type="button" class="palm-swatch" data-pv-colour="${c}" style="background:${c}" title="${c}"></button>`).join('')}
@@ -4065,11 +4066,26 @@
         <span class="palm-viewer__sep"></span>
         <button type="button" data-pv="close" title="Close">&times;</button>
       </div>
-      <div class="palm-viewer__stage" data-pv="stage">
-        <div class="palm-viewer__canvasbox" data-pv="box">
-          <img data-pv="img" alt="">
-          <canvas data-pv="ink"></canvas>
+      <div class="palm-viewer__body">
+        <div class="palm-viewer__stage" data-pv="stage">
+          <div class="palm-viewer__canvasbox" data-pv="box">
+            <img data-pv="img" alt="">
+            <canvas data-pv="ink"></canvas>
+          </div>
         </div>
+        <aside class="palm-notebook" data-pv="bookpanel" hidden aria-label="Notebook">
+          <div class="palm-notebook__head">
+            <strong>&#128211; My notes</strong>
+            <span class="palm-notebook__actions">
+              <button type="button" data-pv="bookside" title="Move the notebook to the other side">&#8644; Side</button>
+              <button type="button" data-pv="bookclose" title="Hide the notebook">&times;</button>
+            </span>
+          </div>
+          <p class="palm-notebook__sub">Everything here is the case's <em>My notes</em> and saves by itself.</p>
+          <button type="button" class="palm-notebook__label" data-pv="booklabel" title="Start a new line for this photo"></button>
+          <textarea data-pv="booktext" spellcheck="true" placeholder="Write what you see while you look at the palm…"></textarea>
+          <span class="palm-notebook__state" data-pv="bookstate" aria-live="polite"></span>
+        </aside>
       </div>
       <p class="palm-viewer__hint" data-pv="hint"></p>`;
     document.body.appendChild(wrap);
@@ -4078,6 +4094,78 @@
     const el = (k) => wrap.querySelector(`[data-pv="${k}"]`);
     const img = el('img'), ink = el('ink'), box = el('box'), stage = el('stage');
     const hint = el('hint');
+
+    // ---- Notebook beside the photo ------------------------------------------
+    // The same text as "My notes" on the case page: what he writes here is
+    // saved to the case, and the page's box is kept in step with it.
+    const book = el('bookpanel'), bookText = el('booktext'), bookStateEl = el('bookstate');
+    const mainNotes = () => document.querySelector('.case-notes textarea[name="notes"]');
+    const BOOK_PREF = 'guruji_notebook';
+    let bookPref = { open: window.innerWidth >= 900, side: 'right' };
+    try { bookPref = Object.assign(bookPref, JSON.parse(localStorage.getItem(BOOK_PREF) || '{}')); } catch (e) { /* defaults */ }
+    let bookTimer = null;
+    const photoLabel = () => PALM_SLOTS[(photos[i] || {}).slot] || ('Photo ' + (i + 1));
+
+    function saveBookPref() { try { localStorage.setItem(BOOK_PREF, JSON.stringify(bookPref)); } catch (e) { /* private mode */ } }
+    function bookState(text, ok) { bookStateEl.textContent = text; bookStateEl.classList.toggle('is-ok', Boolean(ok)); }
+    function currentNotes() {
+      const box = mainNotes();
+      return box ? box.value : ((GURUJI.current && GURUJI.current.gurujiNotes) || '');
+    }
+    function pullBook() {
+      if (document.activeElement === bookText && bookTimer) return;   // he is mid-sentence
+      bookText.value = currentNotes();
+    }
+    function paintBook() {
+      book.hidden = !bookPref.open;
+      wrap.classList.toggle('has-book', bookPref.open);
+      wrap.classList.toggle('book-left', bookPref.side === 'left');
+      el('book').classList.toggle('is-on', bookPref.open);
+      el('booklabel').textContent = '+ ' + photoLabel() + ':';
+    }
+    function setBook(open) {
+      bookPref.open = open; saveBookPref();
+      if (open) pullBook();
+      paintBook();
+      if (open) bookText.focus();
+    }
+    /** Saves the notebook now; used before closing and before a photo note is added. */
+    async function flushBook() {
+      if (!bookTimer) return;
+      clearTimeout(bookTimer); bookTimer = null;
+      const box = mainNotes();
+      if (box) clearTimeout(box.__t);
+      bookState('Saving…');
+      try {
+        await writeCaseNotes(caseData.orderId, bookText.value, box);
+        bookState('Saved ✓', true);
+      } catch (err) {
+        bookState('Not saved — ' + err.message);
+      }
+    }
+    bookText.addEventListener('input', () => {
+      const box = mainNotes();
+      if (box) box.value = bookText.value;          // the page shows it at once
+      if (GURUJI.current) GURUJI.current.gurujiNotes = bookText.value;
+      bookState('Writing…');
+      clearTimeout(bookTimer);
+      bookTimer = setTimeout(flushBook, 1200);
+    });
+    function insertLabel() {
+      const tag = '• ' + photoLabel() + ': ';
+      const v = bookText.value;
+      const needsBreak = v && !v.endsWith('\n');
+      bookText.value = v + (needsBreak ? '\n' : '') + tag;
+      bookText.focus();
+      bookText.setSelectionRange(bookText.value.length, bookText.value.length);
+      bookText.scrollTop = bookText.scrollHeight;
+      bookText.dispatchEvent(new Event('input'));
+    }
+    if (window.GurujiAssist && typeof window.GurujiAssist.attachMic === 'function') {
+      try { window.GurujiAssist.attachMic(bookText); } catch (e) { /* typing still works */ }
+    }
+    pullBook();
+    paintBook();
 
     function apply() {
       box.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
@@ -4139,8 +4227,9 @@
       if (!p) return;
       strokes = []; notes = [];
       el('name').textContent = `${PALM_SLOTS[p.slot] || 'Photo'} — ${p.name || ''}`;
+      el('booklabel').textContent = '+ ' + (PALM_SLOTS[p.slot] || ('Photo ' + (i + 1))) + ':';
       img.alt = `${PALM_SLOTS[p.slot] || 'Palm photo'} sent by the seeker`;
-      hint.textContent = 'Scroll to zoom, drag to move. Press M to draw, Esc to close.';
+      hint.textContent = 'Scroll to zoom, drag to move. M to draw, N for a note, B for the notebook, Esc to close.';
       img.onload = () => {
         // The ink layer matches the photo's own pixels, so a saved copy is
         // exactly what Guruji drew, at the photo's resolution.
@@ -4180,7 +4269,7 @@
         ? 'Tap the photo where the note should sit, then type or speak it. It is also added to My notes. The colour swatches set its colour.'
         : pencil
           ? 'Draw on the photo to mark what you are reading. Hold Space to move it instead.'
-          : 'Scroll to zoom, drag to move. M to draw, N for a note, Esc or Back to close.';
+          : 'Scroll to zoom, drag to move. M to draw, N for a note, B for the notebook, Esc or Back to close.';
     }
 
     // Pointer handling covers mouse, pen and touch in one path.
@@ -4198,9 +4287,10 @@
           const line = `• ${photoLabel}: ${clean}`;
           notes.push({ x: where.x, y: where.y, text: clean, colour, line });
           redraw();
-          // The same words go into "My notes" on the case page.
-          addToCaseNotes(caseData.orderId, line)
-            .then(() => toast('Note placed and added to My notes.', 'success'))
+          // The same words go into "My notes" on the case page (and the notebook).
+          flushBook()
+            .then(() => addToCaseNotes(caseData.orderId, line))
+            .then(() => { pullBook(); toast('Note placed and added to My notes.', 'success'); })
             .catch((err) => toast('Placed on the photo, but My notes did not save: ' + err.message, 'error'));
         });
         return;
@@ -4251,11 +4341,15 @@
         case 'next': if (i < photos.length - 1) { i++; load(); } break;
         case 'pencil': setPencil(!pencil); break;
         case 'note': setNoting(!noting); break;
+        case 'book': setBook(!bookPref.open); break;
+        case 'bookclose': setBook(false); break;
+        case 'bookside': bookPref.side = bookPref.side === 'left' ? 'right' : 'left'; saveBookPref(); paintBook(); break;
+        case 'booklabel': insertLabel(); break;
         // Undo takes back the last thing added, whichever kind it was.
         case 'undo':
           if (notes.length && (!strokes.length || noting)) {
             const gone = notes.pop();
-            if (gone && gone.line) removeFromCaseNotes(caseData.orderId, gone.line).catch(() => {});
+            if (gone && gone.line) flushBook().then(() => removeFromCaseNotes(caseData.orderId, gone.line)).then(pullBook).catch(() => {});
           } else strokes.pop();
           redraw(); break;
         case 'clear': strokes = []; notes = []; redraw(); break;
@@ -4317,6 +4411,7 @@
       if (ev.key === 'Escape') close();
       else if (ev.key.toLowerCase() === 'm') setPencil(!pencil);
       else if (ev.key.toLowerCase() === 'n') setNoting(!noting);
+      else if (ev.key.toLowerCase() === 'b') setBook(!bookPref.open);
       else if (ev.key === ' ') { spaceHeld = true; }
       else if (ev.key === 'ArrowLeft' && i > 0) { i--; load(); }
       else if (ev.key === 'ArrowRight' && i < photos.length - 1) { i++; load(); }
@@ -4337,6 +4432,7 @@
     window.addEventListener('popstate', onPop);
 
     function close() {
+      flushBook();   // whatever is still waiting to save goes now
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('popstate', onPop);
