@@ -122,6 +122,16 @@ class FileStore {
   async listBookings(filter = {}, limit = 200) {
     return filterRecords(readJson(BOOKINGS_FILE, []), filter).slice(0, limit);
   }
+  /** This seeker's own bookings, matched on the mobile exactly rather than by
+   *  a text search, so one account never sees another's chat. */
+  async listBookingsForCustomer(mobile, limit = 100) {
+    const m = String(mobile || '').replace(/\D/g, '').slice(-10);
+    if (!m) return [];
+    return readJson(BOOKINGS_FILE, [])
+      .filter(b => b.devotee && b.devotee.mobile === m)
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .slice(0, limit);
+  }
   async updateBooking(orderId, set, pushHistory) {
     const all = readJson(BOOKINGS_FILE, []);
     const i = all.findIndex(b => b.orderId === orderId);
@@ -186,6 +196,18 @@ class FileStore {
       if (m.from === from && !m.readAt) counts[m.orderId] = (counts[m.orderId] || 0) + 1;
     }
     return counts;
+  }
+  /** Thread keys that have at least one message, newest activity first.
+   *  `prefix` narrows it, which is how threads that belong to no booking are
+   *  found without reading every conversation on the site. */
+  async listThreadKeys(prefix = '') {
+    const seen = new Map();
+    for (const m of readJson(MESSAGES_FILE, [])) {
+      if (prefix && !String(m.orderId || '').startsWith(prefix)) continue;
+      const at = seen.get(m.orderId);
+      if (!at || m.at > at) seen.set(m.orderId, m.at);
+    }
+    return [...seen.entries()].sort((a, b) => b[1].localeCompare(a[1])).map(([k]) => k);
   }
 
   // Enquiries (contact / booking requests)
@@ -478,6 +500,13 @@ class MongoStore {
       .sort({ createdAt: -1 }).limit(limit).toArray();
     return docs.map(stripMongoId);
   }
+  async listBookingsForCustomer(mobile, limit = 100) {
+    const m = String(mobile || '').replace(/\D/g, '').slice(-10);
+    if (!m) return [];
+    const docs = await this.bookings.find({ 'devotee.mobile': m })
+      .sort({ createdAt: -1 }).limit(limit).toArray();
+    return docs.map(stripMongoId);
+  }
   async updateBooking(orderId, set, pushHistory) {
     const update = { $set: set };
     if (pushHistory) update.$push = { history: pushHistory };
@@ -527,6 +556,15 @@ class MongoStore {
     const counts = {};
     for (const m of docs) counts[m.orderId] = (counts[m.orderId] || 0) + 1;
     return counts;
+  }
+  async listThreadKeys(prefix = '') {
+    // find() rather than an aggregation: the same code path works against the
+    // in-memory stand-in the tests use.
+    const q = prefix ? { orderId: new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) } : {};
+    const docs = await this.messages.find(q).sort({ at: -1 }).limit(5000).toArray();
+    const seen = new Map();
+    for (const m of docs) if (!seen.has(m.orderId)) seen.set(m.orderId, m.at);
+    return [...seen.keys()];
   }
 
   // Enquiries

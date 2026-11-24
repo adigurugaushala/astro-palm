@@ -181,6 +181,179 @@
   // -------------------------------------------------------------------------
   const RENDER = {};
 
+  // -------------------------------------------------------------------------
+  // Messages: the seeker's side, laid out the way people already expect
+  // -------------------------------------------------------------------------
+  // One list of conversations, one open thread beside it. A booking thread per
+  // booking plus one general thread, and messages never cross between them:
+  // each is fetched and posted by its own key, which the server checks against
+  // the signed-in account on every call.
+
+  const MSG = { threads: [], openKey: '', timer: null };
+
+  function seekerToken() {
+    try { return localStorage.getItem('guruji_cust_token') || ''; } catch (e) { return ''; }
+  }
+
+  /** "14:32" today, "Yesterday", "Mon", then a date. WhatsApp's own ladder. */
+  function threadStamp(at) {
+    if (!at) return '';
+    const d = new Date(at);
+    const now = new Date();
+    const ist = { timeZone: 'Asia/Kolkata' };
+    const day = (x) => x.toLocaleDateString('en-CA', ist);
+    if (day(d) === day(now)) return d.toLocaleTimeString('en-IN', { ...ist, hour: 'numeric', minute: '2-digit' });
+    const y = new Date(now.getTime() - 86400000);
+    if (day(d) === day(y)) return 'Yesterday';
+    if (now - d < 7 * 86400000) return d.toLocaleDateString('en-IN', { ...ist, weekday: 'short' });
+    return d.toLocaleDateString('en-IN', { ...ist, day: 'numeric', month: 'short' });
+  }
+
+  RENDER.messages = () => {
+    if (!seekerToken()) {
+      return `<section class="site-section">
+        <div class="wrap-narrow sp-panel text-center space-y-3">
+          <h1 class="sp-h2">Messages</h1>
+          <p class="sp-text">Sign in to see your conversations with Guruji.</p>
+          <a class="gold-gradient-btn inline-flex h-11 px-6 rounded-xl items-center" href="/account">Sign in</a>
+        </div>
+      </section>`;
+    }
+    return `<section class="site-section msg-section">
+      <div class="wrap">
+        <h1 class="sr-only">Messages</h1>
+        <div class="msg" data-msg>
+          <aside class="msg__list" data-msg-list>
+            <div class="msg__listhead">
+              <h2>Chats</h2>
+              <button type="button" class="msg__new" data-msg-new title="Start a general conversation with Guruji">
+                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><span>New chat</span>
+              </button>
+            </div>
+            <div class="msg__search">
+              <input type="search" placeholder="Search your chats" data-msg-search aria-label="Search your chats">
+            </div>
+            <ul class="msg__threads" data-msg-threads><li class="msg__loading">Loading…</li></ul>
+          </aside>
+          <section class="msg__pane" data-msg-pane>
+            <div class="msg__empty" data-msg-empty>
+              <i class="fa-regular fa-comments" aria-hidden="true"></i>
+              <p>Pick a conversation, or start a new one with Guruji.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>`;
+  };
+
+  function threadRow(t, active) {
+    const unread = t.unread > 0;
+    const who = t.lastFrom === 'devotee' ? 'You: ' : '';
+    return `<li>
+      <button type="button" class="msg__thread ${active ? 'is-active' : ''} ${unread ? 'is-unread' : ''}"
+              data-msg-open="${esc(t.key)}">
+        <span class="msg__avatar ${t.kind === 'general' ? 'is-general' : ''}" aria-hidden="true">
+          <i class="fa-solid ${t.kind === 'general' ? 'fa-om' : 'fa-hand'}"></i>
+        </span>
+        <span class="msg__rowmain">
+          <span class="msg__rowtop">
+            <span class="msg__title">${esc(t.title)}</span>
+            <span class="msg__when">${esc(threadStamp(t.lastAt))}</span>
+          </span>
+          <span class="msg__rowbot">
+            <span class="msg__preview">${t.lastText ? esc(who + t.lastText) : `<em>${esc(t.subtitle)}</em>`}</span>
+            ${unread ? `<span class="msg__badge">${t.unread > 99 ? '99+' : t.unread}</span>` : ''}
+          </span>
+        </span>
+      </button>
+    </li>`;
+  }
+
+  async function loadThreads(host, keepOpen) {
+    const token = seekerToken();
+    const res = await fetchJson('/api/customer/threads', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res) return;
+    MSG.threads = res.threads || [];
+    paintThreads(host);
+    if (keepOpen && MSG.openKey) markRowActive(host, MSG.openKey);
+  }
+
+  function paintThreads(host) {
+    const ul = host.querySelector('[data-msg-threads]');
+    const term = (host.querySelector('[data-msg-search]').value || '').toLowerCase().trim();
+    const rows = MSG.threads.filter(t => !term
+      || t.title.toLowerCase().includes(term)
+      || (t.subtitle || '').toLowerCase().includes(term)
+      || (t.lastText || '').toLowerCase().includes(term));
+    ul.innerHTML = rows.length
+      ? rows.map(t => threadRow(t, t.key === MSG.openKey)).join('')
+      : '<li class="msg__loading">No chats match that.</li>';
+  }
+
+  function markRowActive(host, key) {
+    host.querySelectorAll('[data-msg-open]').forEach(b =>
+      b.classList.toggle('is-active', b.getAttribute('data-msg-open') === key));
+  }
+
+  function openThread(host, key) {
+    const t = MSG.threads.find(x => x.key === key);
+    if (!t) return;
+    MSG.openKey = key;
+    markRowActive(host, key);
+    host.querySelector('[data-msg]').classList.add('is-open');
+    const pane = host.querySelector('[data-msg-pane]');
+    pane.innerHTML = `
+      <header class="msg__head">
+        <button type="button" class="msg__back" data-msg-back aria-label="Back to chats">
+          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </button>
+        <span class="msg__avatar ${t.kind === 'general' ? 'is-general' : ''}" aria-hidden="true">
+          <i class="fa-solid ${t.kind === 'general' ? 'fa-om' : 'fa-hand'}"></i>
+        </span>
+        <span class="msg__headtext">
+          <strong>${esc(t.title)}</strong>
+          <small>${esc(t.subtitle)}</small>
+        </span>
+      </header>
+      <div class="msg__chat" data-msg-chat>${chatMarkup('', { bare: true })}</div>`;
+    // One endpoint family, whichever kind of thread this is.
+    startChat(pane.querySelector('[data-msg-chat]'), key, { token: seekerToken() }, {
+      base: `/api/customer/threads/${encodeURIComponent(key)}`
+    });
+    // The badge clears as soon as it is read.
+    const row = MSG.threads.find(x => x.key === key);
+    if (row) row.unread = 0;
+    paintThreads(host);
+    markRowActive(host, key);
+  }
+
+  function bindMessages() {
+    const host = document.getElementById('page-messages');
+    if (!host || !seekerToken()) return;
+    loadThreads(host);
+    host.querySelector('[data-msg-search]')?.addEventListener('input', () => paintThreads(host));
+    host.addEventListener('click', async (ev) => {
+      const open = ev.target.closest('[data-msg-open]');
+      if (open) { openThread(host, open.getAttribute('data-msg-open')); return; }
+      if (ev.target.closest('[data-msg-back]')) {
+        host.querySelector('[data-msg]').classList.remove('is-open');
+        return;
+      }
+      if (ev.target.closest('[data-msg-new]')) {
+        // The general thread always exists; "New chat" simply opens it.
+        const general = MSG.threads.find(t => t.kind === 'general');
+        if (general) openThread(host, general.key);
+        return;
+      }
+    });
+    // Keep the list fresh so a reply shows up without a reload.
+    clearInterval(MSG.timer);
+    MSG.timer = setInterval(() => {
+      if (document.getElementById('page-messages').classList.contains('hidden')) return;
+      loadThreads(host, true);
+    }, 15000);
+  }
+
   RENDER.about = () => {
     const a = C().about;
     const sec = (id) => (a.sections || []).find(s => s.id === id);
@@ -1066,6 +1239,7 @@
   // -------------------------------------------------------------------------
   const ROUTES = [
     [/^\/$/, 'home'],
+    [/^\/messages$/, 'messages'],
     [/^\/about$/, 'about'],
     [/^\/services$/, 'services'],
     [/^\/services\/category\/([a-z0-9-]+)$/, 'service-category', ['cat']],
@@ -1098,6 +1272,7 @@
     home: '/', about: '/about', services: '/services', reiki: '/reiki-healing', courses: '/courses', resources: '/resources',
     faqs: '/faqs', contact: '/contact', disclaimer: '/disclaimer', 'privacy-policy': '/privacy-policy', terms: '/terms',
     'cancellation-refund-policy': '/cancellation-refund-policy', 'consent-policy': '/consent-policy', grievance: '/grievance',
+    messages: '/messages',
     palmistry: '/palmistry', mantras: '/mantras', 'book-consultation': '/book/consultation',
     'book-pooja': '/book/pooja', 'book-status': '/track', account: '/account', admin: '/admin', search: '/search', guruji: '/guruji',
     'book-payment': '/book/payment', 'book-upload': '/book/upload'
@@ -1125,6 +1300,7 @@
 
   function pathFor(pageId, params = {}) {
     switch (pageId) {
+      case 'messages': return '/messages';
       case 'service-category': return '/services/category/' + params.cat;
       case 'service-detail': return '/services/' + params.slug;
       case 'course-detail': return '/courses/' + params.slug;
@@ -1152,7 +1328,7 @@
       else host.innerHTML = html;
     }
     if (pageId === 'admin') renderAdmin();
-    if (pageId !== 'guruji' && pageId !== 'book-status') stopChat();
+    if (!['guruji', 'book-status', 'messages'].includes(pageId)) stopChat();
     // Guruji's portal is a staff workspace: the public header and footer are hidden there.
     document.body.classList.toggle('staff-portal', pageId === 'guruji');
     if (pageId !== 'guruji' && pageId !== 'admin') refreshSeekerBadge();
@@ -1161,6 +1337,7 @@
     if (pageId === 'learn') setTimeout(() => openCourse(params.slug), 0);
     if (pageId === 'course-detail') setTimeout(() => loadCourseOutline(params.slug), 0);
     if (pageId === 'home') renderHome();
+    if (pageId === 'messages') setTimeout(bindMessages, 0);
     baseShowPage(target);
     if (opts.keepScroll) window.scrollTo({ top: 0 });
 
@@ -1551,18 +1728,63 @@
     day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata'
   });
 
-  const chatBubble = (m, you) => {
+  /** A message may carry one file. The URL is built from the base the chat was
+   *  opened with, so the same bubble works in Guruji's panel and the seeker's. */
+  const chatAttachmentMarkup = (m, fileBase) => {
+    const a = m.attachment;
+    if (!a || !fileBase) return '';
+    const url = `${fileBase}/${encodeURIComponent(a.mediaId)}`;
+    const kb = Math.max(1, Math.round((a.size || 0) / 1024));
+    if (a.kind === 'image') {
+      return `<figure class="chat-att chat-att--img">
+        <img data-chat-img="${esc(url)}" alt="${esc(a.name || 'Shared photo')}">
+        <figcaption>
+          <a href="${esc(url)}?download=1" download="${esc(a.name || 'photo.jpg')}">Download</a>
+          <span>${kb} KB</span>
+        </figcaption>
+      </figure>`;
+    }
+    return `<div class="chat-att chat-att--pdf">
+      <i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
+      <span class="chat-att__name">${esc(a.name || 'reading.pdf')}</span>
+      <span class="chat-att__size">${kb} KB</span>
+      <a class="chat-att__open" data-chat-file="${esc(url)}" href="${esc(url)}" target="_blank" rel="noopener">Open</a>
+      <a class="chat-att__dl" data-chat-file="${esc(url)}?download=1" href="${esc(url)}?download=1" download>Download</a>
+    </div>`;
+  };
+
+  const chatBubble = (m, you, fileBase) => {
     const mine = m.from === you;
     return `
     <li class="chat-msg ${mine ? 'chat-msg--mine' : ''}" data-at="${esc(m.at)}">
       <span class="chat-msg__who">${esc(m.from === 'guruji' ? 'Guruji' : m.name || 'You')}</span>
-      <p>${esc(m.text).replace(/\n/g, '<br>')}</p>
+      ${chatAttachmentMarkup(m, fileBase)}
+      ${m.text ? `<p>${esc(m.text).replace(/\n/g, '<br>')}</p>` : ''}
       <span class="chat-msg__foot">
         <time datetime="${esc(m.at)}">${chatTime(m.at)} IST</time>
         ${mine ? '<span class="chat-msg__seen" data-seen>Sent</span>' : ''}
       </span>
     </li>`;
   };
+
+  /** Attachment images are private, so they are fetched rather than linked.
+   *  Guruji's headers go with the request; a seeker's session cookie does. */
+  const chatImgCache = new Map();
+  function loadChatImages(list, headers) {
+    list.querySelectorAll('img[data-chat-img]').forEach(async (im) => {
+      const url = im.getAttribute('data-chat-img');
+      im.removeAttribute('data-chat-img');
+      try {
+        if (!chatImgCache.has(url)) {
+          const res = await fetch(url, { headers });
+          if (!res.ok) throw new Error('not available');
+          chatImgCache.set(url, URL.createObjectURL(await res.blob()));
+        }
+        im.src = chatImgCache.get(url);
+      } catch (e) { im.replaceWith(Object.assign(document.createElement('p'),
+        { className: 'chat-att__gone', textContent: 'This photo is no longer available.' })); }
+    });
+  }
 
   /** Marks your own messages Seen up to the point the other side has read. */
   function applySeen(list, seenUpTo) {
@@ -1575,9 +1797,9 @@
     });
   }
 
-  function chatMarkup(title) {
-    return `<div class="chat">
-      <div class="chat__head"><h3>${esc(title)}</h3><span class="chat__state" data-chat-state>Connecting…</span></div>
+  function chatMarkup(title, opts = {}) {
+    return `<div class="chat${opts.bare ? ' chat--bare' : ''}">
+      <div class="chat__head"${opts.bare ? ' hidden' : ''}><h3>${esc(title)}</h3><span class="chat__state" data-chat-state>Connecting…</span></div>
       <ul class="chat__list" data-chat-list aria-live="polite" aria-label="Messages"></ul>
       <form class="chat__form" data-chat-form>
         <label class="sr-only" for="chat-input">Your message</label>
@@ -1587,27 +1809,34 @@
     </div>`;
   }
 
-  /** auth is { mobile } for a seeker, or { pin } for Guruji. */
-  function startChat(container, orderId, auth) {
+  /** auth is { mobile } for a seeker, or { pin } for Guruji.
+   *  opts.base overrides the endpoint, which is how the same chat serves a
+   *  booking thread, a general thread, and either side of both. */
+  function startChat(container, orderId, auth, opts = {}) {
     stopChat();
     CHAT.orderId = orderId; CHAT.auth = auth; CHAT.el = container; CHAT.lastAt = '';
+    const base = opts.base || `/api/bookings/${encodeURIComponent(orderId)}`;
+    const fileBase = opts.fileBase || (opts.base ? `${base}/files` : '');
     const list = container.querySelector('[data-chat-list]');
     const state = container.querySelector('[data-chat-state]');
     const form = container.querySelector('[data-chat-form]');
     const input = container.querySelector('[data-chat-input]');
     let you = auth.pin ? 'guruji' : 'devotee';
 
-    const headers = auth.pin ? { 'x-admin-pin': auth.pin } : {};
+    // Guruji signs with a PIN header; a signed-in seeker with a bearer token.
+    const headers = auth.pin ? { 'x-admin-pin': auth.pin }
+      : auth.token ? { Authorization: 'Bearer ' + auth.token } : {};
     const qs = () => `?${auth.mobile ? 'mobile=' + encodeURIComponent(auth.mobile) + '&' : ''}since=${encodeURIComponent(CHAT.lastAt)}`;
 
     async function poll() {
       try {
-        const res = await fetchJson(`/api/bookings/${encodeURIComponent(orderId)}/messages${qs()}`, { headers });
+        const res = await fetchJson(`${base}/messages${qs()}`, { headers });
         if (!res) { state.textContent = 'Offline'; return; }
         you = res.you;
         if (res.messages.length) {
           const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
-          list.insertAdjacentHTML('beforeend', res.messages.map(m => chatBubble(m, you)).join(''));
+          list.insertAdjacentHTML('beforeend', res.messages.map(m => chatBubble(m, you, fileBase)).join(''));
+          loadChatImages(list, headers);
           CHAT.lastAt = res.messages[res.messages.length - 1].at;
           if (atBottom) list.scrollTop = list.scrollHeight;
         }
@@ -1624,7 +1853,7 @@
       if (!text) return;
       input.value = '';
       try {
-        await fetchJson(`/api/bookings/${encodeURIComponent(orderId)}/messages`, {
+        await fetchJson(`${base}/messages`, {
           method: 'POST', headers, body: Object.assign({ text }, auth.mobile ? { mobile: auth.mobile } : {})
         });
         list.querySelector('.chat__empty')?.remove();
@@ -3351,7 +3580,8 @@
     const kb = Math.max(1, Math.round((f.size || 0) / 1024));
     return `<p class="case-file"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
       <a href="/api/bookings/${esc(c.orderId)}/report-file.pdf" target="_blank" rel="noopener">${esc(f.name || 'reading.pdf')}</a>
-      <span>${kb} KB · uploaded ${esc(new Date(f.uploadedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }))} IST</span></p>`;
+      <span>${kb} KB · uploaded ${esc(new Date(f.uploadedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }))} IST</span>
+      <button type="button" class="case-file__send" data-send-reading="${esc(c.orderId)}">Send to seeker</button></p>`;
   }
 
   /** Sends the chosen PDF up and refreshes the line under the drop zone. */
@@ -3517,7 +3747,13 @@
               <form class="sp-form" data-report-form oninput="reportTyped(this, '${esc(c.orderId)}')" onsubmit="saveReport(event, '${esc(c.orderId)}')">
                 <label class="sp-field"><span>Part 2 — the hands</span><textarea name="palm" rows="7">${esc(r.palm || '')}</textarea></label>
                 <label class="sp-field"><span>Part 3 — where the chart and the hands agree</span><textarea name="correlation" rows="6">${esc(r.correlation || '')}</textarea></label>
-                <label class="sp-field"><span>Summary</span><textarea name="summary" rows="4">${esc(r.summary || '')}</textarea></label>
+                <label class="sp-field">
+                  <span class="sp-field__row">Summary
+                    <button type="button" class="sp-collect" data-collect-summary
+                            title="Gather the first line of each point you have written above">Collect my points</button>
+                  </span>
+                  <textarea name="summary" rows="4" data-summary>${esc(r.summary || '')}</textarea>
+                </label>
                 <label class="sp-field"><span>Suggested practices</span><textarea name="remedies" rows="4">${esc(r.remedies || '')}</textarea></label>
                 <div class="flex flex-wrap items-center gap-3">
                   <button class="gold-gradient-btn h-11 px-6 rounded-xl">Save draft</button>
@@ -3558,6 +3794,45 @@
     root.querySelectorAll('[data-palm-open]').forEach((btn) => {
       btn.addEventListener('click', () => palmViewer(c, Number(btn.getAttribute('data-palm-open'))));
     });
+    // The Summary collector. Guruji presses it, reads what came back and
+    // edits it; it is his text, never anything written for him.
+    const reportForm = root.querySelector('[data-report-form]');
+    reportForm?.querySelector('[data-collect-summary]')?.addEventListener('click', () => {
+      const box = reportForm.querySelector('[data-summary]');
+      const gathered = collectSummaryPoints(reportForm);
+      if (!gathered) { toast('Write the sections above first, then collect.', 'error'); return; }
+      if (box.value.trim() && !confirm('Replace what is in the Summary box with your collected points?')) return;
+      box.value = gathered;
+      box.focus();
+      toast('Your points are in the Summary. Edit it before you mark it ready.', 'ok');
+      reportForm.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    // Putting the reading PDF into the seeker's chat, where they can open or
+    // download it. The file is already stored; this only sends a message.
+    root.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('[data-send-reading]');
+      if (!btn) return;
+      const f = (c && c.reportFile) || null;
+      if (!f) { toast('Upload the reading PDF first.', 'error'); return; }
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Sending\u2026';
+      try {
+        await adminFetch(`/api/guruji/threads/${encodeURIComponent(c.orderId)}/messages`, {
+          method: 'POST',
+          body: {
+            text: 'Your reading is ready. You can open or download it here.',
+            attachment: { kind: 'pdf', mediaId: f.mediaId, name: f.name, size: f.size }
+          }
+        });
+        toast('Sent. The reading is in the seeker\u2019s chat.', 'success');
+        btn.textContent = 'Sent';
+      } catch (err) {
+        toast(err.message || 'It could not be sent.', 'error');
+        btn.disabled = false; btn.textContent = label;
+      }
+    });
+
     root.querySelectorAll('img[data-palm-src]').forEach(async (im) => {
       try { im.src = await palmImageUrl(c.orderId, im.getAttribute('data-palm-src')); }
       catch (e) { im.closest('.palm-thumb')?.insertAdjacentHTML('beforeend',
@@ -3576,6 +3851,7 @@
     let zoom = 1, panX = 0, panY = 0;
     let drawing = false, pencil = false, strokes = [], current = null;
     let colour = '#e3342f', width = 4;
+    let lastSaved = null;   // the marked copy stored by the Save button
 
     const wrap = document.createElement('div');
     wrap.className = 'palm-viewer';
@@ -3598,6 +3874,7 @@
           <button type="button" data-pv="undo" title="Undo the last mark">Undo</button>
           <button type="button" data-pv="clear" title="Remove all marks">Clear</button>
           <button type="button" class="palm-viewer__save" data-pv="save">Save marked copy</button>
+        <button type="button" class="palm-viewer__send" data-pv="send" disabled>Send to seeker</button>
         </span>
         <span class="palm-viewer__sep"></span>
         <button type="button" data-pv="close" title="Close">&times;</button>
@@ -3733,6 +4010,7 @@
         case 'undo': strokes.pop(); redraw(); break;
         case 'clear': strokes = []; redraw(); break;
         case 'save': await saveMarked(btn); break;
+        case 'send': await sendMarked(btn); break;
       }
     });
     wrap.querySelector('[data-pv="width"]').addEventListener('input', (ev) => { width = Number(ev.target.value); });
@@ -3752,11 +4030,32 @@
           method: 'POST',
           body: { sourceId: photos[i].id, name: `marked-${photos[i].name || 'palm'}.jpg`, type: 'image/jpeg', data }
         });
-        toast('Marked copy saved. Send it from the chat when you are ready.', 'success');
-        if (res && res.marked) wrap.dispatchEvent(new CustomEvent('palm-marked', { bubbles: true, detail: res.marked }));
+        lastSaved = res && res.marked ? res.marked : null;
+        el('send').disabled = !lastSaved;
+        toast('Marked copy saved. Press "Send to seeker" to put it in the chat.', 'success');
       } catch (err) {
         toast(err.message || 'The marked copy could not be saved.', 'error');
       } finally {
+        btn.disabled = false; btn.textContent = label;
+      }
+    }
+
+    async function sendMarked(btn) {
+      if (!lastSaved) { toast('Save the marked copy first.', 'error'); return; }
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Sending\u2026';
+      try {
+        await adminFetch(`/api/guruji/threads/${encodeURIComponent(caseData.orderId)}/messages`, {
+          method: 'POST',
+          body: {
+            text: 'I have marked what I am reading on your palm.',
+            attachment: { kind: 'image', mediaId: lastSaved.id, name: lastSaved.name, size: lastSaved.size }
+          }
+        });
+        toast('Sent. It is in the seeker\u2019s chat now.', 'success');
+        btn.textContent = 'Sent';
+      } catch (err) {
+        toast(err.message || 'It could not be sent.', 'error');
         btn.disabled = false; btn.textContent = label;
       }
     }
@@ -3781,6 +4080,36 @@
 
     load();
     return { close };
+  }
+
+  /** Gathers the points Guruji has already written into the Summary box for
+   *  him to edit. It writes nothing of its own: every line below is one he
+   *  typed, copied verbatim. Nothing is sent to the seeker until he saves. */
+  function collectSummaryPoints(form) {
+    const take = (name) => (form.querySelector(`[name="${name}"]`)?.value || '').trim();
+    const sections = [
+      ['The hands', take('palm')],
+      ['Chart and hands together', take('correlation')],
+      ['Suggested practices', take('remedies')]
+    ];
+    const lines = [];
+    for (const [heading, body] of sections) {
+      if (!body) continue;
+      // A "point" is a paragraph or a bulleted line; the opening sentence of
+      // each is what carries it.
+      const points = body.split(/\n\s*\n|\n(?=\s*[-*•\d]+[.)]?\s)/)
+        .map(b => b.replace(/^\s*[-*•]\s*/, '').replace(/^\s*\d+[.)]\s*/, '').trim())
+        .filter(Boolean)
+        .map(b => {
+          const first = b.split(/(?<=[.!?])\s+/)[0].trim();
+          return first.length > 4 ? first : b.slice(0, 160).trim();
+        });
+      if (!points.length) continue;
+      lines.push(heading + ':');
+      for (const pt of points.slice(0, 6)) lines.push('• ' + pt);
+      lines.push('');
+    }
+    return lines.join('\n').trim();
   }
 
   function showChart(slot, chart) {

@@ -1045,6 +1045,88 @@ textarea:focus {
 .case-facts { display: grid; gap: .45rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .case-facts dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: rgb(var(--c-ink-3)); }
 .case-facts dd { font-weight: 600; color: rgb(var(--c-ink)); font-size: .92rem; }
+.sp-field__row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.sp-collect { font-size: .72rem; font-weight: 700; padding: .2rem .55rem; border-radius: .45rem;
+  border: 1px solid rgb(var(--c-maroon)); color: rgb(var(--c-maroon)); background: #fff; cursor: pointer; }
+.sp-collect:hover { background: rgb(var(--c-maroon)); color: #fff; }
+
+/* ---- Chat attachments --------------------------------------------------- */
+.chat-att { margin: 0 0 .35rem; }
+.chat-att--img { max-width: 240px; }
+.chat-att--img img { display: block; width: 100%; max-height: 280px; height: auto;
+  object-fit: cover; border-radius: var(--radius-sm); background: rgb(var(--c-sand) / .6); cursor: zoom-in; }
+.chat-att--img figcaption { display: flex; gap: .5rem; align-items: center; justify-content: space-between;
+  font-size: .72rem; padding-top: .25rem; }
+.chat-att--pdf { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap;
+  padding: .5rem .6rem; border-radius: var(--radius-sm); background: rgb(var(--c-sand) / .85);
+  border: 1px solid rgb(var(--c-line)); font-size: .78rem; }
+.chat-att--pdf i { color: #b3261e; font-size: 1.05rem; }
+.chat-att__name { font-weight: 600; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-att__size { color: rgb(var(--c-ink-3)); }
+.chat-att__open, .chat-att__dl { font-weight: 600; text-decoration: underline; }
+.chat-att__gone { font-size: .75rem; font-style: italic; color: rgb(var(--c-ink-3)); margin: 0 0 .3rem; }
+.case-file__send { margin-left: .5rem; font-size: .75rem; font-weight: 700; padding: .2rem .55rem;
+  border-radius: .45rem; border: 1px solid rgb(var(--c-maroon)); color: rgb(var(--c-maroon)); background: #fff; cursor: pointer; }
+.case-file__send:hover { background: rgb(var(--c-maroon)); color: #fff; }
+.case-file__send:disabled { opacity: .6; cursor: default; }
+.palm-viewer__send { background: #1f9d55 !important; color: #fff !important; font-weight: 700; }
+.palm-viewer__send:disabled { opacity: .45; }
+
+/* ---- Messages: the seeker's chat list and pane --------------------------- */
+.msg-section { padding-block: 1.25rem; }
+.msg { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 0;
+  height: min(76vh, 720px); border: 1px solid rgb(var(--c-line)); border-radius: var(--radius-lg);
+  overflow: hidden; background: #fff; box-shadow: var(--shadow-card); }
+.msg__list { display: flex; flex-direction: column; min-height: 0;
+  border-right: 1px solid rgb(var(--c-line)); background: rgb(var(--c-cream) / .55); }
+.msg__listhead { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .75rem .85rem; border-bottom: 1px solid rgb(var(--c-line)); }
+.msg__listhead h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.msg__new { display: inline-flex; align-items: center; gap: .35rem; font-size: .76rem; font-weight: 700;
+  padding: .35rem .6rem; border-radius: .6rem; border: 1px solid rgb(var(--c-maroon));
+  color: rgb(var(--c-maroon)); background: #fff; cursor: pointer; }
+.msg__new:hover { background: rgb(var(--c-maroon)); color: #fff; }
+.msg__search { padding: .5rem .7rem; border-bottom: 1px solid rgb(var(--c-line)); }
+.msg__search input { width: 100%; font-size: .82rem; padding: .45rem .65rem;
+  border: 1px solid rgb(var(--c-line)); border-radius: .6rem; background: #fff; }
+.msg__threads { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
+.msg__loading { padding: 1rem .85rem; font-size: .82rem; color: rgb(var(--c-ink-3)); }
+.msg__thread { width: 100%; display: flex; gap: .6rem; align-items: center; text-align: left;
+  padding: .6rem .8rem; background: none; border: 0; border-bottom: 1px solid rgb(var(--c-line) / .6); cursor: pointer; }
+.msg__thread:hover { background: rgb(var(--c-sand) / .5); }
+.msg__thread.is-active { background: rgb(var(--c-sand)); }
+.msg__avatar { width: 2.4rem; height: 2.4rem; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: rgb(var(--c-maroon) / .1); color: rgb(var(--c-maroon)); font-size: .95rem; }
+.msg__avatar.is-general { background: rgb(var(--c-gold) / .22); color: #8a5a12; }
+.msg__rowmain { flex: 1; min-width: 0; display: grid; gap: .15rem; }
+.msg__rowtop, .msg__rowbot { display: flex; align-items: center; gap: .5rem; justify-content: space-between; }
+.msg__title { font-weight: 600; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg__when { font-size: .7rem; color: rgb(var(--c-ink-3)); flex: none; }
+.msg__preview { font-size: .78rem; color: rgb(var(--c-ink-3)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg__thread.is-unread .msg__title, .msg__thread.is-unread .msg__preview { font-weight: 700; color: rgb(var(--c-ink)); }
+.msg__badge { flex: none; min-width: 1.25rem; height: 1.25rem; padding: 0 .35rem; border-radius: 999px;
+  background: #1f9d55; color: #fff; font-size: .68rem; font-weight: 700; display: grid; place-items: center; }
+.msg__pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.msg__empty { margin: auto; text-align: center; color: rgb(var(--c-ink-3)); display: grid; gap: .5rem; padding: 2rem; }
+.msg__empty i { font-size: 2rem; opacity: .5; }
+.msg__head { display: flex; align-items: center; gap: .6rem; padding: .6rem .85rem;
+  border-bottom: 1px solid rgb(var(--c-line)); background: rgb(var(--c-cream) / .5); }
+.msg__headtext { display: grid; min-width: 0; }
+.msg__headtext strong { font-size: .92rem; }
+.msg__headtext small { font-size: .72rem; color: rgb(var(--c-ink-3)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg__back { display: none; background: none; border: 0; font-size: 1rem; color: rgb(var(--c-maroon)); cursor: pointer; }
+.msg__chat { flex: 1; min-height: 0; display: flex; }
+.msg__chat .chat { flex: 1; min-height: 0; border: 0; box-shadow: none; border-radius: 0; }
+.chat--bare .chat__head { display: none; }
+
+@media (max-width: 800px) {
+  .msg { grid-template-columns: 1fr; height: min(80vh, 680px); }
+  .msg__pane { display: none; }
+  .msg.is-open .msg__list { display: none; }
+  .msg.is-open .msg__pane { display: flex; }
+  .msg__back { display: inline-block; }
+}
+
 /* ---- Palm photos: grid, and the zoom + mark viewer ---------------------- */
 .palm-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }

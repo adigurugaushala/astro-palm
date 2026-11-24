@@ -44,7 +44,7 @@
   var OPEN_TO = '20:00';
 
   /** Addresses that must never reach an index: staff areas and a seeker's own pages. */
-  var PRIVATE_PAGES = ['admin', 'guruji', 'session', 'learn', 'account', 'payment-return', 'book-status', 'search'];
+  var PRIVATE_PAGES = ['admin', 'guruji', 'session', 'learn', 'account', 'messages', 'payment-return', 'book-status', 'search'];
 
   /* The address table, in the order the first match wins. It mirrors the
      browser router so a page cannot be described one way by the server and
@@ -71,6 +71,7 @@
     [/^\/book\/upload$/, 'book-status'],
     [/^\/track$/, 'book-status'],
     [/^\/account$/, 'account'],
+    [/^\/messages$/, 'messages'],
     [/^\/admin$/, 'admin'],
     [/^\/guruji$/, 'guruji'],
     [/^\/guruji\/([A-Z0-9-]+)$/, 'guruji', ['slug']],
@@ -86,7 +87,7 @@
     courses: '/courses', resources: '/resources', faqs: '/faqs', contact: '/contact',
     palmistry: '/palmistry', mantras: '/mantras',
     'book-consultation': '/book/consultation', 'book-pooja': '/book/pooja',
-    'book-status': '/track', account: '/account', admin: '/admin', guruji: '/guruji',
+    'book-status': '/track', account: '/account', messages: '/messages', admin: '/admin', guruji: '/guruji',
     search: '/search', 'payment-return': '/payment/return'
   };
 
@@ -247,6 +248,7 @@
          plainly and kept out of the index. */
       case 'book-status': return { title: 'Track Your Booking', description: 'Check where your booking has reached.' };
       case 'account': return { title: 'My Account', description: 'Your bookings and readings.' };
+      case 'messages': return { title: 'Messages', description: 'Your conversations with Guruji.' };
       case 'search': return { title: 'Search', description: 'Search the site.' };
       case 'admin': return { title: 'Admin', description: 'Staff area.' };
       case 'guruji': return { title: 'Guruji — cases', description: 'Staff area.' };

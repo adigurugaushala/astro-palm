@@ -632,6 +632,38 @@ function bookingActor(req, booking, body = {}) {
     : null;
 }
 
+/** A chat message may carry one file. Only Guruji sends these, and only ones
+ *  already stored against the case, so this records a reference rather than
+ *  taking bytes: the file is fetched back through the thread's own guard. */
+/** A thread key is either one of this seeker's bookings or their own general
+ *  thread. Anything else is not theirs, so it is not found. */
+async function assertThreadBelongsTo(store, key, account) {
+  if (isGeneralThread(key)) {
+    if (key !== generalThreadKey(account.mobile)) throw new HttpError(404, 'Conversation not found');
+    return { kind: 'general' };
+  }
+  const booking = await store.getBooking(key);
+  if (!booking || !booking.devotee || booking.devotee.mobile !== account.mobile) {
+    throw new HttpError(404, 'Conversation not found');
+  }
+  return { kind: 'booking', booking };
+}
+
+function chatAttachment(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const kind = raw.kind === 'pdf' ? 'pdf' : raw.kind === 'image' ? 'image' : '';
+  const mediaId = str(raw.mediaId, 60);
+  if (!kind || !mediaId) return null;
+  return { kind, mediaId, name: str(raw.name, 120) || (kind === 'pdf' ? 'reading.pdf' : 'photo.jpg'), size: Number(raw.size) || 0 };
+}
+
+/** The thread a seeker has with Guruji that is not about one booking.
+ *  Keyed on the mobile, which is the identity the whole site already uses. */
+function generalThreadKey(mobile) {
+  return 'GENERAL-' + String(mobile || '').replace(/\D/g, '').slice(-10);
+}
+function isGeneralThread(key) { return /^GENERAL-\d{10}$/.test(key); }
+
 function newReference(prefix) {
   const stamp = Date.now().toString(36).toUpperCase().slice(-5);
   return `${prefix}-${stamp}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
@@ -1412,6 +1444,90 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     // The bytes used to stay in the browser: only a file name reached the
     // server, so Guruji had nothing to look at. They are stored now, privately,
     // and read back only by the seeker who sent them or by Guruji.
+    // Seeker's chat ----------------------------------------------------------
+    // One thread per booking, plus one general thread that belongs to no
+    // booking. Threads never share messages: each is read and written by its
+    // own key, and the key is checked against this account every time.
+
+    ['GET', /^\/api\/customer\/threads$/, async (req) => {
+      const account = customerFromToken(req);
+      if (!account) throw new HttpError(401, 'Please sign in');
+      const bookings = await store.listBookingsForCustomer(account.mobile, 100);
+      const fromGuruji = await store.unreadCounts('guruji');
+      const threads = [];
+      for (const b of bookings) {
+        const msgs = await store.listMessages(b.orderId);
+        const last = msgs[msgs.length - 1] || null;
+        threads.push({
+          key: b.orderId, kind: 'booking', orderId: b.orderId,
+          title: (b.service && b.service.title) || 'Consultation',
+          subtitle: b.orderId, status: b.status,
+          unread: fromGuruji[b.orderId] || 0,
+          lastAt: last ? last.at : (b.createdAt || ''),
+          lastText: last ? (last.text || (last.attachment ? (last.attachment.kind === 'pdf' ? 'Reading PDF' : 'Photo') : '')) : '',
+          lastFrom: last ? last.from : ''
+        });
+      }
+      const gkey = generalThreadKey(account.mobile);
+      const gmsgs = await store.listMessages(gkey);
+      const glast = gmsgs[gmsgs.length - 1] || null;
+      threads.push({
+        key: gkey, kind: 'general', orderId: gkey,
+        title: 'Guruji', subtitle: 'General questions', status: '',
+        unread: fromGuruji[gkey] || 0,
+        lastAt: glast ? glast.at : '',
+        lastText: glast ? (glast.text || (glast.attachment ? 'Attachment' : '')) : '',
+        lastFrom: glast ? glast.from : ''
+      });
+      threads.sort((a, b) => String(b.lastAt || '').localeCompare(String(a.lastAt || '')));
+      return [200, { threads, you: account.name || 'You' }];
+    }],
+
+    ['GET', /^\/api\/customer\/threads\/([A-Z0-9-]+)\/messages$/, async (req, [, key], url) => {
+      const account = customerFromToken(req);
+      if (!account) throw new HttpError(401, 'Please sign in');
+      await assertThreadBelongsTo(store, key, account);
+      const since = str(url.searchParams.get('since'), 40);
+      const messages = await store.listMessages(key, since);
+      await store.markMessagesRead(key, 'devotee');
+      const mineRead = (await store.listMessages(key)).filter(m => m.from === 'devotee' && m.readAt);
+      return [200, { messages, you: 'devotee', seenUpTo: mineRead.length ? mineRead[mineRead.length - 1].at : '' }];
+    }],
+
+    ['POST', /^\/api\/customer\/threads\/([A-Z0-9-]+)\/messages$/, async (req, [, key]) => {
+      rateLimit(req, 'chat-send', 60);
+      const account = customerFromToken(req);
+      if (!account) throw new HttpError(401, 'Please sign in');
+      const body = await readJsonBody(req);
+      await assertThreadBelongsTo(store, key, account);
+      const text = str(body.text, 2000);
+      if (!text) throw new HttpError(422, 'Please write a message');
+      const message = {
+        id: 'msg-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
+        orderId: key, from: 'devotee', name: account.name || 'Seeker', text, at: nowIso()
+      };
+      await store.addMessage(message);
+      return [201, { message }];
+    }],
+
+    // A file sent into a thread. The same guard as the thread it arrived in.
+    ['GET', /^\/api\/customer\/threads\/([A-Z0-9-]+)\/files\/([a-z0-9-]+)$/, async (req, [, key, mediaId], url) => {
+      const account = customerFromToken(req);
+      if (!account) throw new HttpError(401, 'Please sign in');
+      await assertThreadBelongsTo(store, key, account);
+      const sent = (await store.listMessages(key))
+        .some(m => m.attachment && m.attachment.mediaId === mediaId);
+      if (!sent) throw new HttpError(404, 'File not found');
+      const item = await store.getMedia(mediaId);
+      if (!item) throw new HttpError(404, 'File not found');
+      const download = url.searchParams.get('download') === '1';
+      return [200, {
+        __raw: Buffer.from(item.data, 'base64'), type: item.type,
+        cache: 'private, max-age=600',
+        ...(download ? { attachmentName: item.name } : {})
+      }];
+    }],
+
     ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/photos$/, async (req, [, orderId]) => {
       rateLimit(req, 'palm-photo', 40);
       const body = await readJsonBody(req, MAX_PHOTO_BODY_BYTES);
@@ -1461,10 +1577,14 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const actor = bookingActor(req, booking, body);
       if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
       const text = str(body.text, 2000);
-      if (!text) throw new HttpError(422, 'Please write a message');
+      // A message may be a file rather than words: a marked palm photo or the
+      // reading PDF. One of the two must be there.
+      const attachment = chatAttachment(body.attachment);
+      if (!text && !attachment) throw new HttpError(422, 'Please write a message');
       const message = {
         id: 'msg-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
-        orderId, from: actor.who, name: actor.name, text, at: nowIso()
+        orderId, from: actor.who, name: actor.name, text, at: nowIso(),
+        ...(attachment ? { attachment } : {})
       };
       await store.addMessage(message);
       return [201, { message }];
@@ -1573,9 +1693,30 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
           unread: 0
         }));
 
+      // A seeker's general thread belongs to no booking, so without this it
+      // would be a message sent into a room nobody opens.
+      const generals = [];
+      for (const key of await store.listThreadKeys('GENERAL-')) {
+        if (!isGeneralThread(key)) continue;
+        const msgs = await store.listMessages(key);
+        const last = msgs[msgs.length - 1];
+        const mobile = key.slice('GENERAL-'.length);
+        const named = msgs.find((m) => m.from === 'devotee' && m.name);
+        generals.push({
+          orderId: key, kind: 'general', status: 'MESSAGE', section: 'Messages',
+          service: { title: 'General message' },
+          devotee: { name: (named && named.name) || 'Seeker', mobile },
+          message: last ? last.text : '',
+          createdAt: msgs.length ? msgs[0].at : nowIso(),
+          updatedAt: last ? last.at : '',
+          unread: unread[key] || 0
+        });
+      }
+
+      const everything = cases.concat(enquiries, generals);
       return [200, {
-        cases: cases.concat(enquiries),
-        sections: [...new Set(cases.concat(enquiries).map((r) => r.section))].sort(),
+        cases: everything,
+        sections: [...new Set(everything.map((r) => r.section))].sort(),
         statuses: CASE_STATUSES
       }];
     }],
@@ -1639,6 +1780,50 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     // Guruji can hand over a finished PDF instead of typing the reading.
     // A palm photo with Guruji's marks drawn on it. Stored privately against
     // the case; sending it to the seeker is a separate, deliberate step.
+    // Guruji's side of a thread. Booking threads are also reachable through
+    // /api/bookings/:id/messages; this route additionally covers the general
+    // thread, which has no booking behind it.
+    ['GET', /^\/api\/guruji\/threads\/([A-Z0-9-]+)\/messages$/, async (req, [, key], url) => {
+      requireGuruji(req);
+      const since = str(url.searchParams.get('since'), 40);
+      const messages = await store.listMessages(key, since);
+      await store.markMessagesRead(key, 'guruji');
+      const mineRead = (await store.listMessages(key)).filter(m => m.from === 'guruji' && m.readAt);
+      return [200, { messages, you: 'guruji', seenUpTo: mineRead.length ? mineRead[mineRead.length - 1].at : '' }];
+    }],
+
+    ['POST', /^\/api\/guruji\/threads\/([A-Z0-9-]+)\/messages$/, async (req, [, key]) => {
+      requireGuruji(req);
+      rateLimit(req, 'chat-send', 120);
+      const body = await readJsonBody(req);
+      const text = str(body.text, 2000);
+      const attachment = chatAttachment(body.attachment);
+      if (!text && !attachment) throw new HttpError(422, 'Please write a message');
+      // A file must already exist in the store; nothing is created here.
+      if (attachment && !(await store.getMedia(attachment.mediaId))) {
+        throw new HttpError(404, 'That file is no longer stored');
+      }
+      const message = {
+        id: 'msg-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
+        orderId: key, from: 'guruji', name: 'Guruji', text, at: nowIso(),
+        ...(attachment ? { attachment } : {})
+      };
+      await store.addMessage(message);
+      return [201, { message }];
+    }],
+
+    ['GET', /^\/api\/guruji\/threads\/([A-Z0-9-]+)\/files\/([a-z0-9-]+)$/, async (req, [, key, mediaId], url) => {
+      requireGuruji(req);
+      const sent = (await store.listMessages(key)).some(m => m.attachment && m.attachment.mediaId === mediaId);
+      if (!sent) throw new HttpError(404, 'File not found');
+      const item = await store.getMedia(mediaId);
+      if (!item) throw new HttpError(404, 'File not found');
+      return [200, {
+        __raw: Buffer.from(item.data, 'base64'), type: item.type, cache: 'private, max-age=600',
+        ...(url.searchParams.get('download') === '1' ? { attachmentName: item.name } : {})
+      }];
+    }],
+
     ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/marked-photo$/, async (req, [, orderId]) => {
       requireGuruji(req);
       rateLimit(req, 'marked-photo', 60);
@@ -2259,6 +2444,13 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         const n = fromGuruji[b.orderId] || 0;
         if (n) { perBooking[b.orderId] = n; unread += n; }
       }
+      // The general thread belongs to no booking, so it has to be counted
+      // separately or its replies would never raise the badge.
+      if (mobile) {
+        const gkey = generalThreadKey(mobile);
+        const g = fromGuruji[gkey] || 0;
+        if (g) { perBooking[gkey] = g; unread += g; }
+      }
       return [200, { ok: true, unread, bookings: perBooking }];
     }],
 
@@ -2346,7 +2538,7 @@ async function sendPage(req, res, status, store, pathname) {
   res.end(html);
 }
 
-const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
+const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|messages|palmistry|mantras|admin|guruji|session|learn|payment|disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
 
 function serveStatic(req, res, pathname, store) {
   const isPage = pathname === '/' || pathname === '' || SPA_ROUTE_RX.test(pathname);
@@ -2432,6 +2624,10 @@ function createHandler(store, { serveFiles = true, gateway } = {}) {
           || (payload.filename ? 'private, no-store' : GENERATED ? 'public, max-age=3600' : 'public, max-age=86400');
         const headers = { 'Content-Type': payload.type, 'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff' };
         if (payload.filename) headers['Content-Disposition'] = `inline; filename="${payload.filename}"`;
+        // attachmentName asks the browser to save rather than display.
+        if (payload.attachmentName) {
+          headers['Content-Disposition'] = `attachment; filename="${String(payload.attachmentName).replace(/["\\\r\n]/g, '')}"`;
+        }
         res.writeHead(status, headers);
         return res.end(payload.__raw);
       }
