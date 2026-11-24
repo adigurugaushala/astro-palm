@@ -1321,6 +1321,86 @@ async function handleAuthSubmit(event) {
 }
 
 // ==========================================
+// BOOKING SIGN-IN CARD (sign in / create account)
+// ==========================================
+
+/** Switches the booking login card between "Welcome back" and "Create your account". */
+window.setBookAuthMode = function(mode) {
+  const signin = document.getElementById("book-signin-form");
+  const register = document.getElementById("book-register-form");
+  if (!signin || !register) return;
+  const isRegister = mode === "register";
+  signin.classList.toggle("hidden", isRegister);
+  register.classList.toggle("hidden", !isRegister);
+  const title = document.getElementById("gp-auth-title");
+  const sub = document.getElementById("gp-auth-sub");
+  if (title) title.textContent = isRegister ? "Create your account" : "Welcome back";
+  if (sub) sub.textContent = isRegister
+    ? "One quick step so Guruji can reach you and your slot stays held."
+    : "Track your consultations, reports and bookings in one place.";
+  const first = document.getElementById(isRegister ? "auth-name" : "book-login-id");
+  if (first && !first.value) first.focus();
+};
+
+window.togglePwdVisibility = function(inputId, btn) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const show = el.type === "password";
+  el.type = show ? "text" : "password";
+  if (btn) {
+    btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    btn.innerHTML = `<i class="fa-regular ${show ? "fa-eye-slash" : "fa-eye"}"></i>`;
+  }
+};
+
+/** There is no self-serve reset yet, so send the seeker to the WhatsApp helpline. */
+window.bookForgotPassword = function() {
+  const id = (document.getElementById("book-login-id")?.value || "").trim();
+  const msg = `Namaste, I forgot my Guruji Palmistry account password.${id ? " My login: " + id : ""}`;
+  window.open(`https://wa.me/918977625078?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+};
+
+window.handleBookSignIn = async function(e) {
+  e.preventDefault();
+  const identifier = (document.getElementById("book-login-id")?.value || "").trim();
+  const password = document.getElementById("book-login-pwd")?.value || "";
+  const errEl = document.getElementById("book-login-err");
+  const btn = document.getElementById("book-login-btn");
+  const fail = (msg) => { if (errEl) { errEl.textContent = msg; errEl.classList.remove("hidden"); } };
+
+  if (!identifier || !password) return fail("Please enter your email or mobile number and password.");
+  if (errEl) errEl.classList.add("hidden");
+  if (btn) { btn.disabled = true; btn.textContent = "Signing in…"; }
+
+  try {
+    const res = await fetch("/api/customer/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !(data.ok || data.success) || !data.token) throw new Error(data.error || "Invalid email/mobile or password.");
+
+    localStorage.setItem("guruji_cust_token", data.token);
+    if (data.customer) {
+      state.user.name = data.customer.name || state.user.name;
+      state.user.email = data.customer.email || state.user.email;
+      state.user.mobile = data.customer.mobile || state.user.mobile;
+      state.user.customerId = data.customer.id;
+    }
+    const devName = document.getElementById("devotee-fullname");
+    if (devName && state.user.name) devName.value = state.user.name;
+    if (state.selectedDateISO) persistHeldSlot();
+    if (typeof showVedicToast === "function") showVedicToast(`Namaste ${state.user.name || ""}, welcome back!`.replace(" ,", ","), "success");
+    showPage("book-consultation");
+  } catch (err) {
+    fail(err.message || "Invalid email/mobile or password.");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Sign in"; }
+  }
+};
+
+// ==========================================
 // PAYU GATEWAY SIMULATION
 // ==========================================
 

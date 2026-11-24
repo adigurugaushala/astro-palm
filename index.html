@@ -129,6 +129,10 @@
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);
     const provider = new GoogleAuthProvider();
+    // Ask for the email explicitly: without it Google returns only the name and
+    // the server refuses the sign-in with "no_email".
+    provider.addScope('email');
+    provider.addScope('profile');
     provider.setCustomParameters({ prompt: 'select_account' });
 
     window.firebaseAuth = auth;
@@ -194,6 +198,7 @@
       if (mobileVal && mobileVal.replace(/\D/g, '').length === 10) {
         if (typeof showPage === 'function') showPage('book-payment');
       } else {
+        if (typeof setBookAuthMode === 'function') setBookAuthMode('register');
         document.getElementById('auth-mobile')?.focus();
         if (typeof showVedicToast === 'function') {
           showVedicToast('Please confirm your 10-digit mobile number so Guruji can reach you.', 'info');
@@ -1590,77 +1595,71 @@
     <!-- ====================================================================== -->
     <!-- 4. CONSULTATION BOOKING FLOW (Step 3: Account & Preserved Slot)        -->
     <!-- ====================================================================== -->
-    <div id="page-book-auth" class="page-view hidden py-10 px-4 sm:px-8 bg-parchment">
-      <div class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-line shadow-md space-y-6">
-        
-        <div class="text-center">
-          <div class="w-12 h-12 rounded-full bg-rose-50 text-maroon flex items-center justify-center mx-auto text-xl mb-2 border border-rose-200">
-            <i class="fa-regular fa-user"></i>
-          </div>
-          <h2 class="font-serif text-2xl font-bold text-ink">Sign In or Create Account</h2>
-          <p class="text-xs text-ink-3 mt-1">Quick authentication so you can track your consultation & report.</p>
+    <div id="page-book-auth" class="page-view hidden py-12 px-4 sm:px-8 bg-parchment">
+      <div class="gp-auth">
+
+        <div class="gp-auth-head">
+          <h2 id="gp-auth-title" class="gp-auth-title">Welcome back</h2>
+          <p id="gp-auth-sub" class="gp-auth-sub">Track your consultations, reports and bookings in one place.</p>
         </div>
 
-        <!-- Google 1-Click Sign-In -->
-        <button type="button" onclick="loginWithGoogle()" class="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-line bg-white hover:bg-zinc-50 font-medium text-ink shadow-xs transition text-xs">
-          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-          </svg>
-          <span class="font-semibold">Continue with Google</span>
-        </button>
+        <div class="gp-auth-card">
+          <button type="button" onclick="loginWithGoogle()" class="gp-auth-google">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
 
-        <div class="relative flex items-center justify-center">
-          <div class="border-t border-line w-full"></div>
-          <span class="bg-white px-3 text-2xs text-ink-3 uppercase whitespace-nowrap">or enter manually</span>
-          <div class="border-t border-line w-full"></div>
-        </div>
+          <div class="gp-auth-or"><span></span>or<span></span></div>
 
-        <!-- Auth Form -->
-        <form onsubmit="handleAuthSubmit(event)" novalidate class="space-y-4 text-xs">
-          <div>
-            <label class="block font-semibold text-ink mb-1">Full Name</label>
-            <input type="text" id="auth-name" required autocomplete="name" placeholder="Your full name" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
-          </div>
-
-          <div>
-            <label class="block font-semibold text-ink mb-1">Mobile Number (WhatsApp updates)</label>
-            <div class="flex">
-              <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-line bg-zinc-50 text-ink-3 text-xs">+91</span>
-              <input type="tel" id="auth-mobile" required inputmode="numeric" autocomplete="tel-national" maxlength="11" placeholder="98765 43210" class="w-full px-3.5 py-2.5 rounded-r-xl border border-line focus:border-maroon focus:outline-none text-ink">
+          <!-- Sign in (returning seekers) -->
+          <form id="book-signin-form" onsubmit="handleBookSignIn(event)" novalidate class="gp-auth-form">
+            <input type="text" id="book-login-id" class="gp-auth-input" placeholder="Email or mobile number" autocomplete="username" aria-label="Email or mobile number">
+            <div class="gp-auth-pwd">
+              <input type="password" id="book-login-pwd" class="gp-auth-input" placeholder="Password" autocomplete="current-password" aria-label="Password">
+              <button type="button" class="gp-auth-eye" onclick="togglePwdVisibility('book-login-pwd', this)" aria-label="Show password"><i class="fa-regular fa-eye"></i></button>
             </div>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="block font-semibold text-ink">Password <span class="font-normal text-ink-3">(Optional — to access My Account later)</span></label>
+            <div id="book-login-err" class="gp-auth-err hidden" role="alert"></div>
+            <button type="submit" id="book-login-btn" class="gp-auth-submit">Sign in</button>
+            <div class="gp-auth-links">
+              <a href="#" onclick="setBookAuthMode('register'); return false;">Create an account</a>
+              <a href="#" onclick="bookForgotPassword(); return false;">Forgot password?</a>
             </div>
-            <input type="password" id="auth-password" autocomplete="new-password" placeholder="Create a password (min 6 chars)" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
-          </div>
+          </form>
 
-          <div class="p-3 bg-parchment rounded-xl text-2xs text-ink-3">
-            <i class="fa-solid fa-shield-halved text-maroon mr-1"></i>
-            We never spam or share your contact details. Your consultation slot is held securely while you register.
-          </div>
+          <!-- Create account (new seekers) -->
+          <form id="book-register-form" onsubmit="handleAuthSubmit(event)" novalidate class="gp-auth-form hidden">
+            <input type="text" id="auth-name" required class="gp-auth-input" placeholder="Full name" autocomplete="name" aria-label="Full name">
+            <div class="gp-auth-phone">
+              <span>+91</span>
+              <input type="tel" id="auth-mobile" required inputmode="numeric" maxlength="11" class="gp-auth-input" placeholder="Mobile number (WhatsApp updates)" autocomplete="tel-national" aria-label="Mobile number">
+            </div>
+            <input type="email" id="auth-email" class="gp-auth-input" placeholder="Email address (optional)" autocomplete="email" aria-label="Email address">
+            <div class="gp-auth-pwd">
+              <input type="password" id="auth-password" class="gp-auth-input" placeholder="Create a password (min 6 chars)" autocomplete="new-password" aria-label="Password">
+              <button type="button" class="gp-auth-eye" onclick="togglePwdVisibility('auth-password', this)" aria-label="Show password"><i class="fa-regular fa-eye"></i></button>
+            </div>
 
-          <!-- Mandatory Legal Consent Checkbox -->
-          <div class="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/90 text-left">
-            <label class="flex items-start gap-2.5 cursor-pointer select-none">
-              <input type="checkbox" id="auth-consent" class="mt-0.5 h-4 w-4 rounded border-amber-400 text-maroon focus:ring-amber-500 shrink-0">
-              <span class="text-xs text-ink-2 leading-relaxed">
-                I understand and agree that Guruji Palmistry provides Palmistry, Astrology, Kundali Analysis, Astro-Palmistry, Reiki, Spiritual Guidance, Poojas, Rituals and related services based on traditional, spiritual and interpretive practices. I understand that these services do not guarantee any particular prediction, result or outcome and are not substitutes for medical, psychological, financial, legal or other professional advice. I acknowledge that my decisions and actions remain my responsibility. I have read and agree to the <a href="/disclaimer" onclick="openPolicyModal('disclaimer', event)" class="font-semibold text-maroon underline hover:text-amber-700">Disclaimer</a>, <a href="/terms" onclick="openPolicyModal('terms', event)" class="font-semibold text-maroon underline hover:text-amber-700">Terms &amp; Conditions</a> and <a href="/privacy-policy" onclick="openPolicyModal('privacy-policy', event)" class="font-semibold text-maroon underline hover:text-amber-700">Privacy Policy</a>.
+            <label class="gp-auth-consent">
+              <input type="checkbox" id="auth-consent">
+              <span>
+                I understand and agree that Guruji Palmistry provides Palmistry, Astrology, Kundali Analysis, Astro-Palmistry, Reiki, Spiritual Guidance, Poojas, Rituals and related services based on traditional, spiritual and interpretive practices. I understand that these services do not guarantee any particular prediction, result or outcome and are not substitutes for medical, psychological, financial, legal or other professional advice. I acknowledge that my decisions and actions remain my responsibility. I have read and agree to the <a href="/disclaimer" onclick="openPolicyModal('disclaimer', event)">Disclaimer</a>, <a href="/terms" onclick="openPolicyModal('terms', event)">Terms &amp; Conditions</a> and <a href="/privacy-policy" onclick="openPolicyModal('privacy-policy', event)">Privacy Policy</a>.
               </span>
             </label>
-          </div>
 
-          <button type="submit" class="w-full crimson-gradient-btn py-3 rounded-xl font-medium text-xs shadow-md flex items-center justify-center gap-2">
-            <span>Continue to Payment</span>
-            <i class="fa-solid fa-arrow-right text-2xs"></i>
-          </button>
-        </form>
+            <button type="submit" class="gp-auth-submit">Create account &amp; continue</button>
+            <div class="gp-auth-links gp-auth-links--center">
+              <span>Already have an account?</span>
+              <a href="#" onclick="setBookAuthMode('signin'); return false;">Sign in</a>
+            </div>
+          </form>
+        </div>
 
+        <p class="gp-auth-note"><i class="fa-solid fa-shield-halved"></i> We never spam or share your contact details. Your consultation slot is held securely while you sign in.</p>
       </div>
     </div>
 
