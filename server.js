@@ -187,7 +187,14 @@ class HttpError extends Error {
 }
 
 function sendJson(res, status, payload) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
+  // A route may ask for a cookie to be set alongside its JSON.
+  if (payload && payload.__setCookie) {
+    headers['Set-Cookie'] = payload.__setCookie;
+    payload = { ...payload };
+    delete payload.__setCookie;
+  }
+  res.writeHead(status, headers);
   res.end(JSON.stringify(payload));
 }
 
@@ -416,6 +423,23 @@ function pruneAdminSessions() {
 /** Resolves logged-in customer account from session token in header or cookie.
  *  Accepts all three shapes the browser sends: an Authorization: Bearer header,
  *  an x-customer-token header, or the guruji_cust_token cookie. */
+/** The seeker's session as a cookie, so a plain link can be followed.
+ *  The token also lives in localStorage for fetch calls; this copy exists
+ *  because an <a href> and an <img src> cannot send a header, which is how
+ *  a reading PDF is opened or downloaded from the chat.
+ *  SameSite=Lax is the point: a top-level click still carries it, while a
+ *  cross-site form post does not, so it cannot be used to act as the seeker. */
+function customerCookie(req, token, maxAgeSeconds = 30 * 24 * 3600) {
+  const https = (req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https'
+    || String(process.env.SITE_URL || '').startsWith('https://');
+  const bits = [
+    `guruji_cust_token=${token}`, 'Path=/', 'HttpOnly', 'SameSite=Lax',
+    `Max-Age=${Math.max(0, Math.floor(maxAgeSeconds))}`
+  ];
+  if (https) bits.push('Secure');
+  return bits.join('; ');
+}
+
 function customerFromToken(req) {
   const bearer = (req.headers.authorization || '').match(/^Bearer\s+([A-Za-z0-9._-]+)$/);
   const token = req.headers['x-customer-token']
@@ -2280,7 +2304,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
       // `ok` is what the browser checks; `success` is kept for older clients.
-      return [200, { ok: true, success: true, customer, token, consentId: consentRecord?.id }];
+      return [200, { ok: true, success: true, customer, token, consentId: consentRecord?.id, __setCookie: customerCookie(req, token) }];
     }],
 
     ['POST', /^\/api\/customer\/login$/, async (req) => {
@@ -2305,7 +2329,18 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const { passwordHash, ...safeCustomer } = customer;
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer: safeCustomer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
-      return [200, { ok: true, success: true, customer: safeCustomer, token }];
+      return [200, { ok: true, success: true, customer: safeCustomer, token, __setCookie: customerCookie(req, token) }];
+    }],
+
+    // Signing out has to reach the cookie too, or the session would outlive
+    // the button that ended it.
+    ['POST', /^\/api\/customer\/logout$/, async (req) => {
+      const bearer = (req.headers.authorization || '').match(/^Bearer\s+([A-Za-z0-9._-]+)$/);
+      const token = req.headers['x-customer-token']
+        || (bearer && bearer[1])
+        || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([a-f0-9]+)/) || [])[1]);
+      if (token) verifiedCustomerTokens.delete(token);
+      return [200, { ok: true, success: true, __setCookie: customerCookie(req, '', 0) }];
     }],
 
     ['POST', /^\/api\/customer\/google-auth$/, async (req) => {
@@ -2360,7 +2395,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       const token = crypto.randomBytes(32).toString('hex');
       verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
-      return [200, { ok: true, success: true, customer, token, needsMobile: !customer.mobile }];
+      return [200, { ok: true, success: true, customer, token, needsMobile: !customer.mobile, __setCookie: customerCookie(req, token) }];
     }],
 
     ['GET', /^\/api\/customer\/me$/, async (req) => {

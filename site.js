@@ -3581,7 +3581,9 @@
     return `<p class="case-file"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
       <a href="/api/bookings/${esc(c.orderId)}/report-file.pdf" target="_blank" rel="noopener">${esc(f.name || 'reading.pdf')}</a>
       <span>${kb} KB · uploaded ${esc(new Date(f.uploadedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }))} IST</span>
-      <button type="button" class="case-file__send" data-send-reading="${esc(c.orderId)}">Send to seeker</button></p>`;
+      <button type="button" class="case-file__send" data-send-reading="${esc(c.orderId)}"
+              data-media-id="${esc(f.mediaId || '')}" data-file-name="${esc(f.name || 'reading.pdf')}"
+              data-file-size="${Number(f.size) || 0}">Send to seeker</button></p>`;
   }
 
   /** Sends the chosen PDF up and refreshes the line under the drop zone. */
@@ -3813,8 +3815,14 @@
     root.addEventListener('click', async (ev) => {
       const btn = ev.target.closest('[data-send-reading]');
       if (!btn) return;
-      const f = (c && c.reportFile) || null;
-      if (!f) { toast('Upload the reading PDF first.', 'error'); return; }
+      // Read the file from the button, not from the case loaded when the page
+      // opened: a PDF uploaded a moment ago is not in that copy.
+      const f = {
+        mediaId: btn.getAttribute('data-media-id'),
+        name: btn.getAttribute('data-file-name') || 'reading.pdf',
+        size: Number(btn.getAttribute('data-file-size')) || 0
+      };
+      if (!f.mediaId) { toast('Upload the reading PDF first.', 'error'); return; }
       const label = btn.textContent;
       btn.disabled = true; btn.textContent = 'Sending\u2026';
       try {

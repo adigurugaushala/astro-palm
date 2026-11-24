@@ -976,8 +976,9 @@ textarea:focus {
 .chat__state { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: rgb(var(--c-ink-3)); }
 .chat__list { list-style: none; margin: 0; padding: .9rem; display: grid; gap: .6rem; overflow-y: auto; max-height: 48vh; flex: 1; }
 .chat__empty { color: rgb(var(--c-ink-3)); font-size: .9rem; text-align: center; padding: 1.5rem 0; }
-.chat-msg { max-width: 85%; background: rgb(var(--c-sand)); border-radius: 14px 14px 14px 4px; padding: .55rem .8rem; }
-.chat-msg--mine { margin-left: auto; background: #f6e7cf; border-radius: 14px 14px 4px 14px; }
+.chat__list { align-content: start; }
+.chat-msg { max-width: 85%; align-self: start; background: rgb(var(--c-sand)); border-radius: 14px 14px 14px 4px; padding: .55rem .8rem; }
+.chat-msg--mine { margin-left: auto; justify-self: end; background: #f6e7cf; border-radius: 14px 14px 4px 14px; }
 .chat-msg__who { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--c-maroon)); }
 .chat-msg p { font-size: .93rem; line-height: 1.5; color: rgb(var(--c-ink)); margin: .15rem 0 .2rem; }
 .chat-msg time { font-size: .68rem; color: rgb(var(--c-ink-3)); }
@@ -1061,7 +1062,7 @@ textarea:focus {
   padding: .5rem .6rem; border-radius: var(--radius-sm); background: rgb(var(--c-sand) / .85);
   border: 1px solid rgb(var(--c-line)); font-size: .78rem; }
 .chat-att--pdf i { color: #b3261e; font-size: 1.05rem; }
-.chat-att__name { font-weight: 600; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-att__name { font-weight: 600; max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-att__size { color: rgb(var(--c-ink-3)); }
 .chat-att__open, .chat-att__dl { font-weight: 600; text-decoration: underline; }
 .chat-att__gone { font-size: .75rem; font-style: italic; color: rgb(var(--c-ink-3)); margin: 0 0 .3rem; }

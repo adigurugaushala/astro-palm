@@ -3439,8 +3439,17 @@ function custHeaders(token, extra) {
   }, extra || {});
 }
 
-window.handleCustomerLogout = function() {
+window.handleCustomerLogout = async function() {
+  // The server holds a session cookie as well, so ending the session has to
+  // tell it; clearing localStorage alone would leave the cookie signed in.
+  const token = localStorage.getItem("guruji_cust_token");
   localStorage.removeItem("guruji_cust_token");
+  try {
+    await fetch("/api/customer/logout", {
+      method: "POST",
+      headers: token ? { "x-customer-token": token } : {}
+    });
+  } catch (e) { /* the local session is gone either way */ }
   if (typeof showVedicToast === "function") {
     showVedicToast("You have signed out of your account.", "info");
   }

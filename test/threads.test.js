@@ -235,6 +235,100 @@ describe('seeker threads, palm photos and attachments', () => {
       'pressing Download saves the file rather than opening it');
   });
 
+  // ---- staff notes stay with the staff -------------------------------------
+
+  test("Guruji's private notes never reach the seeker", async () => {
+    const SECRET = 'PRIVATE-NOTE-the-seeker-must-never-read-this';
+    const saved = await call('PUT', `/api/guruji/cases/${raviOrder}/notes`, { notes: SECRET }, GURUJI);
+    assert.equal(saved.status, 200);
+
+    // Write a reading as well, so there is something the seeker is meant to see.
+    await call('PUT', `/api/guruji/cases/${raviOrder}/report`, {
+      palm: 'The heart line is deep and unbroken.',
+      correlation: '', summary: 'A steady year ahead.', remedies: 'Offer water on Sundays.'
+    }, GURUJI);
+
+    // Nothing the seeker can reach may carry the note.
+    const thread = await call('GET', `/api/customer/threads/${raviOrder}/messages`, null, ravi.auth);
+    assert.ok(!JSON.stringify(thread.body).includes(SECRET), 'not in the chat');
+
+    const threads = await call('GET', '/api/customer/threads', null, ravi.auth);
+    assert.ok(!JSON.stringify(threads.body).includes(SECRET), 'not in the conversation list');
+
+    const pdf = await call('GET', `/api/bookings/${raviOrder}/report.pdf?mobile=9811100011`, null, ravi.auth);
+    if (pdf.status === 200) {
+      const text = Buffer.from(await (await fetch(
+        `${base}/api/bookings/${raviOrder}/report.pdf?mobile=9811100011`,
+        { headers: ravi.auth })).arrayBuffer()).toString('latin1');
+      assert.ok(!text.includes(SECRET), 'not in the reading PDF');
+    }
+
+    // Guruji still has them: kept, just kept private.
+    const stored = await store.getBooking(raviOrder);
+    assert.equal(stored.gurujiNotes, SECRET);
+  });
+
+  // ---- following a link ----------------------------------------------------
+  // A link and an image tag cannot send a header, so the session also travels
+  // as a cookie. These tests keep that cookie honest.
+
+  test('signing in sets a session cookie a link can carry', async () => {
+    const res = await fetch(base + '/api/customer/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Cookie Seeker', mobile: '9811100033', consent: true })
+    });
+    const setCookie = res.headers.get('set-cookie') || '';
+    assert.match(setCookie, /guruji_cust_token=[a-f0-9]+/, 'the session is issued as a cookie');
+    assert.match(setCookie, /HttpOnly/, 'script cannot read it');
+    assert.match(setCookie, /SameSite=Lax/,
+      'a click carries it; a cross-site post does not, so it cannot be used to act as the seeker');
+    assert.match(setCookie, /Path=\//);
+  });
+
+  test('a download link works with only the cookie, as a browser sends it', async () => {
+    // Ravi already has the reading PDF in his thread from the test above.
+    const login = await fetch(base + '/api/customer/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Ravi Kumar', mobile: '9811100011', consent: true })
+    });
+    const cookie = (login.headers.get('set-cookie') || '').split(';')[0];
+    assert.match(cookie, /guruji_cust_token=/);
+
+    const msgs = await call('GET', `/api/customer/threads/${raviOrder}/messages`, null, ravi.auth);
+    const pdf = msgs.body.messages.filter(m => m.attachment && m.attachment.kind === 'pdf').pop();
+    assert.ok(pdf, 'the reading was sent into the thread');
+
+    const url = `${base}/api/customer/threads/${raviOrder}/files/${pdf.attachment.mediaId}`;
+    const open = await fetch(url, { headers: { cookie } });
+    assert.equal(open.status, 200, 'Open works with no Authorization header at all');
+    assert.match(open.headers.get('content-type') || '', /pdf/);
+
+    const saved = await fetch(url + '?download=1', { headers: { cookie } });
+    assert.equal(saved.status, 200);
+    assert.match(saved.headers.get('content-disposition') || '', /^attachment; filename="/);
+
+    // The cookie is a session, not a skeleton key.
+    const theirs = await fetch(
+      `${base}/api/customer/threads/GENERAL-9811100022/messages`, { headers: { cookie } });
+    assert.equal(theirs.status, 404, "it still cannot open someone else's thread");
+  });
+
+  test('signing out ends the cookie session, not just the browser copy', async () => {
+    const reg = await fetch(base + '/api/customer/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Leaver', mobile: '9811100044', consent: true })
+    });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    assert.equal((await fetch(base + '/api/customer/threads', { headers: { cookie } })).status, 200);
+
+    const out = await fetch(base + '/api/customer/logout', { method: 'POST', headers: { cookie } });
+    assert.equal(out.status, 200);
+    assert.match(out.headers.get('set-cookie') || '', /Max-Age=0/, 'the cookie is cleared');
+
+    assert.equal((await fetch(base + '/api/customer/threads', { headers: { cookie } })).status, 401,
+      'the old cookie no longer opens anything');
+  });
+
   test('a message must carry words or a file, and a made-up file is refused', async () => {
     assert.equal((await call('POST', `/api/guruji/threads/${raviOrder}/messages`, {}, GURUJI)).status, 422);
     assert.equal((await call('POST', `/api/guruji/threads/${raviOrder}/messages`,
