@@ -1552,6 +1552,25 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       }];
     }],
 
+    // A file Guruji sent into a booking's chat (a marked palm, the reading
+    // PDF). Open to the seeker of that booking (by mobile or sign-in) and to
+    // Guruji, and only for files actually sent in that thread. Without this
+    // the Track page and the case page showed the message but not the file.
+    ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/files\/([a-z0-9-]+)$/, async (req, [, orderId, mediaId], url) => {
+      rateLimit(req, 'chat-file', 240);
+      const booking = await store.getBooking(orderId);
+      const actor = bookingActor(req, booking, { mobile: url.searchParams.get('mobile') });
+      if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
+      const sent = (await store.listMessages(orderId)).some(m => m.attachment && m.attachment.mediaId === mediaId);
+      if (!sent) throw new HttpError(404, 'File not found');
+      const item = await store.getMedia(mediaId);
+      if (!item) throw new HttpError(404, 'File not found');
+      return [200, {
+        __raw: Buffer.from(item.data, 'base64'), type: item.type, cache: 'private, max-age=600',
+        ...(url.searchParams.get('download') === '1' ? { attachmentName: item.name } : {})
+      }];
+    }],
+
     ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/photos$/, async (req, [, orderId]) => {
       rateLimit(req, 'palm-photo', 40);
       const body = await readJsonBody(req, MAX_PHOTO_BODY_BYTES);

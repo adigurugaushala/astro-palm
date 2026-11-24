@@ -249,7 +249,7 @@
 
   <!-- Confetti (booking celebration) & jsPDF (report download) -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <!-- jsPDF (356 KB) is fetched only when someone downloads a report: see app.js -->
 
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/assets/favicon.svg">
@@ -294,6 +294,16 @@
   <script>
     (function () {
       var loader = document.getElementById('guruji-loader');
+      // The welcome screen is for a visitor's first look. Staff screens and
+      // every later page in the same visit open straight away.
+      var skip = /^\/(guruji|admin|session|messages|account|track)(\/|$)/.test(location.pathname);
+      try { if (sessionStorage.getItem('gl_seen')) skip = true; sessionStorage.setItem('gl_seen', '1'); } catch (e) {}
+      if (skip) {
+        loader.remove();
+        document.documentElement.classList.remove('gl-loading');
+        var st0 = document.getElementById('gl-style'); if (st0) st0.remove();
+        return;
+      }
       var bar = document.getElementById('gl-progress');
       var msg = document.getElementById('gl-msg');
       var start = Date.now(), done = false;
@@ -405,8 +415,8 @@
         bar.style.width = '100%';
         done = true;
         clearInterval(cycle);
-        // keep it on screen at least ~0.9s so it never just flickers
-        var wait = Math.max(0, 900 - (Date.now() - start));
+        // keep it on screen briefly so it never just flickers
+        var wait = Math.max(0, 450 - (Date.now() - start));
         setTimeout(function () {
           if (soundOn && ac) {                     // soft welcome strike, then let the drone fade away
             bell(ac.currentTime + 0.02, 523.25, 0.45);
@@ -419,9 +429,13 @@
           setTimeout(function () { loader.remove(); var st = document.getElementById('gl-style'); if (st) st.remove(); }, 700);
         }, wait + 250);
       }
-      if (document.readyState === 'complete') finish(); else window.addEventListener('load', finish);
+      // The page is usable once the document and its styles are in; waiting
+      // for every image and third-party script (window load) kept visitors on
+      // a slow phone looking at this screen for up to seven seconds.
+      if (document.readyState !== 'loading') finish();
+      else document.addEventListener('DOMContentLoaded', function () { setTimeout(finish, 150); });
       // Never trap a visitor behind the loader on a slow connection
-      setTimeout(finish, 7000);
+      setTimeout(finish, 2500);
     })();
   </script>
 

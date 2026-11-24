@@ -1736,7 +1736,31 @@ function playSacredAudioChime() {
 // REPORT VIEWER & PDF EXPORT
 // ==========================================
 
+// jsPDF is large, so it is fetched the first time a report is downloaded
+// instead of on every page view.
+let jspdfLoading = null;
+function loadJsPdf() {
+  if (window.jspdf) return Promise.resolve(window.jspdf);
+  if (!jspdfLoading) {
+    jspdfLoading = new Promise((resolve) => {
+      const el = document.createElement('script');
+      el.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      el.async = true;
+      el.onload = () => resolve(window.jspdf || null);
+      el.onerror = () => { jspdfLoading = null; resolve(null); };
+      document.head.appendChild(el);
+    });
+  }
+  return jspdfLoading;
+}
+
 function generateAndDownloadPDF() {
+  if (typeof window.jspdf === "undefined" && !generateAndDownloadPDF.tried) {
+    generateAndDownloadPDF.tried = true;
+    showVedicToast("Preparing your PDF…");
+    loadJsPdf().then(() => { generateAndDownloadPDF(); generateAndDownloadPDF.tried = false; });
+    return;
+  }
   if (typeof window.jspdf === "undefined") {
     showVedicToast("Opening the print dialog — choose “Save as PDF”.");
     window.print();
@@ -3509,6 +3533,167 @@ window.resumeHeldBooking = function() {
   }
 };
 
+// ==========================================
+// REPORT CAROUSELS (seeker dashboard)
+// ==========================================
+// Two swipeable rows of book-style cards: the seeker's own readings, and the
+// reading services they can order. Covers are drawn in CSS from the service's
+// own photo, so every report looks like a bound book without extra artwork.
+
+const rpEsc = (v) => escapeHTML(String(v == null ? '' : v));
+const rpRupees = (n) => '₹' + Number(n).toLocaleString('en-IN');
+
+function rpServiceFor(b) {
+  const services = ((window.SITE && window.SITE.content) || window.GURUJI_CONTENT || {}).services || [];
+  const sv = b.service || {};
+  return services.find(s => s.consultationId && s.consultationId === sv.id) ||
+         services.find(s => s.slug === sv.id) ||
+         services.find(s => s.title === sv.title) || null;
+}
+function rpImage(svc) {
+  const content = (window.SITE && window.SITE.content) || window.GURUJI_CONTENT || {};
+  if (svc && svc.image) return svc.image;
+  const cat = svc && (content.serviceCategories || []).find(c => c.id === svc.category);
+  return (cat && cat.image) || '/assets/hero_palm_art_clean.jpg';
+}
+
+/** The cover: a bound book standing in the service's own photograph. */
+function rpCover(title, image, kicker, byline) {
+  return `
+    <span class="rp-scene" style="--rp-img:url('${rpEsc(image)}')" aria-hidden="true">
+      <span class="rp-book">
+        <span class="rp-book__inner">
+          <span class="rp-book__brand">✦ Guruji Palmistry ✦</span>
+          <span class="rp-book__title">${rpEsc(title)}</span>
+          <span class="rp-book__rule">${rpEsc(kicker)}</span>
+          <span class="rp-book__medal" style="background-image:url('${rpEsc(image)}')"></span>
+          <span class="rp-book__by">${rpEsc(byline)}</span>
+        </span>
+      </span>
+      <span class="rp-plinth"></span>
+    </span>`;
+}
+
+function rpCarousel(id, eyebrow, heading, lead, cards) {
+  return `
+    <section class="rp" data-rp="${id}" aria-labelledby="rp-${id}-h">
+      <p class="rp__eyebrow">${rpEsc(eyebrow)}</p>
+      <h3 class="rp__h" id="rp-${id}-h">${heading}</h3>
+      ${lead ? `<p class="rp__lead">${rpEsc(lead)}</p>` : ''}
+      <div class="rp__viewport">
+        <button type="button" class="rp__nav rp__nav--prev" data-rp-prev aria-label="Previous report"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+        <div class="rp__track" data-rp-track tabindex="0" role="list">${cards.join('')}</div>
+        <button type="button" class="rp__nav rp__nav--next" data-rp-next aria-label="Next report"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="rp__dots" data-rp-dots aria-hidden="true">${cards.map((_, i) => `<i${i ? '' : ' class="is-on"'}></i>`).join('')}</div>
+    </section>`;
+}
+
+/** The seeker's own readings: ready ones download, the rest say where they are. */
+function myReportsHtml(bookings, cust) {
+  const mine = bookings.filter(b => b.type !== 'pooja' && !['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(b.status));
+  if (!mine.length) return '';
+  const cards = mine.map((b) => {
+    // The booking's own mobile: a booking found by email may carry another number.
+    const m = (b.devotee && b.devotee.mobile) || cust.mobile;
+    const mobileQs = m ? '?mobile=' + encodeURIComponent(m) : '';
+    const svc = rpServiceFor(b);
+    const title = (b.service && b.service.title) || (svc && svc.title) || 'Your reading';
+    const ready = b.report && b.report.status === 'ready';
+    const id = encodeURIComponent(b.orderId);
+    const file = ready && b.reportFile ? `/api/bookings/${id}/report-file.pdf${mobileQs}` : '';
+    const written = ready ? `/api/bookings/${id}/report.pdf${mobileQs}` : '';
+    const main = file || written;
+    const when = b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    return `
+      <article class="rp-card${ready ? ' rp-card--ready' : ''}" role="listitem">
+        ${main
+          ? `<a class="rp-card__cover" href="${main}" target="_blank" rel="noopener" aria-label="Open your ${rpEsc(title)} reading">${rpCover(title, rpImage(svc), 'Report', 'Prepared for ' + (cust.name || 'you').split(' ')[0])}</a>`
+          : `<a class="rp-card__cover" href="/track" data-link onclick="fillAndTrack('${rpEsc(b.orderId)}', '${rpEsc(cust.mobile || cust.email || '')}')" aria-label="See how your ${rpEsc(title)} reading is coming along">${rpCover(title, rpImage(svc), 'Report', 'Prepared for ' + (cust.name || 'you').split(' ')[0])}</a>`}
+        <div class="rp-card__foot">
+          <div class="rp-card__text">
+            <h4 class="rp-card__title">${rpEsc(title)}</h4>
+            <p class="rp-card__meta">${ready
+              ? '<span class="rp-pill rp-pill--ready"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Ready</span>'
+              : '<span class="rp-pill"><i class="fa-regular fa-hourglass-half" aria-hidden="true"></i> Being prepared</span>'}
+              <span>${rpEsc(when)}</span></p>
+            ${file && written ? `<a class="rp-card__alt" href="${written}" target="_blank" rel="noopener">Also: the typed reading ↗</a>` : ''}
+          </div>
+          ${main
+            ? `<a class="rp-go" href="${main}" target="_blank" rel="noopener" download aria-label="Download ${rpEsc(title)}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>`
+            : `<a class="rp-go rp-go--muted" href="/track" data-link onclick="fillAndTrack('${rpEsc(b.orderId)}', '${rpEsc(cust.mobile || cust.email || '')}')" aria-label="Track ${rpEsc(title)}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>`}
+        </div>
+      </article>`;
+  });
+  return rpCarousel('mine', 'Your readings', 'My <em>Reports</em>',
+    'Readings Guruji has prepared for you. Tap a ready one to open or download it.', cards);
+}
+
+/** Reading services the seeker can order, priced ones first. A struck-through
+ *  price and "% OFF" appear only when the owner has set an original price. */
+function reportShopHtml() {
+  const content = (window.SITE && window.SITE.content) || window.GURUJI_CONTENT || {};
+  const list = (content.services || [])
+    .filter(s => s.published !== false && ['palmistry', 'astrology'].includes(s.category))
+    .sort((a, b) => (Number(b.price) > 0) - (Number(a.price) > 0) || (b.core ? 1 : 0) - (a.core ? 1 : 0))
+    .slice(0, 10);
+  if (!list.length) return '';
+  const cards = list.map((s) => {
+    const price = Number(s.price) > 0 ? Number(s.price) : 0;
+    const mrp = Number(s.mrp) > price ? Number(s.mrp) : 0;
+    const off = price && mrp ? Math.round((mrp - price) / mrp * 100) : 0;
+    const href = '/services/' + encodeURIComponent(s.slug);
+    return `
+      <article class="rp-card" role="listitem">
+        <a class="rp-card__cover" href="${href}" data-link aria-label="${rpEsc(s.title)}">${rpCover(s.title.replace(/ —.*$/, ''), rpImage(s), s.category === 'astrology' ? 'Kundali Report' : 'Palm Report', 'By Guruji')}</a>
+        <div class="rp-card__foot">
+          <div class="rp-card__text">
+            <h4 class="rp-card__title">${rpEsc(s.title)}</h4>
+            <p class="rp-price">${price
+              ? `<b>${rpRupees(price)}</b>${mrp ? ` <s>${rpRupees(mrp)}</s> <span class="rp-off">${off}% OFF</span>` : ''}`
+              : '<span class="rp-price--ask">Fee on enquiry</span>'}</p>
+          </div>
+          <a class="rp-go" href="${href}" data-link aria-label="See ${rpEsc(s.title)}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+      </article>`;
+  });
+  return rpCarousel('shop', 'Personalised reports', 'Kundli &amp; Palm <em>Reports</em>',
+    'Detailed, personalised reports prepared from your birth chart and your palms.', cards);
+}
+
+/** Arrows, dots and the "front" card for every report row on the page. */
+function initReportCarousels(scope) {
+  (scope || document).querySelectorAll('[data-rp]').forEach((row) => {
+    const track = row.querySelector('[data-rp-track]');
+    const cards = [...track.children];
+    const dots = [...row.querySelectorAll('[data-rp-dots] i')];
+    const step = () => (cards[0] ? cards[0].getBoundingClientRect().width + 16 : 300);
+    const mark = () => {
+      const mid = track.getBoundingClientRect().left + track.clientWidth / 2;
+      let best = 0, dist = Infinity;
+      cards.forEach((c, i) => {
+        const r = c.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - mid);
+        if (d < dist) { dist = d; best = i; }
+      });
+      cards.forEach((c, i) => c.classList.toggle('is-active', i === best));
+      dots.forEach((d, i) => d.classList.toggle('is-on', i === best));
+      row.querySelector('[data-rp-prev]').disabled = track.scrollLeft < 4;
+      row.querySelector('[data-rp-next]').disabled = track.scrollLeft + track.clientWidth > track.scrollWidth - 4;
+    };
+    let raf = 0;
+    track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(mark); }, { passive: true });
+    row.querySelector('[data-rp-prev]').addEventListener('click', () => track.scrollBy({ left: -step(), behavior: 'smooth' }));
+    row.querySelector('[data-rp-next]').addEventListener('click', () => track.scrollBy({ left: step(), behavior: 'smooth' }));
+    track.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); track.scrollBy({ left: step(), behavior: 'smooth' }); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); track.scrollBy({ left: -step(), behavior: 'smooth' }); }
+    });
+    addEventListener('resize', mark, { passive: true });
+    mark();
+  });
+}
+
 window.renderAccountPortal = async function() {
   const container = document.getElementById("account-portal-container") || document.getElementById("page-account");
   if (!container) return;
@@ -3728,6 +3913,10 @@ window.renderAccountPortal = async function() {
           </form>
         </div>
 
+        ${myReportsHtml(bookings, cust)}
+
+        ${reportShopHtml()}
+
         <!-- Bookings Section -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
@@ -3750,7 +3939,9 @@ window.renderAccountPortal = async function() {
           ` : `
             <div class="grid gap-4">
               ${bookings.map(b => {
-                const isPaid = b.status !== 'PENDING' && b.status !== 'FAILED';
+                const isPaid = !['PENDING', 'FAILED', 'PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(b.status);
+                const reportReady = b.report && b.report.status === 'ready';
+                const reportUrl = reportReady ? `/api/bookings/${encodeURIComponent(b.orderId)}/${b.reportFile ? 'report-file' : 'report'}.pdf${((b.devotee && b.devotee.mobile) || cust.mobile) ? '?mobile=' + encodeURIComponent((b.devotee && b.devotee.mobile) || cust.mobile) : ''}` : '';
                 const statusBadge = isPaid ? '<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-2xs font-bold">Confirmed</span>' : '<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-2xs font-bold">Pending Payment</span>';
                 return `
                   <div class="bg-white p-5 sm:p-6 rounded-2xl border border-line shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -3758,7 +3949,7 @@ window.renderAccountPortal = async function() {
                       <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-mono text-2xs font-bold px-2 py-0.5 rounded bg-night text-cream">${b.orderId}</span>
                         ${statusBadge}
-                        <span class="text-2xs text-ink-3">${b.created ? new Date(b.created).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
+                        <span class="text-2xs text-ink-3">${(b.createdAt || b.created) ? new Date(b.createdAt || b.created).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
                       </div>
                       <h4 class="font-serif text-base font-bold text-night-2">${b.service?.title || 'Vedic Consultation'}</h4>
                       <p class="text-xs text-ink-3">
@@ -3769,8 +3960,8 @@ window.renderAccountPortal = async function() {
                       <a href="/track" onclick="fillAndTrack('${b.orderId}', '${cust.mobile || cust.email}')" data-link class="px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-maroon border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-magnifying-glass-location text-2xs"></i> Track Details
                       </a>
-                      ${b.reportPdfUrl ? `
-                        <a href="${b.reportPdfUrl}" target="_blank" download class="gold-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs">
+                      ${reportUrl ? `
+                        <a href="${reportUrl}" target="_blank" download class="gold-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs">
                           <i class="fa-solid fa-download text-2xs"></i> Download Report
                         </a>
                       ` : ''}
@@ -3783,6 +3974,7 @@ window.renderAccountPortal = async function() {
         </div>
       </div>
     `;
+    initReportCarousels(container);
   } catch (e) {
     container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-line text-center text-xs text-red-600">Failed to load account details. <button onclick="renderAccountPortal()" class="underline font-semibold ml-2">Retry</button></div>`;
   }

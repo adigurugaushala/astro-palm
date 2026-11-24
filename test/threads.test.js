@@ -235,6 +235,26 @@ describe('seeker threads, palm photos and attachments', () => {
       'pressing Download saves the file rather than opening it');
   });
 
+  test('a file in a booking chat opens by mobile (Track page) and for Guruji, never for others', async () => {
+    const up = await call('POST', `/api/guruji/cases/${raviOrder}/report-file`,
+      { name: 'reading.pdf', data: PDF }, GURUJI);
+    const mediaId = up.body.reportFile.mediaId;
+    await call('POST', `/api/guruji/threads/${raviOrder}/messages`, {
+      text: 'Here it is.', attachment: { kind: 'pdf', mediaId, name: 'reading.pdf', size: up.body.reportFile.size }
+    }, GURUJI);
+
+    const byMobile = await call('GET', `/api/bookings/${raviOrder}/files/${mediaId}?mobile=${ravi.mobile}&download=1`);
+    assert.equal(byMobile.status, 200);
+    assert.match(byMobile.disposition, /^attachment;/);
+    assert.match(byMobile.cache, /private/);
+    assert.equal((await call('GET', `/api/bookings/${raviOrder}/files/${mediaId}`, null, GURUJI)).status, 200);
+    assert.equal((await call('GET', `/api/bookings/${raviOrder}/files/${mediaId}?mobile=${meera.mobile}`)).status, 404,
+      'someone else’s mobile opens nothing');
+    assert.equal((await call('GET', `/api/bookings/${raviOrder}/files/${mediaId}`)).status, 401);
+    // A palm photo is stored but was never sent in this thread, so it is not reachable through it.
+    assert.equal((await call('GET', `/api/bookings/${raviOrder}/files/${raviPhotoId}?mobile=${ravi.mobile}`)).status, 404);
+  });
+
   // ---- staff notes stay with the staff -------------------------------------
 
   test("Guruji's private notes never reach the seeker", async () => {

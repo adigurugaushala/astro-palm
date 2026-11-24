@@ -1730,16 +1730,20 @@
 
   /** A message may carry one file. The URL is built from the base the chat was
    *  opened with, so the same bubble works in Guruji's panel and the seeker's. */
+  // fileBase may carry its own query (?mobile=… on the Track page), so the
+  // download flag is joined with & when it needs to be.
+  const withFlag = (url, flag) => url + (url.includes('?') ? '&' : '?') + flag;
   const chatAttachmentMarkup = (m, fileBase) => {
     const a = m.attachment;
     if (!a || !fileBase) return '';
-    const url = `${fileBase}/${encodeURIComponent(a.mediaId)}`;
+    const [basePath, baseQs] = fileBase.split('?');
+    const url = `${basePath}/${encodeURIComponent(a.mediaId)}${baseQs ? '?' + baseQs : ''}`;
     const kb = Math.max(1, Math.round((a.size || 0) / 1024));
     if (a.kind === 'image') {
       return `<figure class="chat-att chat-att--img">
         <img data-chat-img="${esc(url)}" alt="${esc(a.name || 'Shared photo')}">
         <figcaption>
-          <a href="${esc(url)}?download=1" download="${esc(a.name || 'photo.jpg')}">Download</a>
+          <a href="${esc(withFlag(url, 'download=1'))}" data-chat-file="${esc(withFlag(url, 'download=1'))}" download="${esc(a.name || 'photo.jpg')}">Download</a>
           <span>${kb} KB</span>
         </figcaption>
       </figure>`;
@@ -1749,7 +1753,7 @@
       <span class="chat-att__name">${esc(a.name || 'reading.pdf')}</span>
       <span class="chat-att__size">${kb} KB</span>
       <a class="chat-att__open" data-chat-file="${esc(url)}" href="${esc(url)}" target="_blank" rel="noopener">Open</a>
-      <a class="chat-att__dl" data-chat-file="${esc(url)}?download=1" href="${esc(url)}?download=1" download>Download</a>
+      <a class="chat-att__dl" data-chat-file="${esc(withFlag(url, 'download=1'))}" href="${esc(withFlag(url, 'download=1'))}" download="${esc(a.name || 'reading.pdf')}">Download</a>
     </div>`;
   };
 
@@ -1816,7 +1820,8 @@
     stopChat();
     CHAT.orderId = orderId; CHAT.auth = auth; CHAT.el = container; CHAT.lastAt = '';
     const base = opts.base || `/api/bookings/${encodeURIComponent(orderId)}`;
-    const fileBase = opts.fileBase || (opts.base ? `${base}/files` : '');
+    const fileBase = opts.fileBase || (opts.base ? `${base}/files`
+      : `${base}/files${auth.mobile ? '?mobile=' + encodeURIComponent(auth.mobile) : ''}`);
     const list = container.querySelector('[data-chat-list]');
     const state = container.querySelector('[data-chat-state]');
     const form = container.querySelector('[data-chat-form]');
@@ -1861,10 +1866,45 @@
       } catch (err) { toast(err.message, 'error'); input.value = text; }
     });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) form.requestSubmit(); });
+    // Open / Download on a shared file. A plain link cannot carry Guruji's PIN
+    // or a seeker's token, so the file is fetched with them and handed over.
+    if (!list.dataset.fileClicks) {
+      list.dataset.fileClicks = '1';
+      list.addEventListener('click', async (ev) => {
+        const a = ev.target.closest('a[data-chat-file]');
+        if (!a) return;
+        ev.preventDefault();
+        const url = a.getAttribute('data-chat-file');
+        const saving = /[?&]download=1/.test(url);
+        const tab = saving ? null : window.open('', '_blank');
+        try {
+          const res = await fetch(url, { headers });
+          if (!res.ok) throw new Error('That file could not be opened.');
+          const href = URL.createObjectURL(await res.blob());
+          if (tab) { tab.location.href = href; return; }
+          const dl = Object.assign(document.createElement('a'), { href, download: a.getAttribute('download') || 'file' });
+          document.body.appendChild(dl); dl.click(); dl.remove();
+          setTimeout(() => URL.revokeObjectURL(href), 60000);
+        } catch (err) {
+          if (tab) tab.close();
+          toast(err.message, 'error');
+        }
+      });
+    }
     poll();
-    CHAT.timer = setInterval(poll, 5000);
+    // A background tab does not need fresh messages every five seconds; each
+    // poll costs the server a read and a write. It catches up the moment the
+    // tab is looked at again.
+    CHAT.timer = setInterval(() => { if (!document.hidden) poll(); }, 5000);
+    CHAT.onVisible = () => { if (!document.hidden && CHAT.timer) poll(); };
+    document.addEventListener('visibilitychange', CHAT.onVisible);
   }
-  function stopChat() { if (CHAT.timer) clearInterval(CHAT.timer); CHAT.timer = null; }
+  function stopChat() {
+    if (CHAT.timer) clearInterval(CHAT.timer);
+    CHAT.timer = null;
+    if (CHAT.onVisible) document.removeEventListener('visibilitychange', CHAT.onVisible);
+    CHAT.onVisible = null;
+  }
 
   // -------------------------------------------------------------------------
   // The session room (Jitsi)
@@ -2299,6 +2339,7 @@
         ['benefits', 'Benefits / purpose (one per line)', 'lines'], ['requiredInfo', 'Information required (one per line — empty uses the category list)', 'lines'],
         ['deliverables', 'What the client receives (one per line)', 'lines'], ['duration', 'Duration', 'text'],
         ['price', 'Price in ₹ (empty = price on request)', 'number'],
+        ['mrp', 'Original price in ₹, shown struck through with "% OFF" (optional, must be higher than the price)', 'number'],
         ['bookingType', 'How it is booked', 'select', () => [['enquiry', 'Enquiry form'], ['consultation', 'Pay online (consultation flow)'], ['pooja', 'Pooja booking (date & slot)']]],
         ['consultationId', 'Consultation id (palmistry_reading / astrology_correlation / combined_consultation)', 'text'], ['poojaId', 'Pooja id (for pooja booking)', 'text'],
         ['image', 'Image', 'image'], ['core', 'Core consultation', 'bool'], ['featured', 'Featured on home', 'bool'], ['published', 'Published', 'bool']
@@ -3722,9 +3763,65 @@
     } catch (err) { toast(err.message, 'error'); }
   };
 
+  // Guruji's easy-use helpers (voice typing, bigger text, quick replies).
+  // Fetched only when a Guruji page opens, so seekers never download them.
+  let assistLoading = null;
+  function loadAssist() {
+    if (window.GurujiAssist) return Promise.resolve(window.GurujiAssist);
+    if (!assistLoading) {
+      assistLoading = new Promise((resolve) => {
+        const el = document.createElement('script');
+        el.src = '/guruji-assist.js';
+        el.onload = () => resolve(window.GurujiAssist || null);
+        el.onerror = () => { assistLoading = null; resolve(null); };
+        document.head.appendChild(el);
+      });
+    }
+    return assistLoading;
+  }
+
+  /** Adds one line to the case's private notes and saves it straight away.
+   *  Used by the photo viewer, so a note written on a palm also lands in
+   *  "My notes" without Guruji copying it across. */
+  async function addToCaseNotes(orderId, line) {
+    const box = document.querySelector('.case-notes textarea[name="notes"]');
+    const current = box ? box.value : ((GURUJI.current && GURUJI.current.gurujiNotes) || '');
+    const next = current.trim() ? current.replace(/\s+$/, '') + '\n' + line : line;
+    return writeCaseNotes(orderId, next, box);
+  }
+  /** Takes the last copy of a line back out of the notes (Undo in the viewer). */
+  async function removeFromCaseNotes(orderId, line) {
+    const box = document.querySelector('.case-notes textarea[name="notes"]');
+    const current = box ? box.value : ((GURUJI.current && GURUJI.current.gurujiNotes) || '');
+    const at = current.lastIndexOf(line);
+    if (at < 0) return;
+    const next = (current.slice(0, at) + current.slice(at + line.length)).replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+    return writeCaseNotes(orderId, next, box);
+  }
+  async function writeCaseNotes(orderId, text, box) {
+    if (box) { box.value = text; box.scrollTop = box.scrollHeight; }
+    if (GURUJI.current && GURUJI.current.orderId === orderId) GURUJI.current.gurujiNotes = text;
+    notesState('Saving…');
+    try {
+      await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/notes`, { method: 'PUT', body: { notes: text } });
+      notesState('Saved ✓', true);
+      return true;
+    } catch (err) {
+      notesState('Not saved — ' + err.message);
+      throw err;
+    }
+  }
+  function notesState(text, ok) {
+    const el = document.querySelector('[data-notes-state]');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('is-ok', Boolean(ok));
+  }
+
   async function renderCase(orderId) {
     const root = $('[data-guruji-root]');
     let data;
+    const assistReady = loadAssist();
     try { data = await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}`); } catch (err) {
       root.innerHTML = `<div class="sp-wrap py-8"><p class="sp-notice">${esc(err.message)}</p><a href="/guruji" data-link class="sp-btn-outline mt-4 inline-flex">All cases</a></div>`;
       return;
@@ -3735,8 +3832,10 @@
     const r = c.report || {};
     const when = c.slotStart ? new Date(c.slotStart) : null;
     const field = (label, value) => value ? `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>` : '';
+    const assist = await assistReady;
     root.innerHTML = `
       <div class="sp-wrap py-8 case-page">
+        ${assist ? assist.toolbar() + assist.steps(c) : ''}
         <div class="session-head">
           <div>
             <a href="/guruji" data-link class="sp-link">← All cases</a>
@@ -3797,12 +3896,15 @@
             <div class="sp-panel case-notes">
               <div class="flex items-center justify-between gap-3 flex-wrap">
                 <h2 class="sp-h3">My notes</h2>
-                <span class="text-xs text-ink-3">Only staff see these</span>
+                <span class="text-xs text-ink-3">Only staff see these · notes written on a photo appear here too</span>
               </div>
               <form class="sp-form" onsubmit="saveCaseNotes(event, '${esc(c.orderId)}')">
                 <label class="sp-field"><span class="sr-only">Private notes</span>
-                  <textarea name="notes" rows="5" placeholder="What you noticed, what to follow up, what the seeker asked for.">${esc(c.gurujiNotes || '')}</textarea></label>
-                <button class="sp-btn-outline sp-btn-sm">Save notes</button>
+                  <textarea name="notes" rows="6" data-case-notes placeholder="What you noticed, what to follow up, what the seeker asked for.">${esc(c.gurujiNotes || '')}</textarea></label>
+                <div class="flex flex-wrap items-center gap-3">
+                  <button class="sp-btn-outline sp-btn-sm">Save notes</button>
+                  <span class="case-notes__state" data-notes-state aria-live="polite">Saves by itself as you write</span>
+                </div>
               </form>
             </div>
 
@@ -3853,6 +3955,18 @@
 
     if (c.chart) showChart(root.querySelector('[data-chart-slot]'), c.chart);
     startChat(root.querySelector('[data-case-chat]'), c.orderId, { pin: ADMIN.pin });
+
+    // My notes save themselves a moment after he stops typing.
+    const notesBox = root.querySelector('[data-case-notes]');
+    notesBox?.addEventListener('input', () => {
+      notesState('Writing…');
+      clearTimeout(notesBox.__t);
+      notesBox.__t = setTimeout(() => writeCaseNotes(c.orderId, notesBox.value, null).catch(() => {}), 2000);
+    });
+    if (assist) {
+      root.querySelectorAll('.case-page textarea').forEach((t) => { if (!t.hasAttribute('data-chat-input')) assist.attachMic(t); });
+      assist.enhanceChat(root.querySelector('[data-case-chat]'));
+    }
 
     // Clicking a palm photo opens it full size, zoomable and drawable.
     root.querySelectorAll('[data-palm-open]').forEach((btn) => {
@@ -4063,7 +4177,7 @@
       stage.classList.toggle('is-drawing', pencil);
       stage.classList.toggle('is-noting', noting);
       hint.textContent = noting
-        ? 'Tap the photo where the note should sit, then type it. The colour swatches set its colour.'
+        ? 'Tap the photo where the note should sit, then type or speak it. It is also added to My notes. The colour swatches set its colour.'
         : pencil
           ? 'Draw on the photo to mark what you are reading. Hold Space to move it instead.'
           : 'Scroll to zoom, drag to move. M to draw, N for a note, Esc or Back to close.';
@@ -4074,11 +4188,21 @@
     stage.addEventListener('pointerdown', (ev) => {
       if (noting && ev.isPrimary) {
         const where = pointOnPhoto(ev);
-        const text = prompt('Write the note to place here:');
-        if (text && text.trim()) {
-          notes.push({ x: where.x, y: where.y, text: text.trim(), colour });
+        const photoLabel = PALM_SLOTS[(photos[i] || {}).slot] || ('Photo ' + (i + 1));
+        const ask = window.GurujiAssist
+          ? window.GurujiAssist.askNote(wrap, `Note on the ${photoLabel.toLowerCase()}`)
+          : Promise.resolve(prompt('Write the note to place here:'));
+        ask.then((text) => {
+          if (!text || !text.trim()) return;
+          const clean = text.trim();
+          const line = `• ${photoLabel}: ${clean}`;
+          notes.push({ x: where.x, y: where.y, text: clean, colour, line });
           redraw();
-        }
+          // The same words go into "My notes" on the case page.
+          addToCaseNotes(caseData.orderId, line)
+            .then(() => toast('Note placed and added to My notes.', 'success'))
+            .catch((err) => toast('Placed on the photo, but My notes did not save: ' + err.message, 'error'));
+        });
         return;
       }
       if (pencil && !spaceHeld && ev.isPrimary) {
@@ -4129,8 +4253,10 @@
         case 'note': setNoting(!noting); break;
         // Undo takes back the last thing added, whichever kind it was.
         case 'undo':
-          if (notes.length && (!strokes.length || noting)) notes.pop();
-          else strokes.pop();
+          if (notes.length && (!strokes.length || noting)) {
+            const gone = notes.pop();
+            if (gone && gone.line) removeFromCaseNotes(caseData.orderId, gone.line).catch(() => {});
+          } else strokes.pop();
           redraw(); break;
         case 'clear': strokes = []; notes = []; redraw(); break;
         case 'save': await saveMarked(btn); break;
@@ -4185,6 +4311,9 @@
     }
 
     function onKey(ev) {
+      // Keys typed into a box (the note box, voice text) are words, not shortcuts.
+      if (ev.target && ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (wrap.querySelector('.gj-note')) return;
       if (ev.key === 'Escape') close();
       else if (ev.key.toLowerCase() === 'm') setPencil(!pencil);
       else if (ev.key.toLowerCase() === 'n') setNoting(!noting);
@@ -4282,7 +4411,7 @@
   window.saveCaseNotes = async (e, orderId) => {
     e.preventDefault();
     try {
-      await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}/notes`, { method: 'PUT', body: { notes: e.target.elements.notes.value } });
+      await writeCaseNotes(orderId, e.target.elements.notes.value, null);
       toast('Notes saved.');
     } catch (err) { toast(err.message, 'error'); }
   };

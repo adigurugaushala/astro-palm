@@ -207,6 +207,45 @@
     }, { passive: true });
   }
 
+  /* ------------------------------------------------------- service card tilt */
+  // Service and category cards lean towards the cursor with a soft glare,
+  // using vanilla-tilt.js (github.com/micku7zu/vanilla-tilt.js, MIT, ~8 KB).
+  // The library is fetched the first time a mouse reaches a card, so phones
+  // and visitors who never hover download nothing.
+  const TILT_SRC = 'https://cdn.jsdelivr.net/npm/vanilla-tilt@1.8.1/dist/vanilla-tilt.min.js';
+  const TILT_SEL = '.sp-card--service, .sp-cat';
+  let tiltLib = null;
+  function loadTilt() {
+    if (window.VanillaTilt) return Promise.resolve(window.VanillaTilt);
+    if (!tiltLib) {
+      tiltLib = new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = TILT_SRC; el.async = true;
+        el.onload = () => (window.VanillaTilt ? resolve(window.VanillaTilt) : reject(new Error('no tilt')));
+        el.onerror = () => { tiltLib = null; reject(new Error('tilt did not load')); };
+        document.head.appendChild(el);
+      });
+    }
+    return tiltLib;
+  }
+  function serviceTilt() {
+    if (prefersStill() || !fine.matches) return;
+    document.addEventListener('pointerover', (e) => {
+      const card = e.target.closest && e.target.closest(TILT_SEL);
+      if (!card || card.vanillaTilt || card.dataset.tiltPending) return;
+      card.dataset.tiltPending = '1';
+      loadTilt().then((VT) => {
+        delete card.dataset.tiltPending;
+        if (!card.isConnected || card.vanillaTilt) return;
+        // The reveal's own transition would make the tilt feel sluggish.
+        card.style.transitionDelay = '0ms';
+        VT.init(card, { max: 7, speed: 500, scale: 1.025, perspective: 1100, glare: true, 'max-glare': 0.22, gyroscope: false });
+        // Start following the cursor at once rather than on the next entry.
+        card.dispatchEvent(new MouseEvent('mouseenter', { clientX: e.clientX, clientY: e.clientY }));
+      }).catch(() => { delete card.dataset.tiltPending; });
+    }, { passive: true });
+  }
+
   /* -------------------------------------------------------------------- boot */
 
   function boot() {
@@ -216,6 +255,7 @@
     progressBar();
     pageTransition();
     pointerPolish();
+    serviceTilt();
     addEventListener('scroll', () => sweepSoon(140), { passive: true });
     addEventListener('resize', () => sweepSoon(200), { passive: true });
     addEventListener('hashchange', () => sweepSoon(240));
