@@ -3113,6 +3113,7 @@
     try {
       const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
       const provider = new GoogleAuthProvider();
+      provider.addScope('email');
       provider.setCustomParameters({ prompt: 'select_account' });
       const res = await signInWithPopup(window.firebaseAuth, provider);
       const user = res.user;
