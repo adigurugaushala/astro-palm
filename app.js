@@ -10,9 +10,9 @@ const state = {
     duration: "30 Mins"
   },
   handedness: "Right-handed",
-  selectedDate: "Today, 20 Nov 2026",
+  selectedDate: "",
   selectedDateISO: "",
-  selectedTime: "10:45 AM",
+  selectedTime: "",
   slotTimerSeconds: 600, // 10 minutes hold
   slotTimerInterval: null,
   isSlotHeld: true,
@@ -96,7 +96,6 @@ document.addEventListener("DOMContentLoaded", () => {
   renderCalendarDays();
   updatePoojaSummaryUI();
   updateConsultSummary();
-  initConsultCalendar();
   initMantrasLibrary();
 
   // Handedness Selector Listeners
@@ -130,11 +129,6 @@ function showPage(pageId) {
   // Login first: the consultation booking flow needs a signed-in seeker.
   if (pageId === "book-consultation" && !isCustomerSignedIn()) pageId = "book-auth";
 
-  // The "slot held" banner on the sign-in page only makes sense once a slot exists.
-  if (pageId === "book-auth") {
-    const slotBanner = document.getElementById("auth-slot-banner");
-    if (slotBanner) slotBanner.classList.toggle("hidden", !state.slotTimerInterval);
-  }
   state.currentPage = pageId;
   closeMobileMenu();
   if (pageId === "book-pooja") initPoojaDatePicker();
@@ -864,223 +858,9 @@ function updateConsultSummary() {
   }
 }
 
-// ==========================================
-// VEDIC CONSULTATION CALENDAR CONTROLLER
-// (Wall / Hanging Calendar Type - Inspired by User Design)
-// ==========================================
-
-const consultCalendarState = {
-  year: 2026,
-  month: 10, // 0-indexed: 10 = November
-  todayDay: 20,
-  todayMonth: 10,
-  todayYear: 2026,
-  selectedDay: 20,
-  selectedMonth: 10,
-  selectedYear: 2026,
-  monthNames: [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ],
-  vedicMasams: [
-    "Pushya Masam • Shukla Paksha",
-    "Magha Masam • Shukla Paksha",
-    "Phalguna Masam • Shukla Paksha",
-    "Chaitra Masam • Shukla Paksha",
-    "Vaishakha Masam • Shukla Paksha",
-    "Jyeshtha Masam • Shukla Paksha",
-    "Ashadha Masam • Shukla Paksha",
-    "Shravana Masam • Shukla Paksha",
-    "Bhadrapada Masam • Shukla Paksha",
-    "Ashwina Masam • Shukla Paksha",
-    "Karthika Masam • Shukla Paksha",
-    "Margashirsha Masam • Shukla Paksha"
-  ],
-  slotsCount: {
-    20: 8, 21: 12, 22: 6, 23: 14, 24: 10, 25: 11,
-    26: 9, 27: 15, 28: 7, 29: 8, 30: 12
-  }
-};
-
-function initConsultCalendar() {
-  renderConsultCalendar();
-}
-
-function renderConsultCalendar() {
-  const calGrid = document.getElementById("consult-cal-grid");
-  const monthTitle = document.getElementById("consult-cal-month-title");
-  const vedicMasam = document.getElementById("consult-cal-vedic-masam");
-  if (!calGrid || !monthTitle) return;
-
-  const { year, month, selectedDay, selectedMonth, selectedYear, todayDay, todayMonth, todayYear } = consultCalendarState;
-  
-  // Set Month Title
-  monthTitle.innerHTML = `<i class="fa-regular fa-calendar text-amber-300 text-xs"></i><span>${consultCalendarState.monthNames[month]} ${year}</span>`;
-  if (vedicMasam) {
-    vedicMasam.innerText = consultCalendarState.vedicMasams[month] || "Shubha Muhurtham";
-  }
-
-  // Days calculations
-  const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
-  const totalDays = new Date(year, month + 1, 0).getDate();
-
-  let html = "";
-
-  // 1. Leading empty cells
-  for (let i = 0; i < firstDayIndex; i++) {
-    html += `<div class="p-2 text-transparent select-none">.</div>`;
-  }
-
-  // 2. Day cells (1 to totalDays)
-  for (let d = 1; d <= totalDays; d++) {
-    const isPast = (year < todayYear) || 
-                   (year === todayYear && month < todayMonth) || 
-                   (year === todayYear && month === todayMonth && d < todayDay);
-    const isToday = (year === todayYear && month === todayMonth && d === todayDay);
-    const isSelected = (year === selectedYear && month === selectedMonth && d === selectedDay);
-    const dayOfWeek = (firstDayIndex + d - 1) % 7; // 0 = Sun
-    const isSunday = dayOfWeek === 0;
-
-    if (isPast) {
-      // Past day: disabled, dimmed
-      html += `
-        <div class="p-1.5 rounded-xl text-zinc-300 select-none text-center flex flex-col items-center justify-center">
-          <span class="text-xs leading-none">${d}</span>
-        </div>
-      `;
-    } else if (isSelected) {
-      // Active selected day: deep crimson & gold
-      html += `
-        <button type="button" onclick="selectConsultCalendarDate(${year}, ${month}, ${d}, this)" class="consult-cal-day-btn active p-1.5 rounded-xl text-center transition bg-maroon text-white font-bold shadow-md border-2 border-amber-300 flex flex-col items-center justify-center scale-105">
-          <span class="text-xs leading-none">${d}</span>
-          <span class="text-2xs uppercase tracking-tighter text-amber-200 mt-0.5 leading-none">${isToday ? 'Today' : '✓'}</span>
-        </button>
-      `;
-    } else {
-      // Future open day
-      const sunColor = isSunday ? 'text-red-600 font-bold' : 'text-ink font-medium';
-      html += `
-        <button type="button" onclick="selectConsultCalendarDate(${year}, ${month}, ${d}, this)" class="consult-cal-day-btn p-1.5 rounded-xl text-center transition hover:bg-amber-50 hover:border-amber-400 border border-transparent flex flex-col items-center justify-center cursor-pointer group">
-          <span class="text-xs ${sunColor} leading-none group-hover:scale-110 transition">${d}</span>
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 block mt-1"></span>
-        </button>
-      `;
-    }
-  }
-
-  calGrid.innerHTML = html;
-}
-
-function selectConsultCalendarDate(year, month, day, element) {
-  consultCalendarState.selectedYear = year;
-  consultCalendarState.selectedMonth = month;
-  consultCalendarState.selectedDay = day;
-
-  // Re-render calendar so selection badge is crisp
-  renderConsultCalendar();
-
-  // Compute readable date
-  const isToday = (year === consultCalendarState.todayYear && month === consultCalendarState.todayMonth && day === consultCalendarState.todayDay);
-  const isTomorrow = (year === consultCalendarState.todayYear && month === consultCalendarState.todayMonth && day === consultCalendarState.todayDay + 1);
-  const monthShort = consultCalendarState.monthNames[month].slice(0, 3);
-  
-  let label = `${day} ${monthShort} ${year}`;
-  if (isToday) label = `Today, ${day} ${monthShort}`;
-  else if (isTomorrow) label = `Tomorrow, ${day} ${monthShort}`;
-
-  state.selectedDate = `${label} ${year}`;
-  state.selectedDateISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-  // Update labels
-  const dateLabelEl = document.getElementById("consult-cal-selected-label");
-  if (dateLabelEl) dateLabelEl.innerText = `${label} ${year}`;
-
-  const slotBadge = document.getElementById("consult-cal-slot-badge");
-  const slots = consultCalendarState.slotsCount[day] || (8 + (day % 7));
-  if (slotBadge) slotBadge.innerText = `${slots} Slots Open`;
-
-  // Update summary sidebar & slot banners
-  const timeDisplay = document.getElementById("consult-summary-time");
-  if (timeDisplay) timeDisplay.innerText = `${label}, ${state.selectedTime}`;
-
-  const authSlotInfo = document.getElementById("auth-slot-held-info");
-  if (authSlotInfo) authSlotInfo.innerText = `${label} at ${state.selectedTime}`;
-
-  const failSlotTime = document.getElementById("fail-slot-time");
-  if (failSlotTime) failSlotTime.innerText = `${label} at ${state.selectedTime}`;
-
-  // Keep hidden inputs synced
-  const dateSel = document.getElementById("consult-date-select");
-  if (dateSel) {
-    dateSel.innerHTML = `<option selected value="${label}">${label}</option>`;
-  }
-}
-
-function selectConsultTimeSlot(timeStr, btnElement) {
-  state.selectedTime = timeStr;
-
-  // Update button visual styles
-  document.querySelectorAll(".consult-time-btn").forEach(btn => {
-    btn.classList.remove("border-2", "border-maroon", "bg-rose-50", "text-maroon", "font-bold", "active");
-    btn.classList.add("border", "border-line", "bg-white", "text-ink", "font-medium");
-    btn.innerText = btn.innerText.replace(" ✓", "");
-  });
-
-  if (btnElement) {
-    btnElement.classList.remove("border-line", "bg-white", "text-ink", "font-medium");
-    btnElement.classList.add("border-2", "border-maroon", "bg-rose-50", "text-maroon", "font-bold", "active");
-    btnElement.innerText = `${timeStr} ✓`;
-  }
-
-  // Update summary sidebar & slot hold info
-  const isToday = (consultCalendarState.selectedDay === consultCalendarState.todayDay && consultCalendarState.selectedMonth === consultCalendarState.todayMonth);
-  const isTomorrow = (consultCalendarState.selectedDay === consultCalendarState.todayDay + 1 && consultCalendarState.selectedMonth === consultCalendarState.todayMonth);
-  const monthShort = consultCalendarState.monthNames[consultCalendarState.selectedMonth].slice(0, 3);
-  let label = `${consultCalendarState.selectedDay} ${monthShort}`;
-  if (isToday) label = `Today, ${consultCalendarState.selectedDay} ${monthShort}`;
-  else if (isTomorrow) label = `Tomorrow, ${consultCalendarState.selectedDay} ${monthShort}`;
-
-  const timeDisplay = document.getElementById("consult-summary-time");
-  if (timeDisplay) timeDisplay.innerText = `${label}, ${timeStr}`;
-
-  const authSlotInfo = document.getElementById("auth-slot-held-info");
-  if (authSlotInfo) authSlotInfo.innerText = `${label} at ${timeStr}`;
-
-  const failSlotTime = document.getElementById("fail-slot-time");
-  if (failSlotTime) failSlotTime.innerText = `${label} at ${timeStr}`;
-
-  // Keep hidden inputs synced
-  const timeSel = document.getElementById("consult-time-select");
-  if (timeSel) {
-    timeSel.innerHTML = `<option selected value="${timeStr}">${timeStr}</option>`;
-  }
-}
-
-function changeConsultMonth(offset) {
-  let newMonth = consultCalendarState.month + offset;
-  let newYear = consultCalendarState.year;
-
-  if (newMonth < 0) {
-    newMonth = 11;
-    newYear--;
-  } else if (newMonth > 11) {
-    newMonth = 0;
-    newYear++;
-  }
-
-  // Don't go before November 2026
-  if (newYear < 2026 || (newYear === 2026 && newMonth < 10)) {
-    return;
-  }
-  // Max 6 months forward
-  if (newYear > 2027 || (newYear === 2027 && newMonth > 4)) {
-    return;
-  }
-
-  consultCalendarState.month = newMonth;
-  consultCalendarState.year = newYear;
-  renderConsultCalendar();
-}
+// The Vedic consultation calendar and its time slots used to live here.
+// A booking no longer carries a date or a slot, so the controller went
+// with the markup it drove.
 
 // ==========================================
 // POOJA SEVA BOOKING CONTROLLER (Screenshot 2)

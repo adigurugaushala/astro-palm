@@ -1479,7 +1479,7 @@
               <span aria-current="page">Book a Consultation</span>
             </nav>
             <h1 id="consult-title" class="booking-hero__title">Book a Consultation</h1>
-            <p class="booking-hero__lead">Pick your date and time, pay securely, then share your details for the reading.</p>
+            <p class="booking-hero__lead">Pay securely, then share your details for the reading.</p>
           </div>
         </div>
       </section>
@@ -1490,8 +1490,8 @@
 
         <!-- Main card -->
         <div class="bk-card bk-card--main space-y-6">
-          <ol class="bk-steps bk-steps--five" aria-label="Booking steps">
-            <li class="bk-step is-done"><span class="bk-step__dot">1</span><span class="bk-step__label">Sign In</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step is-active"><span class="bk-step__dot">2</span><span class="bk-step__label">Date &amp; Slot</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">3</span><span class="bk-step__label">Payment</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">4</span><span class="bk-step__label">Your Details</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">5</span><span class="bk-step__label">Confirmation</span></li>
+          <ol class="bk-steps bk-steps--four" aria-label="Booking steps">
+            <li class="bk-step is-done"><span class="bk-step__dot">1</span><span class="bk-step__label">Sign In</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step is-active"><span class="bk-step__dot">2</span><span class="bk-step__label">Payment</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">3</span><span class="bk-step__label">Your Details</span></li><li class="bk-step__line" aria-hidden="true"></li><li class="bk-step"><span class="bk-step__dot">4</span><span class="bk-step__label">Confirmation</span></li>
           </ol>
 
           <!-- Handedness Selection -->
@@ -1521,138 +1521,14 @@
             </div>
           </div>
 
-          <!-- Preferred Consultation Date & Time (Interactive Calendar Type Picker) -->
-          <div class="pt-4 border-t border-sand space-y-3">
-
-            <!-- Calendar & Time Slots Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-              
-              <!-- LEFT: Calendar Widget (Styled like Wall / Spiral Calendar from reference image) -->
-              <div class="md:col-span-7 bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
-                <!-- Top Spiral Hanger Binding (Inspired by User's Wall Calendar Reference) -->
-                <div class="bg-line px-4 py-2 flex items-center justify-between border-b border-line-strong">
-                  <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-red-600 border border-white shadow-xs inline-block"></span>
-                    <span class="text-2xs font-bold text-[#66533d] uppercase tracking-wider">Vedic Consultation Calendar</span>
-                  </div>
-                  <!-- Spiral punch holes simulation -->
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#baa485]"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#baa485]"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#baa485]"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#baa485]"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#baa485]"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#baa485]"></span>
-                  </div>
-                </div>
-
-                <!-- Calendar Red/Crimson Header Block (Matching User's Reference Image) -->
-                <div class="bg-gradient-to-r from-maroon via-maroon to-maroon text-white px-4 py-3 flex items-center justify-between shadow-inner">
-                  <button type="button" onclick="changeConsultMonth(-1)" class="w-7 h-7 rounded-lg bg-black/25 hover:bg-black/40 flex items-center justify-center transition text-amber-200" title="Previous Month">
-                    <i class="fa-solid fa-chevron-left text-xs"></i>
-                  </button>
-                  <div class="text-center">
-                    <div id="consult-cal-month-title" class="font-serif font-bold text-sm tracking-wide text-amber-100 flex items-center justify-center gap-1.5">
-                      <i class="fa-regular fa-calendar text-amber-300 text-xs"></i>
-                      <span>November 2026</span>
-                    </div>
-                    <div id="consult-cal-vedic-masam" class="text-2xs text-amber-200/90 font-medium">Karthika Masam • Shukla Paksha</div>
-                  </div>
-                  <button type="button" onclick="changeConsultMonth(1)" class="w-7 h-7 rounded-lg bg-black/25 hover:bg-black/40 flex items-center justify-center transition text-amber-200" title="Next Month">
-                    <i class="fa-solid fa-chevron-right text-xs"></i>
-                  </button>
-                </div>
-
-                <!-- Weekday Row (Sunday in Red text - Exact Wall Calendar Style) -->
-                <div class="grid grid-cols-7 text-center font-bold text-2xs py-2 bg-paper border-b border-line">
-                  <span class="text-red-600 font-extrabold">Sun</span>
-                  <span class="text-ink">Mon</span>
-                  <span class="text-ink">Tue</span>
-                  <span class="text-ink">Wed</span>
-                  <span class="text-ink">Thu</span>
-                  <span class="text-ink">Fri</span>
-                  <span class="text-ink">Sat</span>
-                </div>
-
-                <!-- Interactive Date Cells Grid -->
-                <div id="consult-cal-grid" class="grid grid-cols-7 gap-1 p-2 text-center text-xs min-h-[220px]">
-                  <!-- Generated dynamically by initConsultCalendar() -->
-                </div>
-
-                <!-- Calendar Legend Footer -->
-                <div class="px-3 py-2 bg-parchment border-t border-line flex flex-wrap items-center justify-between text-2xs text-ink-3">
-                  <div class="flex items-center gap-3">
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Available</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-maroon inline-block"></span>Selected</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Today</span>
-                  </div>
-                  <span class="text-2xs text-zinc-500">All times IST (GMT+5:30)</span>
-                </div>
-              </div>
-
-              <!-- RIGHT: Available Time Slots Panel -->
-              <div class="md:col-span-5 bg-paper p-3.5 rounded-2xl border border-line space-y-3">
-                <div class="flex items-center justify-between pb-2 border-b border-line">
-                  <div>
-                    <span class="text-2xs font-semibold text-maroon uppercase tracking-wider block">Available Slots</span>
-                    <span id="consult-cal-selected-label" class="text-xs font-bold text-ink block">Today, 20 Nov 2026</span>
-                  </div>
-                  <span id="consult-cal-slot-badge" class="text-2xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                    8 Slots Open
-                  </span>
-                </div>
-
-                <!-- Morning Slots -->
-                <div class="space-y-1.5">
-                  <div class="flex items-center gap-1 text-2xs font-semibold text-ink">
-                    <i class="fa-regular fa-sun text-amber-500 text-xs"></i>
-                    <span>Morning Session</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-1.5">
-                    <button type="button" onclick="selectConsultTimeSlot('09:30 AM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">09:30 AM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('10:15 AM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">10:15 AM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('10:45 AM', this)" class="consult-time-btn active px-2 py-1.5 rounded-xl border-2 border-maroon bg-rose-50 text-xs text-maroon transition font-bold text-center">10:45 AM ✓</button>
-                    <button type="button" onclick="selectConsultTimeSlot('11:30 AM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">11:30 AM</button>
-                  </div>
-                </div>
-
-                <!-- Afternoon & Evening Slots -->
-                <div class="space-y-1.5 pt-1">
-                  <div class="flex items-center gap-1 text-2xs font-semibold text-ink">
-                    <i class="fa-regular fa-moon text-indigo-500 text-xs"></i>
-                    <span>Afternoon & Evening</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-1.5">
-                    <button type="button" onclick="selectConsultTimeSlot('02:30 PM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">02:30 PM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('03:45 PM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">03:45 PM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('04:30 PM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">04:30 PM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('06:00 PM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">06:00 PM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('06:45 PM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">06:45 PM</button>
-                    <button type="button" onclick="selectConsultTimeSlot('07:15 PM', this)" class="consult-time-btn px-2 py-1.5 rounded-xl border border-line bg-white hover:border-amber-400 text-xs text-ink transition font-medium text-center">07:15 PM</button>
-                  </div>
-                </div>
-
-                <!-- Hidden sync elements to ensure zero regression with legacy calls -->
-                <select id="consult-date-select" class="hidden">
-                  <option selected value="Today, 20 Nov 2026">Today, 20 Nov 2026</option>
-                </select>
-                <select id="consult-time-select" class="hidden">
-                  <option selected value="10:45 AM">10:45 AM</option>
-                </select>
-
-                <!-- Guruji Consultation Note -->
-                <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-2xs text-[#6b4720] space-y-1">
-                  <div class="font-bold flex items-center gap-1">
-                    <i class="fa-solid fa-om text-amber-700"></i>
-                    <span>Consultation Sanctuary</span>
-                  </div>
-                  <p class="leading-snug">Personal 1-on-1 direct session with Adiguru Swamiji via Private Video/Audio Sanctuary.</p>
-                </div>
-
-              </div>
-
+          <!-- No date or slot is chosen here. The note below is the only
+               thing kept from the old calendar block; its wording is unchanged. -->
+          <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs text-[#6b4720] space-y-1">
+            <div class="font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-om text-amber-700"></i>
+              <span>Consultation Sanctuary</span>
             </div>
-
+            <p class="leading-snug">Personal 1-on-1 direct session with Adiguru Swamiji via Private Video/Audio Sanctuary.</p>
           </div>
 
         </div>
@@ -1664,7 +1540,6 @@
             <div class="bk-selection">
               <div class="bk-selection__row"><span class="text-ink-3">Service</span><span id="consult-summary-service" class="font-semibold">Detailed Palm Analysis</span></div>
               <div class="bk-selection__row"><span class="text-ink-3">Handedness</span><span id="consult-summary-hand">Right-handed</span></div>
-              <div class="bk-selection__row"><span class="text-ink-3">Time</span><span id="consult-summary-time" class="text-amber-800 font-medium text-right">10:45 AM</span></div>
             </div>
             <div class="bk-total">
               <span>Consultation Fee</span>
@@ -1704,16 +1579,6 @@
     <div id="page-book-auth" class="page-view hidden py-10 px-4 sm:px-8 bg-parchment">
       <div class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl border border-line shadow-md space-y-6">
         
-        <!-- Slot Safe Banner -->
-        <div id="auth-slot-banner" class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-900">
-          <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
-          <div>
-            <span class="font-semibold">Slot Held: </span>
-            <span id="auth-slot-held-info">Today at 10:45 AM</span>
-            <span class="text-2xs text-emerald-700 block">Your slot will NOT be lost during sign-in.</span>
-          </div>
-        </div>
-
         <div class="text-center">
           <div class="w-12 h-12 rounded-full bg-rose-50 text-maroon flex items-center justify-center mx-auto text-xl mb-2 border border-rose-200">
             <i class="fa-regular fa-user"></i>
@@ -1834,11 +1699,10 @@
         </div>
         <h3 class="font-serif text-2xl font-bold text-zinc-900">Payment Unsuccessful</h3>
         <p class="text-xs text-zinc-600">
-          The transaction could not be completed by your bank. Don't worry, <strong>your chosen slot has been safely preserved</strong> for <span id="fail-slot-timer" class="font-mono font-bold text-rose-600">09:12</span>.
+          The transaction could not be completed by your bank. Your booking is still here — you can try the payment again below.
         </p>
 
         <div class="p-3 bg-zinc-50 rounded-xl text-xs text-left text-zinc-700 space-y-1">
-          <div class="flex justify-between"><span>Held Slot:</span><strong id="fail-slot-time">Today, 10:45 AM</strong></div>
           <div class="flex justify-between"><span>Amount:</span><strong>₹ 549</strong></div>
         </div>
 

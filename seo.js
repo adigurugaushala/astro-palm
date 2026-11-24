@@ -224,7 +224,7 @@
       };
       case 'book-consultation': return {
         title: 'Book a Consultation',
-        description: 'Book a Detailed Palm Analysis, a Comprehensive Kundali Analysis or the combined Astro-Palmistry Correlation, and choose your own date and slot.'
+        description: 'Book a Detailed Palm Analysis, a Comprehensive Kundali Analysis or the combined Astro-Palmistry Correlation with Guruji Palmistry.'
       };
       case 'book-pooja': return {
         title: 'Book a Pooja Seva',
