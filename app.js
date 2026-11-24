@@ -605,7 +605,11 @@ function goToSection(sectionId) {
 }
 
 function startBooking() {
-  showPage("book-consultation");
+  // The booking page no longer offers a choice of service, so a seeker who has
+  // not picked one starts at the services list rather than being sent in with
+  // whatever happened to be selected.
+  if (typeof navigate === "function") return navigate("/services");
+  showPage("services");
 }
 
 function selectServiceAndStart(serviceId) {

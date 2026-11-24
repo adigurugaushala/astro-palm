@@ -166,7 +166,7 @@
           <p class="text-cream/80 mt-2 max-w-xl">${esc(text)}</p>
         </div>
         <div class="flex flex-col sm:flex-row gap-3">
-          <a href="/services/astro-palmistry-correlation" data-link class="gold-gradient-btn h-12 px-6 rounded-full">Book a Consultation</a>
+          <a href="/services" data-link class="gold-gradient-btn h-12 px-6 rounded-full">Book a Consultation</a>
           <a href="/contact" data-link class="h-12 px-6 rounded-full border border-cream/40 text-cream hover:border-gold hover:text-gold flex items-center justify-center font-medium">Send an Enquiry</a>
         </div>
       </div>
