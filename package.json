@@ -1,7 +1,7 @@
 {
   "name": "guruji",
   "version": "2.1.0",
-  "description": "Guruji — palmistry, Vedic astrology consultations, pooja sevas and the Mantras & Stotras library.",
+  "description": "Guruji \u2014 palmistry, Vedic astrology consultations, pooja sevas and the Mantras & Stotras library.",
   "main": "server.js",
   "private": true,
   "scripts": {
@@ -14,7 +14,8 @@
     "db:check": "node scripts/check-db.js",
     "test:live": "node scripts/test-integrations.js",
     "verify:chart": "node scripts/verify-chart.js",
-    "preflight": "node scripts/preflight.js"
+    "preflight": "npm run build:css && node scripts/preflight.js",
+    "build:css": "tailwindcss -c tailwind.config.js -i build/tailwind-source.css -o assets/tailwind.css --minify"
   },
   "engines": {
     "node": "22.x"
@@ -25,5 +26,8 @@
     "astronomia": "^4.3.0",
     "mongodb": "^6.22.0",
     "pdfkit": "^0.21.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
   }
 }

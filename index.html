@@ -102,60 +102,11 @@
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-  <!-- Tailwind (Play CDN). Theme values below map 1:1 to the design tokens in styles.css -->
-  <script>
-    // Suppress Tailwind Play CDN development warning from browser console
-    const _origConsoleWarn = console.warn;
-    console.warn = function(...args) {
-      if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
-      _origConsoleWarn.apply(console, args);
-    };
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    const token = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            night: token('night'), 'night-2': token('night-2'), 'night-line': token('night-line'),
-            ink: token('ink'), 'ink-2': token('ink-2'), 'ink-3': token('ink-3'),
-            maroon: token('maroon'), 'maroon-dark': token('maroon-dark'),
-            gold: token('gold'), 'gold-soft': token('gold-soft'),
-            cream: token('cream'), 'cream-2': token('cream-2'),
-            parchment: token('parchment'), paper: token('paper'), sand: token('sand'),
-            line: token('line'), 'line-strong': token('line-strong')
-          },
-          fontFamily: {
-            serif: ['Cormorant Garamond', 'Playfair Display', 'Georgia', 'serif'],
-            cinzel: ['Cinzel', 'serif'],
-            sans: ['Lato', 'Outfit', 'system-ui', 'sans-serif']
-          },
-          fontSize: {
-            '2xs': ['0.6875rem', { lineHeight: '1rem' }]
-          },
-          spacing: { '4.5': '1.125rem' },
-          maxWidth: { 'container': '80rem' },
-          boxShadow: {
-            xs: 'var(--shadow-xs)',
-            card: 'var(--shadow-card)',
-            'warm-card': 'var(--shadow-card)',
-            'card-hover': 'var(--shadow-card-hover)',
-            'gold-glow': 'var(--shadow-gold)'
-          }
-        }
-      }
-    }
-  </script>
-
-  <!-- Google Analytics (Firebase GA4) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-BW4BXH4YYN"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-BW4BXH4YYN');
-  </script>
+  <!-- Tailwind, built from tailwind.config.js by `npm run build:css`.
+       It used to come from the Play CDN, which shipped a compiler to the
+       browser and generated this stylesheet on every visit, holding up the
+       first paint. Same output, built once. -->
+  <link rel="stylesheet" href="/assets/tailwind.css">
 
   <!-- Google Firebase App & Auth SDK -->
   <script type="module">
