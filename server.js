@@ -1790,7 +1790,9 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       };
       if (devotee.name.length < 2) throw new HttpError(422, 'Please enter the seeker\'s full name');
       if (!devotee.mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
-      if (type !== 'pooja' && !isEmail(devotee.email)) throw new HttpError(422, 'Please enter a valid email address');
+      // No booking type requires an address: the site sends no mail, and the
+      // seeker is reached on the mobile number above. One that is given must
+      // still be valid, so a typo is caught rather than stored.
       if (devotee.email && !isEmail(devotee.email)) throw new HttpError(422, 'Please enter a valid email address');
 
       const booking = {
@@ -1963,9 +1965,12 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
       if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
-      if (!isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
+      // An address is optional: the site sends no mail, so the sign-up form no
+      // longer asks for one. A seeker is identified by mobile, which login and
+      // booking lookup both accept. One that is given must still be valid.
+      if (email && !isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
 
-      const existing = (await store.findCustomer(email)) || (await store.findCustomer(mobile));
+      const existing = (email ? await store.findCustomer(email) : null) || (await store.findCustomer(mobile));
       if (existing && existing.passwordHash && password && !verifyPassword(password, existing.passwordHash)) {
         throw new HttpError(409, 'An account already exists with this email or mobile. Please sign in instead.');
       }
@@ -2101,7 +2106,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 
       if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
       if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
-      if (!isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
+      if (email && !isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
 
       // A mobile or email already on someone else's account cannot be taken.
       for (const identifier of [mobile, email]) {

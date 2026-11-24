@@ -160,6 +160,64 @@ describe('devotee accounts', () => {
     assert.equal((await call('POST', '/api/customer/login', { identifier: 'devotee@example.com', password: 'BrandNewPass1' })).status, 200);
   });
 
+  // ---- No email address --------------------------------------------------
+  // The sign-up form no longer asks for an email, because the site sends no
+  // mail. The server once still demanded one, which broke every registration
+  // and every booking on the live site. These tests hold that door shut.
+
+  test('a seeker registers, books and edits the profile with no email at all', async () => {
+    const r = await call('POST', '/api/customer/register',
+      { name: 'Mobile Only Seeker', mobile: '9876500011', consent: true });
+    assert.equal(r.status, 200, 'registration must not require an email');
+    assert.equal(r.body.customer.email, '');
+    const h = { Authorization: `Bearer ${r.body.token}` };
+
+    // Every paid consultation books without one.
+    for (const serviceId of ['palmistry_reading', 'astrology_correlation',
+      'combined_consultation', 'followup_session']) {
+      const b = await call('POST', '/api/bookings', {
+        type: 'consultation', serviceId,
+        slot: { date: '2026-12-01', iso: '2026-12-01', time: '' },
+        devotee: { name: 'Mobile Only Seeker', mobile: '9876500011', email: '' }
+      }, h);
+      assert.equal(b.status, 201, `${serviceId} must book without an email`);
+      assert.ok(b.body.booking.orderId);
+    }
+
+    // So does a pooja.
+    const pooja = await call('POST', '/api/bookings', {
+      type: 'pooja', poojaIds: ['ganapathi_homam'], poojaDate: '2026-12-05',
+      poojaSlot: 'pratah',
+      devotee: { name: 'Mobile Only Seeker', mobile: '9876500011', email: '', gotram: 'Kashyapa' }
+    }, h);
+    assert.equal(pooja.status, 201, 'a pooja must book without an email');
+
+    // And the profile can still be edited.
+    const edit = await call('PATCH', '/api/customer/me', { name: 'Renamed Seeker' }, h);
+    assert.equal(edit.status, 200, 'an account with no email must stay editable');
+    assert.equal(edit.body.customer.name, 'Renamed Seeker');
+  });
+
+  test('two seekers with no email are kept apart, and a typo is still caught', async () => {
+    const a = await call('POST', '/api/customer/register',
+      { name: 'Seeker One', mobile: '9876500022', consent: true });
+    const b = await call('POST', '/api/customer/register',
+      { name: 'Seeker Two', mobile: '9876500033', consent: true });
+    assert.equal(a.status, 200);
+    assert.equal(b.status, 200);
+    // An empty email must never make two account-less seekers the same person.
+    assert.notEqual(a.body.customer.id, b.body.customer.id);
+
+    // Optional is not the same as unchecked: a malformed address is refused.
+    assert.equal((await call('POST', '/api/customer/register',
+      { name: 'Typo Seeker', mobile: '9876500044', email: 'oops-at-nothing', consent: true })).status, 422);
+    assert.equal((await call('POST', '/api/bookings', {
+      type: 'consultation', serviceId: 'palmistry_reading',
+      slot: { date: '2026-12-01', iso: '2026-12-01', time: '' },
+      devotee: { name: 'Typo Seeker', mobile: '9876500055', email: 'oops-at-nothing' }
+    })).status, 422);
+  });
+
   // ---- Google sign-in endpoint -------------------------------------------
 
   test('google-auth refuses a token it cannot verify, with a reason', async () => {
