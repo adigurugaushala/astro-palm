@@ -500,8 +500,6 @@
             </div>
           </div>
         </div>
-        <a href="/faqs" data-link data-nav="faqs" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-faqs">FAQs</a>
-        <a href="/contact" data-link data-nav="contact" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-contact">Contact</a>
       </nav>
 
       <!-- Actions -->
@@ -512,9 +510,9 @@
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
         </button>
 
-        <a href="/messages" data-link id="header-messages-btn" class="hidden min-[1200px]:flex items-center gap-1.5 px-3 min-[2000px]:px-4 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap relative" aria-label="Messages">
-          <i class="fa-regular fa-comments text-amber-400" aria-hidden="true"></i>
-          <span class="hidden min-[1560px]:inline">Messages</span>
+        <a href="/messages" data-link id="header-messages-btn" class="relative flex w-10 h-10 min-[2000px]:w-12 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white items-center justify-center transition" aria-label="Messages from Guruji">
+          <i class="fa-regular fa-bell" aria-hidden="true"></i>
+          <span id="seeker-unread" class="seeker-badge hidden" aria-hidden="true"></span>
         </a>
         <a href="/account" data-link id="header-account-btn" class="hidden min-[1200px]:flex items-center gap-1.5 px-3 min-[2000px]:px-4 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="My Account">
           <i class="fa-regular fa-user text-amber-400" aria-hidden="true"></i>
@@ -524,7 +522,6 @@
         <a href="/track" data-link id="header-track-btn" class="relative hidden min-[1280px]:flex items-center gap-2 px-3 min-[2000px]:px-5 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="Track Status">
           <i class="fa-solid fa-magnifying-glass-location text-amber-400" aria-hidden="true"></i>
           <span class="hidden min-[1700px]:inline">Track Status</span>
-          <span id="seeker-unread" class="seeker-badge hidden" aria-hidden="true"></span>
         </a>
 
         <a href="/services" data-link class="gold-gradient-btn px-3.5 sm:px-5 min-[2000px]:px-6 h-10 min-[2000px]:h-12 rounded-full text-sm min-[2000px]:text-[16px] whitespace-nowrap">
@@ -565,8 +562,6 @@
           <a href="/mantras" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Mantras &amp; Stotras</a>
           <a href="/palmistry" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Palmistry Guide</a>
         </div>
-        <a href="/faqs" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">FAQs</a>
-        <a href="/contact" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Contact</a>
         <div class="border-t border-white/10 my-2"></div>
         <a href="javascript:mobileNav(openHelpModal)" class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Help</a>
         <a href="/track" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5 sm:hidden"><i class="fa-regular fa-compass w-6 text-amber-400"></i>Track status</a>

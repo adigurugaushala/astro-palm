@@ -384,9 +384,23 @@
 
   function paintSwitcher() {
     document.querySelectorAll('[data-lang-switch]').forEach(box => {
-      box.innerHTML = LANGS.map(l =>
-        `<button type="button" class="lang-switch__btn${l.id === current ? ' is-active' : ''}" lang="${l.id}" data-lang="${l.id}" aria-pressed="${l.id === current}">${box.dataset.langSwitch === 'short' ? l.short : l.label}</button>`
-      ).join('');
+      // The header has room for one control, not three, so it gets a real
+      // dropdown. A native select is the right one: it opens as the phone's
+      // own picker, works by keyboard, and needs no outside-click handling.
+      if (box.dataset.langSwitch === 'short') {
+        box.innerHTML = `<label class="lang-select">
+            <span class="sr-only">Language</span>
+            <i class="fa-solid fa-globe lang-select__icon" aria-hidden="true"></i>
+            <select class="lang-select__input" data-lang-select>
+              ${LANGS.map(l => `<option value="${l.id}" lang="${l.id}"${l.id === current ? ' selected' : ''}>${l.label}</option>`).join('')}
+            </select>
+            <i class="fa-solid fa-chevron-down lang-select__chevron" aria-hidden="true"></i>
+          </label>`;
+      } else {
+        box.innerHTML = LANGS.map(l =>
+          `<button type="button" class="lang-switch__btn${l.id === current ? ' is-active' : ''}" lang="${l.id}" data-lang="${l.id}" aria-pressed="${l.id === current}">${l.label}</button>`
+        ).join('');
+      }
       box.setAttribute('data-no-i18n', '');
     });
   }
@@ -405,6 +419,11 @@
     if (!btn) return;
     e.preventDefault();
     setLang(btn.getAttribute('data-lang'));
+  });
+
+  document.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-lang-select]');
+    if (sel) setLang(sel.value);
   });
 
   function boot() {

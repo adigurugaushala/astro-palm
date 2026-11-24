@@ -3557,8 +3557,10 @@
       const n = (data && data.unread) || 0;
       tag.textContent = n > 99 ? '99+' : String(n);
       tag.classList.toggle('hidden', !n);
-      const btn = document.getElementById('header-track-btn');
-      if (btn) btn.setAttribute('aria-label', n ? `Track status — ${n} new message${n === 1 ? '' : 's'} from Guruji` : 'Track status');
+      // The count now rides the notification bell, which is what it is about.
+      const bell = document.getElementById('header-messages-btn');
+      if (bell) bell.setAttribute('aria-label',
+        n ? `Messages — ${n} new message${n === 1 ? '' : 's'} from Guruji` : 'Messages from Guruji');
     } catch (e) { tag.classList.add('hidden'); }
   };
 
@@ -4268,6 +4270,9 @@
     initPlacePicker();
     navigate(location.href, { replace: true, fromRouter: true });
     refreshContent();
+    // The bell is a notification, so it has to notice on its own rather than
+    // waiting for the next page change. The call itself is throttled.
+    setInterval(() => { if (!document.hidden) refreshSeekerBadge(); }, 30000);
     // keep the payment page in sync whenever it is shown
     const pay = document.getElementById('page-book-payment');
     if (pay) new MutationObserver(() => { if (!pay.classList.contains('hidden')) refreshPaymentPage(); }).observe(pay, { attributes: true, attributeFilter: ['class'] });

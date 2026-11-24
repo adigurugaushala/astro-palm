@@ -1217,8 +1217,24 @@ body.palm-viewer-open { overflow: hidden; }
 /* Language switcher */
 .lang-switch { display: flex; gap: .25rem; align-items: center; }
 .lang-switch.hidden { display: none; }
+/* One dropdown takes the room three pills used to, so it appears far sooner. */
 .lang-switch--header { display: none; }
-@media (min-width: 1400px) { .lang-switch--header { display: flex; } }
+@media (min-width: 1024px) { .lang-switch--header { display: flex; } }
+.lang-select { position: relative; display: inline-flex; align-items: center; }
+.lang-select__input { appearance: none; -webkit-appearance: none; cursor: pointer;
+  font-size: .8rem; line-height: 1; height: 2.5rem; padding: 0 1.7rem 0 2rem;
+  border-radius: 999px; border: 1px solid rgba(255,255,255,.22);
+  color: #f3e7d2; background: rgba(255,255,255,.04);
+  transition: background .15s, border-color .15s; }
+.lang-select__input:hover { background: rgba(255,255,255,.1); border-color: rgba(233,178,92,.6); }
+.lang-select__input:focus-visible { outline: 2px solid rgba(233,178,92,.8); outline-offset: 1px; }
+/* The list itself is drawn by the operating system, so it needs readable colours. */
+.lang-select__input option { color: #1b1b1b; background: #fff; }
+.lang-select__icon, .lang-select__chevron { position: absolute; pointer-events: none;
+  color: #e9b25c; font-size: .72rem; }
+.lang-select__icon { left: .72rem; }
+.lang-select__chevron { right: .68rem; font-size: .6rem; opacity: .85; }
+@media (min-width: 2000px) { .lang-select__input { height: 3rem; font-size: .9rem; } }
 .lang-switch__btn { font-size: .78rem; line-height: 1; padding: .45rem .6rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); color: #f3e7d2; background: transparent; cursor: pointer; transition: background .15s, border-color .15s; }
 .lang-switch__btn:hover { background: rgba(255,255,255,.1); }
 .lang-switch__btn.is-active { background: rgba(233,178,92,.18); border-color: rgba(233,178,92,.6); color: #fff; font-weight: 600; }
