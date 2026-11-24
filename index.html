@@ -3,15 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- seo:start — the server rewrites this block per address; the tags below are the fallback -->
   <title>Guruji Palmistry | Palmistry, Astrology, Reiki &amp; Spiritual Guidance</title>
-  
-  <meta name="description" content="Guruji Palmistry — palm analysis, Kundali analysis, Astro-Palmistry correlation, Reiki healing, japa, puja, muhurta, courses and spiritual knowledge. Guidance · Healing · Devotion · Learning.">
-  <link rel="canonical" href="https://palm1-s3w9.vercel.app/">
+  <meta name="description" content="Palm analysis, Kundali analysis and the combined Astro-Palmistry Correlation with Guruji, alongside Reiki healing, pooja sevas, courses and a library of mantras.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://gurujipalmistry.org/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Guruji Palmistry">
   <meta property="og:title" content="Guruji Palmistry | Palmistry, Astrology, Reiki &amp; Spiritual Guidance">
-  <meta property="og:description" content="Guidance · Healing · Devotion · Learning — palmistry, Vedic astrology, Reiki healing, japa, puja and courses with Guruji.">
-  <meta property="og:image" content="/assets/hero_palm_art_clean.jpg">
+  <meta property="og:description" content="Palm analysis, Kundali analysis and the combined Astro-Palmistry Correlation with Guruji, alongside Reiki healing, pooja sevas, courses and a library of mantras.">
+  <meta property="og:url" content="https://gurujipalmistry.org/">
+  <meta property="og:image" content="https://gurujipalmistry.org/assets/hero_palm_art_clean.jpg">
+  <meta property="og:locale" content="en_IN">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Guruji Palmistry | Palmistry, Astrology, Reiki &amp; Spiritual Guidance">
+  <meta name="twitter:description" content="Palm analysis, Kundali analysis and the combined Astro-Palmistry Correlation with Guruji, alongside Reiki healing, pooja sevas, courses and a library of mantras.">
+  <meta name="twitter:image" content="https://gurujipalmistry.org/assets/hero_palm_art_clean.jpg">
+  <!-- seo:end -->
   <meta name="theme-color" content="#1c0d0f">
 
   <!-- ================= Loading screen (inline so it paints before anything else loads) ================= -->
@@ -79,6 +87,12 @@
     }
   </style>
   <script>document.documentElement.classList.add('gl-loading');</script>
+  <noscript>
+    <!-- Without scripting the loading screen would never clear and would cover
+         the page, hiding the content from the reader and from any crawler that
+         does not run JavaScript. -->
+    <style>#guruji-loader { display: none !important; }</style>
+  </noscript>
 
   <!-- Fonts: one request for every family the site uses -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -847,7 +861,7 @@
               <span class="text-maroon font-semibold text-xs uppercase tracking-[0.24em]">Understand Palmistry</span>
               <span class="w-10 h-px bg-maroon" aria-hidden="true"></span>
             </div>
-            <h2 class="font-serif text-4xl sm:text-5xl font-bold text-ink tracking-tight">What You'll Explore</h2>
+            <h1 class="font-serif text-4xl sm:text-5xl font-bold text-ink tracking-tight">What You'll Explore</h1>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
@@ -1019,9 +1033,9 @@
           <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-line pb-6">
             <div>
               <span class="text-2xs font-semibold tracking-widest text-maroon uppercase">— HASTAREKHA SAMUDRIKA SHASTRA —</span>
-              <h1 class="font-serif text-3xl sm:text-4xl text-ink font-bold mt-1">
+              <h2 class="font-serif text-3xl sm:text-4xl text-ink font-bold mt-1">
                 Learn What <span class="italic text-maroon">Palmistry Reveals</span>
-              </h1>
+              </h2>
               <p class="text-xs sm:text-sm text-ink-3 mt-1 max-w-2xl">
                 The lines and mounts of your palm are a mirror of your prana (life force), karma, and mental inclinations. Discover how authentic Vedic Samudrika Shastra interprets your unique hand markings.
               </p>
@@ -3549,6 +3563,8 @@
   <script src="/i18n.js" defer></script>
   <script src="/motion.js" defer></script>
   <script src="/chart-ui.js"></script>
+  <!-- The same SEO module the server uses, so the head stays right as pages change -->
+  <script src="/seo.js"></script>
   <script src="/site.js"></script>
 </body>
 </html>

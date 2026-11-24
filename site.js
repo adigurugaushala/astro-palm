@@ -101,12 +101,12 @@
   const serviceCard = (s, { compact = false } = {}) => `
     <article class="sp-card sp-card--service">
       <a href="/services/${esc(s.slug)}" data-link class="sp-card__media" tabindex="-1" aria-hidden="true">
-        <img src="${esc(imageFor(s))}" alt="" loading="lazy">
+        <img src="${esc(imageFor(s))}" alt="${esc(s.title)}" loading="lazy">
         ${s.core ? '<span class="sp-badge">Core consultation</span>' : ''}
       </a>
       <div class="sp-card__body">
         <p class="sp-card__cat">${esc((category(s.category) || {}).title || '')}</p>
-        <h3 class="sp-card__title"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
+        <h2 class="sp-card__title"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h2>
         ${compact ? '' : `<p class="sp-card__text">${esc(s.short)}</p>`}
         <div class="sp-card__foot">
           <span class="sp-price${priceLabel(s) ? '' : ' sp-price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</span>
@@ -121,10 +121,10 @@
     const track = (C().courseTracks || []).find(t => t.id === c.track) || {};
     return `
     <article class="sp-card sp-card--course ${c.track === 'palmistry' ? 'sp-card--flagship' : ''}">
-      <a href="/courses/${esc(c.slug)}" data-link class="sp-card__media sp-card__media--short" tabindex="-1" aria-hidden="true"><img src="${esc(c.image || track.image || '/assets/svc/guidance.svg')}" alt="" loading="lazy"></a>
+      <a href="/courses/${esc(c.slug)}" data-link class="sp-card__media sp-card__media--short" tabindex="-1" aria-hidden="true"><img src="${esc(c.image || track.image || '/assets/svc/guidance.svg')}" alt="${esc(c.title)}" loading="lazy"></a>
       <div class="sp-card__body">
         <div class="flex items-center gap-2 flex-wrap"><span class="sp-pill ${status[1]}">${status[0]}</span><span class="sp-card__cat">${esc(c.mode)}</span></div>
-        <h3 class="sp-card__title"><a href="/courses/${esc(c.slug)}" data-link>${esc(c.title)}</a></h3>
+        <h2 class="sp-card__title"><a href="/courses/${esc(c.slug)}" data-link>${esc(c.title)}</a></h2>
         <p class="sp-card__text">${esc(c.overview)}</p>
         <div class="sp-card__foot">
           <span class="sp-price sp-price--muted">Fee on enquiry</span>
@@ -141,11 +141,11 @@
     const cat = (C().resourceCategories || []).find(x => x.id === a.category) || {};
     return `
     <article class="sp-card sp-card--article">
-      <a href="/resources/${esc(a.slug)}" data-link class="sp-card__media sp-card__media--short" tabindex="-1" aria-hidden="true"><img src="${esc(a.image || cat.image || '/assets/svc/guidance.svg')}" alt="" loading="lazy">
+      <a href="/resources/${esc(a.slug)}" data-link class="sp-card__media sp-card__media--short" tabindex="-1" aria-hidden="true"><img src="${esc(a.image || cat.image || '/assets/svc/guidance.svg')}" alt="${esc(a.title)}" loading="lazy">
         ${a.videoUrl ? '<span class="sp-badge"><i class="fa-solid fa-play"></i> Video</span>' : a.pdfUrl ? '<span class="sp-badge"><i class="fa-regular fa-file-pdf"></i> PDF</span>' : ''}</a>
       <div class="sp-card__body">
         <p class="sp-card__cat">${esc(cat.title || '')} · ${esc(formatDate(a.date))}</p>
-        <h3 class="sp-card__title"><a href="/resources/${esc(a.slug)}" data-link>${esc(a.title)}</a></h3>
+        <h2 class="sp-card__title"><a href="/resources/${esc(a.slug)}" data-link>${esc(a.title)}</a></h2>
         <p class="sp-card__text">${esc(a.excerpt)}</p>
         <div class="sp-card__foot"><span class="sp-card__cat">${esc(a.type || '')}</span><a href="/resources/${esc(a.slug)}" data-link class="sp-link">Read <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a></div>
       </div>
@@ -225,7 +225,7 @@
       const list = servicesIn(c.id).slice(0, 4).map(s => s.title.replace(/ —.*$/, '')).join(', ');
       return `
             <a href="${href}" data-link class="sp-cat">
-              <span class="sp-cat__media"><img src="${esc(c.image)}" alt="" loading="lazy"></span>
+              <span class="sp-cat__media"><img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy"></span>
               <span class="sp-cat__body">
                 <span class="sp-cat__title">${esc(c.title)}</span>
                 <span class="sp-cat__text">${esc(c.tagline)}</span>
@@ -356,7 +356,7 @@
               ${s.category === 'reiki' ? reikiNotice : ''}
             </div>
             <aside class="sp-book">
-              <img src="${esc(imageFor(s))}" alt="" class="sp-book__img">
+              <img src="${esc(imageFor(s))}" alt="${esc(s.title)}" class="sp-book__img">
               <div class="sp-book__body">
                 <div class="sp-book__price${priceLabel(s) ? '' : ' sp-book__price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</div>
                 ${s.duration ? `<p class="sp-book__meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> ${esc(s.duration)}</p>` : ''}
@@ -415,7 +415,7 @@
           ${sectionHead('Reiki Sessions', 'Reiki services')}
           <div class="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto">${sessions.map(s => `
             <article class="sp-panel sp-session">
-              <h3 class="sp-h3"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h3>
+              <h3 class="sp-h3"><a href="/services/${esc(s.slug)}" data-link>${esc(s.title)}</a></h2>
               <p class="sp-text">${esc(s.short)}</p>
               <div class="sp-session__foot">
                 <span class="sp-price${priceLabel(s) ? '' : ' sp-price--muted'}">${priceLabel(s) || 'Fee on enquiry'}</span>
@@ -497,7 +497,7 @@
         <div class="sp-wrap">
           <div class="grid gap-4 grid-cols-2 lg:grid-cols-4">${cats.map(c => `
             <a href="/resources?category=${esc(c.id)}" data-link class="sp-rescat ${cat === c.id ? 'is-active' : ''}">
-              <img src="${esc(c.image)}" alt="" loading="lazy"><span>${esc(c.title)}</span>
+              <img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy"><span>${esc(c.title)}</span>
             </a>`).join('')}</div>
           <form class="sp-filter" onsubmit="event.preventDefault(); resourcesFilter(this)" role="search">
             <label class="sr-only" for="res-q">Search articles</label>
@@ -549,7 +549,7 @@
           <p class="sp-eyebrow sp-eyebrow--maroon mt-6">${esc(cat.title || '')}</p>
           <h1 class="sp-h1 sp-h1--ink">${esc(a.title)}</h1>
           <p class="sp-meta">${esc(a.author)} · <time datetime="${esc(a.date)}">${esc(formatDate(a.date))}</time>${a.type ? ' · ' + esc(a.type) : ''}</p>
-          ${a.image ? `<img src="${esc(a.image)}" alt="" class="sp-article__img">` : ''}
+          ${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}" class="sp-article__img">` : ''}
           <p class="sp-lead sp-lead--ink">${esc(a.excerpt)}</p>
           <div class="sp-prose">${(a.body || []).map(p => `<p>${esc(p)}</p>`).join('')}</div>
           ${yt ? `<div class="sp-video"><iframe src="${yt}" title="${esc(a.title)}" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>` : ''}
@@ -1226,100 +1226,45 @@
     }
     el.setAttribute(attr, value);
   }
+  /**
+   * Keeps the head right as the visitor moves between pages.
+   *
+   * The wording, the canonical address and the structured data all come from
+   * seo.js — the same module the server uses to write the head before the page
+   * is sent. Describing a page in two places is how the two end up disagreeing.
+   */
   function updateSeo(pageId, params) {
-    const brand = 'Guruji Palmistry';
-    let title = brand + ' | Palmistry, Astrology, Reiki & Spiritual Guidance';
-    let desc = 'Palm analysis, Kundali analysis, Astro-Palmistry correlation, Reiki healing, japa, puja, muhurta, courses and spiritual knowledge with Guruji.';
-    const s = params.slug && serviceBySlug(params.slug);
-    const c = params.slug && courseBySlug(params.slug);
-    const a = params.slug && articleBySlug(params.slug);
-    const map = {
-      about: ['About Guruji', C().about.intro],
-      services: ['Services', 'Palmistry, astrology, japa & mantra, puja, pitru services, muhurta, Reiki and spiritual guidance.'],
-      'service-category': [(category(params.cat) || {}).title, (category(params.cat) || {}).intro],
-      'service-detail': s && [s.title, s.intro || s.short],
-      reiki: ['Reiki Healing', 'Individual, extended and distance Reiki sessions and packages — a complementary wellness practice.'],
-      courses: ['Courses', 'Palmistry courses, Reiki Level 1–3 and upcoming courses on Vedic astrology, mantra and Sanatana Dharma.'],
-      'course-detail': c && [c.title, c.overview],
-      resources: ['Resources & Articles', 'Articles and guides on palmistry, astrology, Reiki, mantras, rituals and meditation.'],
-      article: a && [a.title, a.excerpt],
-      faqs: ['FAQs', 'Answers about palmistry, astrology, japa, puja, Reiki, courses, booking and payment.'],
-      contact: ['Contact & Booking', 'Send an enquiry or book a consultation with Guruji.'],
-      'book-consultation': ['Book a Consultation', 'Book a Detailed Palm Analysis, Kundali Analysis or Astro-Palmistry Correlation.'],
-      'book-pooja': ['Book a Pooja Seva', 'Book a pooja with Sankalpa in your name, on your chosen date and time slot.'],
-      'book-status': ['Track Your Booking', 'Check the status of your booking.'],
-      mantras: ['Mantras & Stotras', 'A library of mantras and stotras with meaning and guidance.'],
-      palmistry: ['Palmistry Guide', 'Hand types, lines, mounts and fingers explained.'],
-      policy: params.policy && (C().policies || {})[params.policy] && [(C().policies || {})[params.policy].title, ''],
-      admin: ['Admin', ''], guruji: ['Guruji — cases', ''], session: ['Consultation room', '']
-    };
-    const m = map[pageId];
-    if (m && m[0]) { title = `${m[0]} | ${brand}`; if (m[1]) desc = m[1]; }
-    document.title = title;
-    setMeta('meta[name="description"]', 'content', String(desc).slice(0, 300));
-    setMeta('meta[property="og:title"]', 'content', title);
-    setMeta('meta[property="og:description"]', 'content', String(desc).slice(0, 300));
-    setMeta('link[rel="canonical"]', 'href', location.origin + (pathFor(pageId, params) || location.pathname));
-    setMeta('meta[name="robots"]', 'content', ['admin', 'guruji', 'session', 'learn', 'account', 'payment-return'].includes(pageId) ? 'noindex' : 'index,follow');
-    setStructuredData(pageId, params, title, desc);
-  }
+    const lib = window.GurujiSeo;
+    if (!lib) return;                       // the page keeps the head the server sent
+    const path = pathFor(pageId, params) || location.pathname;
+    const seo = lib.buildSeo({ pathname: path, content: C(), origin: location.origin });
 
-  /** Schema.org data, so search engines can show services, FAQs and articles properly. */
-  function setStructuredData(pageId, params, title, desc) {
-    const st = C().settings || {};
-    const org = {
-      '@type': 'Organization', '@id': location.origin + '/#organization', name: 'Guruji Palmistry',
-      url: location.origin, email: st.email || undefined,
-      telephone: st.phone || undefined,
-      description: 'Palmistry, Vedic astrology, Reiki healing and spiritual guidance.',
-      sameAs: Object.values(st.social || {}).filter(u => /^https:\/\//.test(u || ''))
-    };
-    const graph = [org];
-    const crumbList = (items) => ({
-      '@type': 'BreadcrumbList',
-      itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it[0], item: location.origin + (it[1] || location.pathname) }))
-    });
-    if (pageId === 'home') {
-      graph.push({ '@type': 'WebSite', url: location.origin, name: 'Guruji Palmistry', potentialAction: { '@type': 'SearchAction', target: location.origin + '/search?q={search_term_string}', 'query-input': 'required name=search_term_string' } });
-    }
-    if (pageId === 'service-detail') {
-      const s = serviceBySlug(params.slug);
-      if (s) {
-        graph.push({
-          '@type': 'Service', name: s.title, description: s.intro || s.short, provider: { '@id': org['@id'] },
-          serviceType: (category(s.category) || {}).title, url: location.origin + '/services/' + s.slug,
-          offers: Number(s.price) > 0 ? { '@type': 'Offer', price: String(s.price), priceCurrency: 'INR', availability: 'https://schema.org/InStock', url: location.origin + '/services/' + s.slug } : undefined
-        });
-        graph.push(crumbList([['Home', '/'], ['Services', '/services'], [s.title, '/services/' + s.slug]]));
-      }
-    }
-    if (pageId === 'course-detail') {
-      const c = courseBySlug(params.slug);
-      if (c) graph.push({
-        '@type': 'Course', name: c.title, description: c.overview,
-        provider: { '@id': org['@id'] }, url: location.origin + '/courses/' + c.slug,
-        hasCourseInstance: { '@type': 'CourseInstance', courseMode: /online/i.test(c.mode) ? 'online' : 'onsite', courseWorkload: c.duration }
-      });
-    }
-    if (pageId === 'article') {
-      const a = articleBySlug(params.slug);
-      if (a) graph.push({
-        '@type': 'Article', headline: a.title, description: a.excerpt, datePublished: a.date, dateModified: a.date,
-        author: { '@type': 'Organization', name: a.author || 'Guruji Palmistry' }, publisher: { '@id': org['@id'] },
-        mainEntityOfPage: location.origin + '/resources/' + a.slug
-      });
-    }
-    if (pageId === 'faqs') {
-      const cats = C().faqCategories || [];
-      const items = cats.flatMap(c => c.items).slice(0, 40);
-      if (items.length) graph.push({
-        '@type': 'FAQPage',
-        mainEntity: items.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } }))
-      });
-    }
+    document.title = seo.title;
+    setMeta('meta[name="description"]', 'content', seo.description);
+    setMeta('meta[name="robots"]', 'content', seo.robots);
+    setMeta('link[rel="canonical"]', 'href', seo.canonical);
+    setMeta('meta[property="og:type"]', 'content', seo.ogType);
+    setMeta('meta[property="og:title"]', 'content', seo.title);
+    setMeta('meta[property="og:description"]', 'content', seo.description);
+    setMeta('meta[property="og:url"]', 'content', seo.canonical);
+    setMeta('meta[property="og:image"]', 'content', seo.image);
+    setMeta('meta[name="twitter:card"]', 'content', 'summary_large_image');
+    setMeta('meta[name="twitter:title"]', 'content', seo.title);
+    setMeta('meta[name="twitter:description"]', 'content', seo.description);
+    setMeta('meta[name="twitter:image"]', 'content', seo.image);
+
     let el = document.getElementById('ld-json');
-    if (!el) { el = document.createElement('script'); el.type = 'application/ld+json'; el.id = 'ld-json'; document.head.appendChild(el); }
-    el.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph });
+    if (seo.jsonLd) {
+      if (!el) {
+        el = document.createElement('script');
+        el.type = 'application/ld+json';
+        el.id = 'ld-json';
+        document.head.appendChild(el);
+      }
+      el.textContent = JSON.stringify(seo.jsonLd);
+    } else if (el) {
+      el.remove();                          // a staff page carries no structured data
+    }
   }
 
   // -------------------------------------------------------------------------

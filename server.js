@@ -778,7 +778,24 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
     ['GET', /^\/robots\.txt$/, async (req) => {
       const origin = siteOrigin(req);
       return [200, { __raw: Buffer.from(
-        `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /payment/\n\nSitemap: ${origin}/sitemap.xml\n`), type: 'text/plain; charset=utf-8' }];
+        [
+        'User-agent: *',
+        'Allow: /',
+        '',
+        '# Staff areas, consultation rooms and the API: nothing here belongs in a search result.',
+        'Disallow: /api/',
+        'Disallow: /admin',
+        'Disallow: /guruji',
+        'Disallow: /session/',
+        'Disallow: /learn/',
+        'Disallow: /payment/',
+        '',
+        '# /account, /track and /search carry noindex instead of a block: they are',
+        '# linked from the header, so a crawler must be able to fetch them to read it.',
+        '',
+        `Sitemap: ${origin}/sitemap.xml`,
+        ''
+      ].join('\n')), type: 'text/plain' }];
     }],
 
     ['GET', /^\/sitemap\.xml$/, async (req) => {
@@ -2181,10 +2198,66 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
 // Static files
 // ---------------------------------------------------------------------------
 // Page addresses of the single-page site (/about, /services/…, /reiki-healing …) all load index.html
+const seoLib = require('./seo.js');
+
+/**
+ * Writes the head for one address into the page before it is sent.
+ *
+ * The site renders in the browser, but crawlers and the scrapers behind
+ * WhatsApp, Facebook, LinkedIn and X read the HTML as it arrives and run no
+ * JavaScript. Without this they would all see the home page's title and card
+ * on every address. The browser keeps the same tags up to date afterwards,
+ * from the same module, as the visitor moves around.
+ */
+async function sendPage(req, res, status, store, pathname) {
+  const file = path.join(BASE_DIR, 'index.html');
+  let html;
+  try { html = fs.readFileSync(file, 'utf8'); }
+  catch (e) {
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    return res.end('500 Internal Server Error');
+  }
+  try {
+    const content = await getContent(store);
+    const seo = seoLib.buildSeo({ pathname, content, origin: siteOrigin(req) });
+    // A page we cannot describe is a page that should not be indexed either.
+    if (seo.missing && status === 200) status = 404;
+    const head = seoLib.renderHead(seo, { verification: process.env.GOOGLE_SITE_VERIFICATION || '' });
+    html = html.replace(/<!-- seo:start[\s\S]*?seo:end -->/, '  ' + head);
+
+    // The body of a detail page, for crawlers that do not run JavaScript.
+    // The app overwrites this container wholesale when it starts, so nothing
+    // is shown twice; the panel is unhidden because text inside a hidden
+    // element carries little weight.
+    const body = seoLib.renderBody(seo, content);
+    if (body) {
+      const open = new RegExp('<div id="page-' + seo.pageId + '"([^>]*)>');
+      html = html.replace(open, function (tag, attrs) {
+        return '<div id="page-' + seo.pageId + '"' + attrs.replace(/\bhidden\b/, '') + '>' + body;
+      });
+    }
+  } catch (e) {
+    // The page matters more than its tags: send it with the fallback head.
+    console.error('[seo] could not write the head for', pathname, e.message);
+  }
+  if (TEST_ONE_RUPEE) html = html.replace('</head>', '<script>window.TEST_ONE_RUPEE = true;</script></head>');
+  res.writeHead(status, {
+    'Content-Type': MIME_TYPES['.html'],
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    'Cross-Origin-Opener-Policy': 'same-origin-allow-popups'
+  });
+  res.end(html);
+}
+
 const SPA_ROUTE_RX = /^\/(?:about|services|reiki-healing|courses|resources|faqs|contact|book|track|account|palmistry|mantras|admin|guruji|session|learn|payment|disclaimer|privacy-policy|terms|cancellation-refund-policy|consent-policy|grievance|search)(?:\/[A-Za-z0-9-]*)*\/?$/;
 
-function serveStatic(req, res, pathname) {
-  let reqPath = pathname === '/' || pathname === '' || SPA_ROUTE_RX.test(pathname) ? '/index.html' : pathname;
+function serveStatic(req, res, pathname, store) {
+  const isPage = pathname === '/' || pathname === '' || SPA_ROUTE_RX.test(pathname);
+  // Every address of the single-page site is answered with the page, built
+  // for that address.
+  if (isPage && store) return sendPage(req, res, 200, store, pathname);
+  let reqPath = isPage ? '/index.html' : pathname;
   if (PRIVATE_PATHS.some(rx => rx.test(reqPath))) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     return res.end('404 Not Found');
@@ -2198,6 +2271,7 @@ function serveStatic(req, res, pathname) {
     if (err || !stats.isFile()) {
       // An address with no file extension is a page of the site: let the app show its own "not found"
       if (!path.extname(reqPath) && (req.headers.accept || '').includes('text/html')) {
+        if (store) return sendPage(req, res, 404, store, pathname);
         const page = fs.readFileSync(path.join(BASE_DIR, 'index.html'));
         res.writeHead(404, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-cache' });
         return res.end(page);
@@ -2244,7 +2318,7 @@ function createHandler(store, { serveFiles = true, gateway } = {}) {
     // /robots.txt and /sitemap.xml are generated from the live content, like the API
     const GENERATED = pathname === '/robots.txt' || pathname === '/sitemap.xml';
     if (!pathname.startsWith('/api/') && !GENERATED) {
-      if (serveFiles) return serveStatic(req, res, pathname);
+      if (serveFiles) return serveStatic(req, res, pathname, store);
       return sendJson(res, 404, { error: 'Not found' });
     }
 
