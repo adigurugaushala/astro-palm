@@ -69,6 +69,14 @@ describe('devotee accounts', () => {
     assert.equal((await call('POST', '/api/customer/register', newAccount({ email: 'not-an-email', mobile: '9000000097' }))).status, 422);
   });
 
+  test('registering again without the password does not open the account', async () => {
+    // Before: sending no password (or the address of a Google account) got a
+    // session for someone else's account.
+    const r = await call('POST', '/api/customer/register', newAccount({ password: undefined }));
+    assert.equal(r.status, 409);
+    assert.equal(r.body.token, undefined);
+  });
+
   test('a second registration with the wrong password does not take over the account', async () => {
     const r = await call('POST', '/api/customer/register', newAccount({ password: 'DifferentOne' }));
     assert.equal(r.status, 409);

@@ -2348,8 +2348,14 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       if (email && !isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
 
       const existing = (email ? await store.findCustomer(email) : null) || (await store.findCustomer(mobile));
-      if (existing && existing.passwordHash && password && !verifyPassword(password, existing.passwordHash)) {
-        throw new HttpError(409, 'An account already exists with this email or mobile. Please sign in instead.');
+      // An existing account is only reached by signing in. Registering again
+      // with its email or mobile used to hand out a session when no password
+      // was sent, or when the account had none (Google), which let anyone who
+      // knew an address into that account.
+      if (existing && !(existing.passwordHash && password && verifyPassword(password, existing.passwordHash))) {
+        throw new HttpError(409, existing.provider === 'google' && !existing.passwordHash
+          ? 'An account already exists with this email. Please continue with Google.'
+          : 'An account already exists with this email or mobile. Please sign in instead.');
       }
 
       const passwordHash = password ? hashPassword(password) : (existing ? existing.passwordHash : '');
@@ -2493,11 +2499,13 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const email = b.email === undefined ? current.email : str(b.email, 160).toLowerCase();
 
       if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
-      if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
+      // The mobile is optional until the first payment; one that is typed must be valid.
+      if (b.mobile !== undefined && String(b.mobile).trim() && !mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
       if (email && !isEmail(email)) throw new HttpError(422, 'Please enter a valid email address');
+      if (!mobile && !email) throw new HttpError(422, 'Please keep an email address or a mobile number on your account');
 
       // A mobile or email already on someone else's account cannot be taken.
-      for (const identifier of [mobile, email]) {
+      for (const identifier of [mobile, email].filter(Boolean)) {
         const owner = await store.findCustomer(identifier);
         if (owner && owner.id !== current.id) {
           throw new HttpError(409, 'That mobile number or email already belongs to another account');
