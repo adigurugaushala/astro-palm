@@ -3607,6 +3607,9 @@
           <span class="sp-pill sp-pill--${enquiry ? 'gold' : (STATUS_TONE[c.status] || 'muted')}">${esc(statusLabel(c))}</span>
           ${c.unread ? `<span class="gm-row__unread">${c.unread} new</span>` : ''}
           ${enquiry || c.assignedTo ? '' : '<span class="gm-row__free">unclaimed</span>'}
+          <button type="button" class="gm-row__del" title="Delete case" style="background:transparent;border:1px solid rgba(185,28,28,0.35);color:#b91c1c;padding:3px 7px;border-radius:4px;cursor:pointer;font-size:11px;line-height:1;display:inline-flex;align-items:center;margin-left:4px" onclick="event.preventDefault(); event.stopPropagation(); gurujiDeleteSingleCase('${esc(c.orderId)}', '${esc((c.devotee || {}).name || c.orderId)}')">
+            <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
+          </button>
         </span>`;
       // An enquiry is not a paid case, so there is no case page to open.
       return enquiry
@@ -3784,6 +3787,10 @@
                 <option value="soonest" ${GURUJI.sort === 'soonest' ? 'selected' : ''}>Soonest appointment</option>
                 <option value="newest" ${GURUJI.sort === 'newest' ? 'selected' : ''}>Newest booking</option>
               </select>
+              ${all.length ? `
+              <button type="button" class="sp-btn" style="background:#8b1d24;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto" onclick="gurujiClearAllTestData()" title="Clear all test bookings and enquiries to go fresh live">
+                <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Clear Test Cases (Fresh Live)
+              </button>` : ''}
             </div>
             <div class="gm-colhead">
               <span aria-hidden="true"></span>
@@ -4157,6 +4164,37 @@
     GURUJI.q = v;
     clearTimeout(window.__gurujiSearchTimer);
     window.__gurujiSearchTimer = setTimeout(renderCaseList, 200);
+  };
+  window.gurujiClearAllTestData = async function() {
+    const ok = confirm('⚠️ ARE YOU SURE?\n\nThis will permanently delete all test bookings, test enquiries, seeker chat messages, test accounts, and uploaded test palm photos so the portal starts 100% fresh for live seekers.\n\nWebsite content, mantras, and services will NOT be affected.\n\nProceed with fresh live launch?');
+    if (!ok) return;
+    try {
+      toast('Clearing all test data...', 'info');
+      const res = await gurujiFetch('/api/guruji/clear-test-data', { method: 'POST' });
+      if (res && res.ok) {
+        toast('All test data cleared! Portal is fresh and live.', 'success');
+        await renderGuruji();
+      } else {
+        toast((res && res.message) || 'Failed to clear test data', 'error');
+      }
+    } catch (err) {
+      toast(err.message || 'Failed to clear test data', 'error');
+    }
+  };
+  window.gurujiDeleteSingleCase = async function(orderId, name) {
+    const ok = confirm(`Delete test case ${name} (${orderId})?`);
+    if (!ok) return;
+    try {
+      const res = await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+      if (res && res.ok) {
+        toast(`Case ${orderId} deleted.`, 'success');
+        await renderGuruji();
+      } else {
+        toast((res && res.error) || 'Failed to delete case', 'error');
+      }
+    } catch (err) {
+      toast(err.message || 'Failed to delete case', 'error');
+    }
   };
 
   /** A printable list of today's appointments, for the desk. */

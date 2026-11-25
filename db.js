@@ -141,6 +141,19 @@ class FileStore {
     writeJson(BOOKINGS_FILE, all);
     return all[i];
   }
+  async deleteBooking(orderId) {
+    const all = readJson(BOOKINGS_FILE, []);
+    const left = all.filter(b => b.orderId !== orderId);
+    if (left.length === all.length) return false;
+    writeJson(BOOKINGS_FILE, left);
+    try {
+      const msgs = readJson(MESSAGES_FILE, []).filter(m => m.orderId !== orderId);
+      writeJson(MESSAGES_FILE, msgs);
+      const media = readJson(MEDIA_FILE, []).filter(m => !(m.private && m.orderId === orderId));
+      writeJson(MEDIA_FILE, media);
+    } catch (_) {}
+    return true;
+  }
 
   // Reviews
   /** `all` includes the ones hidden from the public site; the site itself never asks for those. */
@@ -209,6 +222,11 @@ class FileStore {
     }
     return [...seen.entries()].sort((a, b) => b[1].localeCompare(a[1])).map(([k]) => k);
   }
+  async deleteThread(orderId) {
+    const msgs = readJson(MESSAGES_FILE, []).filter(m => m.orderId !== orderId);
+    writeJson(MESSAGES_FILE, msgs);
+    return true;
+  }
 
   // Enquiries (contact / booking requests)
   async createEnquiry(enquiry) {
@@ -231,6 +249,13 @@ class FileStore {
     if (pushHistory) all[i].history = [...(all[i].history || []), pushHistory];
     writeJson(ENQUIRIES_FILE, all);
     return all[i];
+  }
+  async deleteEnquiry(reference) {
+    const all = readJson(ENQUIRIES_FILE, []);
+    const left = all.filter(e => e.reference !== reference);
+    if (left.length === all.length) return false;
+    writeJson(ENQUIRIES_FILE, left);
+    return true;
   }
 
   // Site content edited in admin: { section: value }
@@ -386,6 +411,18 @@ class FileStore {
     const mobile = clean.replace(/\D/g, '').slice(-10);
     return all.filter(c => c.customerId === customerId || c.email === clean || (mobile && c.mobile === mobile));
   }
+  async clearTestData() {
+    writeJson(BOOKINGS_FILE, []);
+    writeJson(ENQUIRIES_FILE, []);
+    writeJson(MESSAGES_FILE, []);
+    writeJson(USERS_FILE, []);
+    writeJson(CONSENTS_FILE, []);
+    try {
+      const media = readJson(MEDIA_FILE, []).filter(m => !m.private);
+      writeJson(MEDIA_FILE, media);
+    } catch (_) {}
+    return { ok: true, cleared: ['bookings', 'enquiries', 'messages', 'users', 'consents', 'private_media'] };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -513,6 +550,14 @@ class MongoStore {
     const doc = await this.bookings.findOneAndUpdate({ orderId }, update, { returnDocument: 'after', includeResultMetadata: false });
     return doc ? stripMongoId(doc) : null;
   }
+  async deleteBooking(orderId) {
+    const res = await this.bookings.deleteOne({ orderId });
+    try {
+      await this.messages.deleteMany({ orderId });
+      await this.media.deleteMany({ private: true, orderId });
+    } catch (_) {}
+    return (res.deletedCount || 0) > 0;
+  }
 
   // Reviews
   async listReviews(limit, { all: wantAll = false } = {}) {
@@ -566,6 +611,10 @@ class MongoStore {
     for (const m of docs) if (!seen.has(m.orderId)) seen.set(m.orderId, m.at);
     return [...seen.keys()];
   }
+  async deleteThread(orderId) {
+    const res = await this.messages.deleteMany({ orderId });
+    return (res.deletedCount || 0) > 0;
+  }
 
   // Enquiries
   async createEnquiry(enquiry) {
@@ -585,6 +634,10 @@ class MongoStore {
     if (pushHistory) update.$push = { history: pushHistory };
     const doc = await this.enquiries.findOneAndUpdate({ reference }, update, { returnDocument: 'after', includeResultMetadata: false });
     return doc ? stripMongoId(doc) : null;
+  }
+  async deleteEnquiry(reference) {
+    const res = await this.enquiries.deleteOne({ reference });
+    return (res.deletedCount || 0) > 0;
   }
 
   // Site content
@@ -723,6 +776,27 @@ class MongoStore {
     if (mobile.length === 10) or.push({ mobile });
     const docs = await this.consents.find({ $or: or }).sort({ timestamp: -1 }).toArray();
     return docs.map(stripMongoId);
+  }
+  async clearTestData() {
+    const [b, e, m, u, c, med] = await Promise.all([
+      this.bookings.deleteMany({}),
+      this.enquiries.deleteMany({}),
+      this.messages.deleteMany({}),
+      this.users.deleteMany({}),
+      this.consents.deleteMany({}),
+      this.media.deleteMany({ private: true })
+    ]);
+    return {
+      ok: true,
+      deleted: {
+        bookings: b.deletedCount,
+        enquiries: e.deletedCount,
+        messages: m.deletedCount,
+        users: u.deletedCount,
+        consents: c.deletedCount,
+        privateMedia: med.deletedCount
+      }
+    };
   }
 }
 

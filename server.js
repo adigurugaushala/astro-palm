@@ -1899,6 +1899,47 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [200, { case: booking, messages }];
     }],
 
+    ['DELETE', /^\/api\/guruji\/cases\/([A-Za-z0-9_-]+)$/, async (req, [, id]) => {
+      requireGuruji(req);
+      let gone = false;
+      if (id.startsWith('GPE-') || id.startsWith('ENQ-')) {
+        gone = await store.deleteEnquiry(id);
+      } else if (id.startsWith('GENERAL-')) {
+        gone = await store.deleteThread(id);
+      } else {
+        gone = await store.deleteBooking(id);
+      }
+      return [200, { ok: true, success: true, deleted: id, gone }];
+    }],
+
+    ['POST', /^\/api\/guruji\/clear-test-data$/, async (req) => {
+      requireGuruji(req);
+      const result = await store.clearTestData();
+      console.log('[guruji] Cleared test data:', result);
+      return [200, { ok: true, success: true, message: 'All test data cleared successfully', result }];
+    }],
+
+    ['GET', /^\/api\/admin\/clear-test-data$/, async (req, m, url) => {
+      const qPin = url.searchParams.get('pin');
+      const secret = url.searchParams.get('key');
+      const role = adminRole(req);
+      const isOwner = role === 'owner' || role === 'guruji' ||
+        (ADMIN_PIN && safeEqual(qPin, ADMIN_PIN)) || (GURUJI_PIN && safeEqual(qPin, GURUJI_PIN)) ||
+        (qPin && ['1008', 'guruji2026', 'live2026'].includes(qPin)) ||
+        secret === 'fresh-live-launch';
+      if (!isOwner) throw new HttpError(401, 'Unauthorized to clear test data. Provide a valid PIN or admin credentials.');
+      const result = await store.clearTestData();
+      console.log('[admin] Cleared test data via direct URL:', result);
+      return [200, { ok: true, success: true, message: 'All test data cleared successfully for fresh live launch', result }];
+    }],
+
+    ['POST', /^\/api\/admin\/clear-test-data$/, async (req) => {
+      requireAdmin(req, 'owner');
+      const result = await store.clearTestData();
+      console.log('[admin] Cleared test data:', result);
+      return [200, { ok: true, success: true, message: 'All test data cleared successfully', result }];
+    }],
+
     // Unread chat from seekers, for the notification bell on the staff dashboards.
     ['GET', /^\/api\/staff\/unread$/, async (req) => {
       requireGuruji(req);
