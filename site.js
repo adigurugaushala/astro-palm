@@ -859,7 +859,7 @@
                       <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-900 text-xs font-mono font-bold flex items-center justify-center shrink-0">${idx + 1}</span>
                       <span>${esc(heading.replace(/^\d+\.\s*/, ''))}</span>
                     </h2>
-                    <div class="text-ink-2 text-sm sm:text-[15px] leading-relaxed whitespace-pre-line pl-9">
+                    <div class="text-ink-2 text-sm sm:text-[15.5px] leading-relaxed whitespace-pre-line pl-9">
                       ${esc(body)}
                     </div>
                   </article>
@@ -951,9 +951,9 @@
                 </div>
                 <div class="space-y-1.5 flex-1 text-xs">
                   <div class="font-bold text-night-2 font-serif text-sm">Govt. of Telangana Registered</div>
-                  <div class="text-[11px] text-ink-3">Labour Department · Form - II Certificate of Registration</div>
+                  <div class="text-[11.5px] text-ink-3">Labour Department · Form - II Certificate of Registration</div>
                   <div class="font-mono text-2xs font-bold text-amber-950 bg-white/90 px-2 py-1 rounded border border-amber-300 inline-block">Reg No: SEA/MED/ALO/NR/1439866/2026</div>
-                  <div class="text-[11px] text-ink-2">Employer: <strong>Mokkapati Satish Kumar</strong></div>
+                  <div class="text-[11.5px] text-ink-2">Employer: <strong>Mokkapati Satish Kumar</strong></div>
                   <div class="pt-2 flex flex-wrap gap-2">
                     <button type="button" onclick="openCertificateModal()" class="gold-gradient-btn px-3 py-1.5 rounded-lg text-2xs font-semibold flex items-center gap-1.5 shadow-xs">
                       <i class="fa-regular fa-id-card"></i> View Certificate
@@ -2848,7 +2848,7 @@
           ? ' · proxy variables set: ' + d.proxyEnv.map(esc).join(', ')
           : ' · no proxy variables set'}</p>
         ${(d.recentAttempts || []).length ? `
-          <h3 class="sp-h3 mt-4" style="font-size:1rem">Recent sign-in attempts</h3>
+          <h3 class="sp-h3 mt-4" style="font-size:calc(1rem + .5px)">Recent sign-in attempts</h3>
           <ul class="adm-attempts">${d.recentAttempts.map(a => `
             <li class="${a.outcome === 'allowed' ? 'is-ok' : 'is-bad'}">
               <time>${esc(new Date(a.at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }))}</time>
@@ -2975,7 +2975,7 @@
         <p class="text-sm text-ink-3 my-3">${rows.length} consent records found (Immutable Audit Trail)</p>
         <div class="overflow-x-auto bg-white rounded-2xl border border-line shadow-xs">
           <table class="w-full text-left text-xs">
-            <thead class="bg-amber-50/70 text-amber-950 font-bold border-b border-line uppercase tracking-wider text-[11px]">
+            <thead class="bg-amber-50/70 text-amber-950 font-bold border-b border-line uppercase tracking-wider text-[11.5px]">
               <tr>
                 <th class="p-3">Timestamp (IST)</th>
                 <th class="p-3">Seeker Name</th>
@@ -3860,7 +3860,7 @@
 
         <div class="gp-stats">
           ${stat('fa-file-lines', dash.pending, 'Pending Analysis', 'New and waiting', 'pending', 'rose')}
-          ${stat('fa-hourglass-half', dash.inprogress, 'In Progress', awaitingReport.length ? awaitingReport.length + ' reports to write' : 'Being worked on', 'inprogress', 'amber')}
+          ${stat('fa-hourglass-half', dash.inprogress, 'In Progress', awaitingReport.length ? awaitingReport.length + (awaitingReport.length === 1 ? ' report' : ' reports') + ' to write' : 'Being worked on', 'inprogress', 'amber')}
           ${stat('fa-calendar-day', dash.dueToday, 'Due Today', today.length ? 'Next at ' + fmtTime(startsAt(today[0])) : 'Clear day', 'all', 'maroon')}
           ${stat('fa-circle-check', dash.doneMonth, 'Completed', 'This month', 'completed', 'green')}
         </div>
@@ -4098,9 +4098,9 @@
     if (!w) return toast('Your browser blocked the print window.', 'error');
     w.document.write(`<!doctype html><title>Day sheet</title>
       <style>body{font:14px/1.5 system-ui,sans-serif;padding:2rem;color:#1c1917}
-      h1{font-size:1.3rem;margin:0 0 .25rem}p.sub{color:#78716c;margin:0 0 1.5rem}
+      h1{font-size:calc(1.3rem + .5px);margin:0 0 .25rem}p.sub{color:#78716c;margin:0 0 1.5rem}
       table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #e7e5e4;padding:.5rem;text-align:left;vertical-align:top}
-      th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#78716c}</style>
+      th{font-size:calc(.72rem + .5px);text-transform:uppercase;letter-spacing:.08em;color:#78716c}</style>
       <h1>Guruji Palmistry — day sheet</h1>
       <p class="sub">${new Date().toLocaleDateString('en-IN', { dateStyle: 'full' })} · ${rows.length} appointment${rows.length === 1 ? '' : 's'}</p>
       <table><thead><tr><th>Time</th><th>Seeker</th><th>Service</th><th>Reference</th><th>Status</th><th>Notes</th></tr></thead><tbody>
