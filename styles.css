@@ -2525,3 +2525,49 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .gp-slot { grid-template-columns: 74px 18px minmax(0, 1fr); } .gp-slot::before { left: 82px; }
 .gp-slot__time strong { white-space: nowrap; }
 @media (max-width: 800px) { .gp-slot { grid-template-columns: 62px 14px minmax(0, 1fr); } .gp-slot::before { left: 68px; } }
+
+/* ======================================= Guruji Portal footer (site's style) */
+body.staff-portal footer.gp-footer { display: block !important; }
+.gp-footer { margin-top: 1.5rem; }
+.case-page + .gp-footer { margin-top: 0; }
+.gp-band { position: relative; overflow: hidden; text-align: center; padding: 3.25rem 1.25rem;
+  background: linear-gradient(90deg, #4a1424 0%, #6e1c38 50%, #4a1424 100%); color: #fff; border-bottom: 1px solid rgb(var(--c-night-line)); }
+.gp-band__inner { position: relative; z-index: 1; max-width: 46rem; margin: 0 auto; display: grid; justify-items: center; gap: .9rem; }
+.gp-band__om { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; font-size: 1.3rem;
+  background: rgb(245 158 11 / .18); color: #fbbf24; border: 1px solid rgb(245 158 11 / .45); }
+.gp-band h2 { font-family: var(--font-serif, Georgia, serif); font-weight: 700; color: rgb(var(--c-gold-soft)); font-size: calc(clamp(1.6rem, 3.6vw, 2.35rem) + .5px); line-height: 1.2; }
+.gp-band p { color: rgb(244 244 245 / .85); font-size: calc(.9rem + .5px); line-height: 1.65; max-width: 36rem; }
+.gp-band__cta { display: flex; flex-wrap: wrap; gap: .9rem; justify-content: center; padding-top: .35rem; }
+.gp-band__primary { display: inline-flex; align-items: center; gap: .5rem; padding: .9rem 1.8rem; border-radius: .75rem; font-weight: 700; font-size: calc(.9rem + .5px); text-decoration: none; box-shadow: 0 14px 30px -12px rgb(0 0 0 / .55); }
+.gp-band__ghost { display: inline-flex; align-items: center; gap: .5rem; padding: .9rem 1.3rem; border-radius: .75rem; border: 1px solid rgb(245 158 11 / .45);
+  color: #fde68a; font-weight: 600; font-size: calc(.82rem + .5px); text-decoration: none; }
+.gp-band__ghost:hover { color: #fff; background: rgb(255 255 255 / .08); }
+.gp-band__lotus { position: absolute; top: 50%; width: 12rem; height: 10.5rem; color: rgb(233 178 92 / .28); transform: translateY(-50%); }
+.gp-band__lotus--l { left: -3.5rem; } .gp-band__lotus--r { right: -3.5rem; }
+.gp-foot { background: rgb(var(--c-night)); color: #d4d4d8; padding: 3rem 1.25rem 1.5rem; }
+.gp-foot__grid { max-width: 80rem; margin: 0 auto; display: grid; gap: 2.25rem; grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+.gp-foot__logo { display: inline-flex; align-items: center; gap: .65rem; text-decoration: none; }
+.gp-foot__mark { width: 2.5rem; height: 2.25rem; color: #e9b25c; }
+.gp-foot__logo span { font-family: 'Cinzel', serif; font-size: calc(1.125rem + .5px); letter-spacing: .1em; color: #f1d9b0; font-weight: 600; }
+.gp-foot__tag { margin-top: .75rem; font-size: 13.5px; letter-spacing: .14em; text-transform: uppercase; color: rgb(var(--c-gold-soft)); }
+.gp-foot__about { margin-top: .75rem; font-size: calc(.875rem + .5px); line-height: 1.65; color: #a1a1aa; max-width: 26rem; }
+.gp-foot nav { padding-left: 1.5rem; border-left: 1px solid rgb(var(--c-night-line)); }
+.gp-foot h4 { font-size: calc(.875rem + .5px); font-weight: 600; color: rgb(var(--c-cream)); margin-bottom: .8rem; }
+.gp-foot ul { display: grid; gap: .55rem; }
+.gp-foot a { color: #d4d4d8; font-size: calc(.875rem + .5px); text-decoration: none; }
+.gp-foot a:hover { color: #fcd34d; }
+.gp-foot li em { font-style: normal; margin-left: .3rem; padding: 0 .45rem; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: rgb(233 178 92 / .18); color: #f3c77a; }
+.gp-foot__base { max-width: 80rem; margin: 2.5rem auto 0; padding-top: 1.25rem; border-top: 1px solid rgb(var(--c-night-line));
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1.5rem; font-size: 12.5px; color: #a1a1aa; }
+.gp-foot__base i { color: #e9b25c; margin-right: .3rem; }
+@media (max-width: 900px) {
+  .gp-foot__grid { grid-template-columns: 1fr 1fr; }
+  .gp-foot__brand { grid-column: 1 / -1; }
+  .gp-foot nav { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 520px) {
+  .gp-band { padding: 2.5rem 1rem; } .gp-band__lotus { width: 7rem; height: 6rem; opacity: .6; }
+  .gp-band__lotus--l { left: -2.5rem; } .gp-band__lotus--r { right: -2.5rem; }
+  .gp-band__cta > a { width: 100%; justify-content: center; }
+  .gp-foot__grid { gap: 1.75rem; }
+}
