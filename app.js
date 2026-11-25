@@ -1486,8 +1486,57 @@ function closeFailureModalAndRetry() {
 // PALM PHOTO UPLOADER
 // ==========================================
 
-const REQUIRED_PHOTO_SLOTS = [1, 2, 3]; // left palm, right palm, little-finger edge (4 = back of hands, optional)
 state.handPhotos = {};
+state.selectedHand = "Right";
+
+window.handleHandChoiceChange = function(choice) {
+  state.selectedHand = choice;
+  state.handedness = choice === "Left" ? "Left-handed" : "Right-handed";
+  const hintText = document.getElementById("palm-hand-hint-text");
+  if (hintText) {
+    hintText.textContent = choice === "Left"
+      ? "Key Hint: Please upload ONLY Left hand images."
+      : "Key Hint: Please upload ONLY Right hand images.";
+  }
+  updateRequiredSlotsForHand(choice);
+};
+
+function getRequiredSlots() {
+  const hand = state.selectedHand || "Right";
+  // Hand chosen slot (1 for Left Palm, 2 for Right Palm) + Slot 3 (Side of Palm)
+  return hand === "Left" ? [1, 3] : [2, 3];
+}
+
+function updateRequiredSlotsForHand(choice) {
+  const leftCard = document.querySelector("input[onchange*='(1,']'")?.closest("div.border");
+  const rightCard = document.querySelector("input[onchange*='(2,']'")?.closest("div.border");
+  const leftBadge = leftCard?.querySelector("[data-upload-badge]");
+  const rightBadge = rightCard?.querySelector("[data-upload-badge]");
+
+  if (choice === "Left") {
+    if (leftCard) leftCard.classList.remove("opacity-40");
+    if (leftBadge && !state.handPhotos[1]) {
+      leftBadge.className = "inline-block mt-1.5 text-2xs font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full";
+      leftBadge.innerText = "Required";
+    }
+    if (rightCard) rightCard.classList.add("opacity-40");
+    if (rightBadge && !state.handPhotos[2]) {
+      rightBadge.className = "inline-block mt-1.5 text-2xs font-semibold text-ink-3 bg-sand px-2 py-0.5 rounded-full";
+      rightBadge.innerText = "Not needed (Left Hand chosen)";
+    }
+  } else {
+    if (rightCard) rightCard.classList.remove("opacity-40");
+    if (rightBadge && !state.handPhotos[2]) {
+      rightBadge.className = "inline-block mt-1.5 text-2xs font-semibold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full";
+      rightBadge.innerText = "Required";
+    }
+    if (leftCard) leftCard.classList.add("opacity-40");
+    if (leftBadge && !state.handPhotos[1]) {
+      leftBadge.className = "inline-block mt-1.5 text-2xs font-semibold text-ink-3 bg-sand px-2 py-0.5 rounded-full";
+      leftBadge.innerText = "Not needed (Right Hand chosen)";
+    }
+  }
+}
 
 function handleHandPhotoUpload(slotIndex, event) {
   const file = event.target.files[0];
@@ -1529,18 +1578,20 @@ function handleHandPhotoUpload(slotIndex, event) {
 async function submitPalmPhotosAndProceed(btn) {
   const okDetails = validateFields([
     { id: "devotee-fullname", rule: "name", msg: "Please enter your full name." },
+    { id: "devotee-gender", rule: "required", msg: "Please select your gender." },
     { id: "devotee-dob", rule: "required", msg: "Date of birth is needed for the reading." }
   ]);
   if (!okDetails) return;
 
-  const missing = REQUIRED_PHOTO_SLOTS.filter(i => !state.handPhotos[i]);
+  const requiredSlots = getRequiredSlots();
+  const missing = requiredSlots.filter(i => !state.handPhotos[i]);
   if (missing.length) {
     document.querySelectorAll("input[onchange^='handleHandPhotoUpload(']").forEach(inp => {
       const idx = Number(inp.getAttribute("onchange").match(/\((\d)/)[1]);
       const card = inp.closest("div.border");
       if (card && missing.includes(idx)) card.classList.add("border-rose-400");
     });
-    showVedicToast(`Please upload ${missing.length} more required photo${missing.length > 1 ? "s" : ""} (marked in red).`, "error");
+    showVedicToast(`Please upload your required ${state.selectedHand || ""} hand photo(s) (marked in red).`, "error");
     return;
   }
   if (btn && btn.disabled) return;
@@ -1548,6 +1599,9 @@ async function submitPalmPhotosAndProceed(btn) {
 
   const details = {
     name: document.getElementById("devotee-fullname").value,
+    gender: (document.getElementById("devotee-gender") ? document.getElementById("devotee-gender").value : "").trim(),
+    language: (document.getElementById("devotee-language") ? document.getElementById("devotee-language").value : "Telugu").trim(),
+    hand: state.selectedHand || "Right",
     gotram: document.getElementById("devotee-gotram").value,
     dob: document.getElementById("devotee-dob").value,
     tob: document.getElementById("devotee-tob").value,
@@ -1571,6 +1625,8 @@ async function submitPalmPhotosAndProceed(btn) {
 
   // Sync birth details
   state.user.name = document.getElementById("devotee-fullname").value;
+  state.user.gender = document.getElementById("devotee-gender") ? document.getElementById("devotee-gender").value : "";
+  state.user.language = document.getElementById("devotee-language") ? document.getElementById("devotee-language").value : "";
   state.user.gotram = document.getElementById("devotee-gotram").value;
   state.user.dob = document.getElementById("devotee-dob").value;
   state.user.tob = document.getElementById("devotee-tob").value;

@@ -975,9 +975,33 @@ textarea:focus {
 .chat__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; border-bottom: 1px solid rgb(var(--c-line)); background: rgb(var(--c-sand) / .6); }
 .chat__head h3 { font-family: var(--font-serif); font-weight: 700; font-size: calc(1.02rem + .5px); }
 .chat__state { font-size: calc(.72rem + .5px); text-transform: uppercase; letter-spacing: .1em; color: rgb(var(--c-ink-3)); }
-.chat__list { list-style: none; margin: 0; padding: .9rem; display: grid; gap: .6rem; overflow-y: auto; max-height: 48vh; flex: 1; }
-.chat__empty { color: rgb(var(--c-ink-3)); font-size: calc(.9rem + .5px); text-align: center; padding: 1.5rem 0; }
-.chat__list { align-content: start; }
+.chat__list {
+  list-style: none;
+  margin: 0;
+  padding: .9rem;
+  display: grid;
+  gap: .6rem;
+  overflow-y: scroll;
+  max-height: 48vh;
+  flex: 1;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: #c8963c rgb(var(--c-sand) / .8);
+}
+.chat__list::-webkit-scrollbar {
+  width: 8px;
+}
+.chat__list::-webkit-scrollbar-track {
+  background: rgb(var(--c-sand) / .8);
+  border-radius: 4px;
+}
+.chat__list::-webkit-scrollbar-thumb {
+  background: #c8963c;
+  border-radius: 4px;
+}
+.chat__list::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--c-maroon));
+}
 .chat-msg { max-width: 85%; align-self: start; background: rgb(var(--c-sand)); border-radius: 14px 14px 14px 4px; padding: .55rem .8rem; }
 .chat-msg--mine { margin-left: auto; justify-self: end; background: #f6e7cf; border-radius: 14px 14px 4px 14px; }
 .chat-msg__who { font-size: calc(.7rem + .5px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgb(var(--c-maroon)); }
@@ -1872,7 +1896,28 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .case-notes__state { font-size: calc(.85rem + .5px); color: rgb(var(--c-ink-3)); }
 .case-notes__state.is-ok { color: #1f7a45; font-weight: 700; }
 
-.gj-replies { display: flex; flex-wrap: wrap; gap: .35rem; padding: .6rem .75rem 0; border-top: 1px solid rgb(var(--c-line)); }
+.gj-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  padding: .6rem .75rem;
+  border-top: 1px solid rgb(var(--c-line));
+  max-height: 125px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c8963c rgb(var(--c-sand) / .8);
+}
+.gj-replies::-webkit-scrollbar {
+  width: 6px;
+}
+.gj-replies::-webkit-scrollbar-track {
+  background: rgb(var(--c-sand) / .8);
+  border-radius: 3px;
+}
+.gj-replies::-webkit-scrollbar-thumb {
+  background: #c8963c;
+  border-radius: 3px;
+}
 .gj-replies__label { width: 100%; margin: 0; font-size: calc(.78rem + .5px); font-weight: 700; color: rgb(var(--c-ink-3)); }
 .gj-chip { border: 1px solid rgb(var(--c-gold)); background: #fff8ec; color: rgb(var(--c-ink)); border-radius: 999px;
   padding: .35rem .7rem; font-size: calc(.82rem + .5px); line-height: 1.3; text-align: left; cursor: pointer; }
@@ -2113,6 +2158,134 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .palm-notebook textarea:focus { outline: none; border-color: #7a1f24; box-shadow: 0 0 0 3px rgba(122, 31, 36, .1); }
 .palm-notebook__state { font-size: calc(.75rem + .5px); color: #7a6668; min-height: 1em; }
 .palm-notebook__state.is-ok { color: #1f7a45; }
+
+/* ---- Voice recorder in photo viewer (Image 2) ---- */
+.palm-voicerecorder {
+  margin-top: .6rem;
+  padding: .75rem;
+  background: #fffdf8;
+  border: 1px solid #e3d6c3;
+  border-radius: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.pv-vr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .2rem;
+}
+.pv-vr-btn {
+  font-family: system-ui, sans-serif;
+  font-size: calc(.84rem + .5px);
+  font-weight: 700;
+  padding: .45rem .85rem;
+  border-radius: .5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  transition: all .15s ease;
+}
+.pv-vr-btn--record {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #c8963c;
+  color: #7a1f24;
+}
+.pv-vr-btn--record:hover {
+  background: #fdf3df;
+}
+.pv-vr-active {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  background: #fee2e2;
+  padding: .5rem .75rem;
+  border-radius: .5rem;
+  border: 1px solid #fca5a5;
+}
+.pv-vr-status {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.pv-vr-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc2626;
+  animation: pv-pulse 1.2s infinite;
+}
+@keyframes pv-pulse {
+  0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+.pv-vr-timer {
+  font-family: monospace;
+  font-size: calc(.92rem + .5px);
+  font-weight: 700;
+  color: #991b1b;
+}
+.pv-vr-btn--stop {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+.pv-vr-btn--stop:hover {
+  background: #b91c1c;
+}
+.pv-vr-review {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.pv-vr-actions {
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+}
+.pv-vr-btn--cancel {
+  background: #f3eadc;
+  color: #5c4749;
+  border: 1px solid #e3d6c3;
+}
+.pv-vr-btn--cancel:hover {
+  background: #e8d7be;
+}
+.pv-vr-btn--send {
+  background: #166534;
+  color: #fff;
+  border: none;
+}
+.pv-vr-btn--send:hover {
+  background: #14532d;
+}
+/* Audio attachment bubble */
+.chat-att--audio {
+  background: #fdfaf5;
+  border: 1px solid #e3d6c3;
+  border-radius: 12px;
+  padding: .6rem .8rem;
+  margin: .35rem 0;
+}
+.chat-att__audiohead {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: calc(.82rem + .5px);
+  font-weight: 700;
+  color: #54191c;
+  margin-bottom: .3rem;
+}
+.chat-att--audio audio {
+  width: 100%;
+  height: 36px;
+}
 @media (max-width: 899px) {
   .palm-viewer__body, .palm-viewer.book-left .palm-viewer__body { flex-direction: column; }
   .palm-notebook { width: 100%; height: 42vh; border-left: 0; border-right: 0; border-top: 1px solid #3b2b28; }

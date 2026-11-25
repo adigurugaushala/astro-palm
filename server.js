@@ -693,10 +693,10 @@ async function assertThreadBelongsTo(store, key, account) {
 
 function chatAttachment(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const kind = raw.kind === 'pdf' ? 'pdf' : raw.kind === 'image' ? 'image' : '';
+  const kind = raw.kind === 'pdf' ? 'pdf' : raw.kind === 'image' ? 'image' : raw.kind === 'audio' ? 'audio' : '';
   const mediaId = str(raw.mediaId, 60);
   if (!kind || !mediaId) return null;
-  return { kind, mediaId, name: str(raw.name, 120) || (kind === 'pdf' ? 'reading.pdf' : 'photo.jpg'), size: Number(raw.size) || 0 };
+  return { kind, mediaId, name: str(raw.name, 120) || (kind === 'pdf' ? 'reading.pdf' : kind === 'audio' ? 'voice-reading.webm' : 'photo.jpg'), size: Number(raw.size) || 0 };
 }
 
 /** The thread a seeker has with Guruji that is not about one booking.
@@ -1980,6 +1980,39 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const photos = (booking.photos || []).concat([{ ...marked, slot: 90 + ((booking.photos || []).filter(p => p.markedFrom).length) }]);
       await store.updateBooking(orderId, { photos });
       return [201, { marked }];
+    }],
+
+    ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/voice-note$/, async (req, [, orderId]) => {
+      requireGuruji(req);
+      rateLimit(req, 'voice-note', 60);
+      const body = await readJsonBody(req, 15 * 1024 * 1024);
+      const booking = await store.getBooking(orderId);
+      if (!booking) throw new HttpError(404, 'Case not found');
+      const rawType = str(body.type, 50) || 'audio/webm';
+      const type = rawType.split(';')[0].toLowerCase();
+      const ext = (type.includes('mp4') || type.includes('m4a')) ? '.m4a'
+        : type.includes('ogg') ? '.ogg'
+        : type.includes('wav') ? '.wav'
+        : (type.includes('mp3') || type.includes('mpeg')) ? '.mp3'
+        : '.webm';
+      const bytes = Buffer.from(String(body.data || '').replace(/^data:[^,]+,/, ''), 'base64');
+      if (!bytes.length) throw new HttpError(422, 'The voice recording is empty');
+      if (bytes.length > 15 * 1024 * 1024) throw new HttpError(413, 'The voice recording is too large');
+      const id = 'voice-' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      const name = str(body.name, 120) || `Voice reading - ${orderId}${ext}`;
+      await store.saveMedia({
+        id, type, size: bytes.length, private: true, orderId,
+        name, data: bytes.toString('base64'), createdAt: nowIso()
+      });
+      const message = {
+        id: 'msg-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
+        orderId, from: 'guruji', name: 'Guruji',
+        text: str(body.text, 500) || 'Here is your personalized voice reading from Guruji.',
+        attachment: { kind: 'audio', mediaId: id, name, size: bytes.length },
+        at: nowIso()
+      };
+      await store.addMessage(message);
+      return [201, { message, mediaId: id, name, size: bytes.length }];
     }],
 
     ['POST', /^\/api\/guruji\/cases\/([A-Z0-9-]+)\/report-file$/, async (req, [, orderId]) => {

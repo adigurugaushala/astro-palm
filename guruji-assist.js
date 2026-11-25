@@ -40,51 +40,9 @@
     live = null;
   }
 
-  /** Puts a "Speak" button beside a text box. What he says is added to the box. */
+  /** Speak text option removed per user request */
   function attachMic(box, opts = {}) {
-    if (!Recog || !box || box.dataset.gjMic) return null;
-    box.dataset.gjMic = '1';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'gj-mic' + (opts.compact ? ' gj-mic--compact' : '');
-    btn.setAttribute('aria-pressed', 'false');
-    btn.title = 'Speak instead of typing';
-    btn.innerHTML = '<i class="fa-solid fa-microphone" aria-hidden="true"></i><span>Speak</span>';
-    (opts.after || box).insertAdjacentElement('afterend', btn);
-
-    btn.addEventListener('click', () => {
-      if (live && live.btn === btn) { stopListening(); return; }
-      stopListening();
-      const rec = new Recog();
-      rec.lang = lang();
-      rec.continuous = true;
-      rec.interimResults = false;
-      rec.onresult = (ev) => {
-        let said = '';
-        for (let i = ev.resultIndex; i < ev.results.length; i++) if (ev.results[i].isFinal) said += ev.results[i][0].transcript;
-        said = said.trim();
-        if (!said) return;
-        const before = box.value;
-        const joiner = !before || /\s$/.test(before) ? '' : ' ';
-        box.value = before + joiner + said.charAt(0).toUpperCase() + said.slice(1);
-        box.dispatchEvent(new Event('input', { bubbles: true }));
-        box.scrollTop = box.scrollHeight;
-      };
-      rec.onerror = (ev) => {
-        const why = ev.error === 'not-allowed' ? 'Please allow the microphone for this site (the icon in the address bar).'
-          : ev.error === 'no-speech' ? 'Nothing was heard. Press Speak and talk a little closer.' : '';
-        if (why) say(why);
-        stopListening();
-      };
-      rec.onend = () => { if (live && live.rec === rec) stopListening(); };
-      try { rec.start(); } catch (e) { return; }
-      live = { rec, btn };
-      btn.classList.add('is-live');
-      btn.setAttribute('aria-pressed', 'true');
-      btn.querySelector('span').textContent = 'Listening… tap to stop';
-      box.focus();
-    });
-    return btn;
+    return null;
   }
 
   function say(msg, variant) {
@@ -126,7 +84,6 @@
           <span>Voice language</span>
           <select data-gj="lang">${LANGS.map(([v, l]) => `<option value="${v}"${v === lang() ? ' selected' : ''}>${l}</option>`).join('')}</select>
         </label>` : ''}
-        ${Recog ? '<span class="gj-bar__tip"><i class="fa-solid fa-microphone" aria-hidden="true"></i> Press <b>Speak</b> beside any box to talk instead of typing.</span>' : ''}
       </div>`;
   }
 
@@ -201,7 +158,6 @@
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
     });
-    attachMic(input, { compact: true });
 
     if (!('speechSynthesis' in window) || !list) return;
     const addSpeakers = () => list.querySelectorAll('.chat-msg:not(.chat-msg--mine):not([data-gj-tts])').forEach((li) => {

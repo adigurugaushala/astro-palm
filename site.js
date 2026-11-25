@@ -1813,6 +1813,19 @@
         </figcaption>
       </figure>`;
     }
+    if (a.kind === 'audio') {
+      return `<div class="chat-att chat-att--audio">
+        <div class="chat-att__audiohead">
+          <i class="fa-solid fa-microphone-lines text-maroon" aria-hidden="true"></i>
+          <span class="chat-att__name">${esc(a.name || 'Voice Reading')}</span>
+          <span class="chat-att__size">${kb} KB</span>
+        </div>
+        <audio controls data-chat-audio="${esc(url)}" preload="metadata" class="w-full"></audio>
+        <div class="mt-1">
+          <a href="${esc(withFlag(url, 'download=1'))}" class="chat-att__dl text-2xs" data-chat-file="${esc(withFlag(url, 'download=1'))}" download="${esc(a.name || 'voice-reading.webm')}">Download audio</a>
+        </div>
+      </div>`;
+    }
     return `<div class="chat-att chat-att--pdf">
       <i class="fa-regular fa-file-pdf" aria-hidden="true"></i>
       <span class="chat-att__name">${esc(a.name || 'reading.pdf')}</span>
@@ -1852,6 +1865,25 @@
         im.src = chatImgCache.get(url);
       } catch (e) { im.replaceWith(Object.assign(document.createElement('p'),
         { className: 'chat-att__gone', textContent: 'This photo is no longer available.' })); }
+    });
+  }
+
+  const chatAudioCache = new Map();
+  function loadChatAudio(list, headers) {
+    list.querySelectorAll('audio[data-chat-audio]').forEach(async (aud) => {
+      const url = aud.getAttribute('data-chat-audio');
+      aud.removeAttribute('data-chat-audio');
+      try {
+        if (!chatAudioCache.has(url)) {
+          const res = await fetch(url, { headers });
+          if (!res.ok) throw new Error('not available');
+          chatAudioCache.set(url, URL.createObjectURL(await res.blob()));
+        }
+        aud.src = chatAudioCache.get(url);
+      } catch (e) {
+        aud.replaceWith(Object.assign(document.createElement('p'),
+          { className: 'chat-att__gone', textContent: 'This voice reading is no longer available.' }));
+      }
     });
   }
 
@@ -1936,6 +1968,7 @@
           const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
           list.insertAdjacentHTML('beforeend', res.messages.map(m => chatBubble(m, you, fileBase)).join(''));
           loadChatImages(list, headers);
+          loadChatAudio(list, headers);
           CHAT.lastAt = res.messages[res.messages.length - 1].at;
           if (atBottom) list.scrollTop = list.scrollHeight;
         }
@@ -4387,9 +4420,11 @@
               <h2 class="sp-h3">Seeker</h2>
               <dl class="case-facts">
                 ${field('Mobile', d.mobile)}${field('Email', d.email)}${field('Gotram', d.gotram)}
+                ${field('Gender', d.gender)}
+                ${field('Conversation Language', d.language)}
                 ${field('Date of birth', [d.dob, d.tob].filter(Boolean).join(' at '))}
-                ${field('Place of birth', d.pob)}${field('Co-ordinates', d.lat != null && d.lon != null ? `${d.lat}, ${d.lon}` : '')}
-                ${field('Hand', c.handedness)}${field('Appointment', when ? when.toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'short' }) : '')}
+                ${field('Address', d.pob)}${field('Co-ordinates', d.lat != null && d.lon != null ? `${d.lat}, ${d.lon}` : '')}
+                ${field('Hand', c.handedness || d.hand)}${field('Appointment', when ? when.toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'short' }) : '')}
               </dl>
               ${d.questions ? `<p class="sp-text"><strong>Questions:</strong> ${esc(d.questions)}</p>` : ''}
             </div>
@@ -4494,7 +4529,6 @@
       notesBox.__t = setTimeout(() => writeCaseNotes(c.orderId, notesBox.value, null).catch(() => {}), 2000);
     });
     if (assist) {
-      root.querySelectorAll('.case-page textarea').forEach((t) => { if (!t.hasAttribute('data-chat-input')) assist.attachMic(t); });
       assist.enhanceChat(root.querySelector('[data-case-chat]'));
     }
 
@@ -4619,6 +4653,46 @@
           <button type="button" class="palm-notebook__label" data-pv="booklabel" title="Start a new line for this photo"></button>
           <textarea data-pv="booktext" spellcheck="true" placeholder="Write what you see while you look at the palm…"></textarea>
           <span class="palm-notebook__state" data-pv="bookstate" aria-live="polite"></span>
+
+          <!-- Voice Recorder for Guruji's reading (Image 2) -->
+          <div class="palm-voicerecorder" data-pv="voicerecorder">
+            <div class="pv-vr-head">
+              <span class="font-bold text-xs text-ink flex items-center gap-1.5">
+                <i class="fa-solid fa-microphone-lines text-maroon" aria-hidden="true"></i> Voice Reading
+              </span>
+              <span class="text-2xs text-ink-3">Record &amp; send audio</span>
+            </div>
+            <!-- Idle state -->
+            <div class="pv-vr-idle" data-pv="vr-idle">
+              <button type="button" class="pv-vr-btn pv-vr-btn--record" data-pv="vr-start">
+                <i class="fa-solid fa-circle text-rose-600 text-xs" aria-hidden="true"></i> Record Voice Reading
+              </button>
+            </div>
+            <!-- Recording active state -->
+            <div class="pv-vr-active" data-pv="vr-active" hidden>
+              <div class="pv-vr-status">
+                <span class="pv-vr-pulse"></span>
+                <span class="pv-vr-timer" data-pv="vr-timer">00:00</span>
+                <span class="text-xs text-rose-800 font-semibold">Recording… speak your reading</span>
+              </div>
+              <button type="button" class="pv-vr-btn pv-vr-btn--stop" data-pv="vr-stop">
+                <i class="fa-solid fa-stop text-xs" aria-hidden="true"></i> Stop
+              </button>
+            </div>
+            <!-- Review state -->
+            <div class="pv-vr-review" data-pv="vr-review" hidden>
+              <audio data-pv="vr-audio" controls class="w-full my-2 h-9"></audio>
+              <div class="pv-vr-actions">
+                <button type="button" class="pv-vr-btn pv-vr-btn--cancel" data-pv="vr-cancel">
+                  <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i> Cancel
+                </button>
+                <button type="button" class="pv-vr-btn pv-vr-btn--send" data-pv="vr-send">
+                  <i class="fa-solid fa-paper-plane text-xs" aria-hidden="true"></i> Send to Seeker
+                </button>
+              </div>
+            </div>
+            <div class="pv-vr-msg text-2xs mt-1" data-pv="vr-msg" aria-live="polite"></div>
+          </div>
         </aside>
         <aside class="palm-checklist" data-pv="checkpanel" hidden aria-label="Assessment Checklist">
           <div class="palm-checklist__head">
@@ -4717,11 +4791,131 @@
       bookText.scrollTop = bookText.scrollHeight;
       bookText.dispatchEvent(new Event('input'));
     }
-    if (window.GurujiAssist && typeof window.GurujiAssist.attachMic === 'function') {
-      try { window.GurujiAssist.attachMic(bookText); } catch (e) { /* typing still works */ }
-    }
     pullBook();
     paintBook();
+
+    // ---- Voice recorder in the viewer (Image 2) -----------------------------
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioBlob = null;
+    let recTimer = null;
+    let recSeconds = 0;
+
+    const vrIdle = el('vr-idle'), vrActive = el('vr-active'), vrReview = el('vr-review');
+    const vrTimer = el('vr-timer'), vrAudio = el('vr-audio'), vrMsg = el('vr-msg');
+
+    function setVrMsg(text, tone) {
+      if (!vrMsg) return;
+      vrMsg.textContent = text;
+      vrMsg.className = 'pv-vr-msg text-2xs mt-1 ' + (tone === 'ok' ? 'text-emerald-700 font-semibold' : tone === 'err' ? 'text-rose-700 font-semibold' : 'text-ink-3');
+    }
+
+    async function startVoiceRecord() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setVrMsg('Audio recording is not supported in this browser.', 'err');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+          : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+        mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) audioChunks.push(e.data);
+        };
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          const finalMime = mediaRecorder.mimeType || 'audio/webm';
+          audioBlob = new Blob(audioChunks, { type: finalMime });
+          if (vrAudio) {
+            vrAudio.src = URL.createObjectURL(audioBlob);
+          }
+          if (vrActive) vrActive.hidden = true;
+          if (vrReview) vrReview.hidden = false;
+          setVrMsg('Listen to your recording. Press "Send to Seeker" to send it.', 'ok');
+        };
+
+        mediaRecorder.start(250);
+        recSeconds = 0;
+        if (vrIdle) vrIdle.hidden = true;
+        if (vrReview) vrReview.hidden = true;
+        if (vrActive) vrActive.hidden = false;
+        setVrMsg('Recording voice reading… speak clearly into your microphone.');
+        clearInterval(recTimer);
+        recTimer = setInterval(() => {
+          recSeconds++;
+          const mins = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+          const secs = String(recSeconds % 60).padStart(2, '0');
+          if (vrTimer) vrTimer.textContent = `${mins}:${secs}`;
+          if (recSeconds >= 900) stopVoiceRecord();
+        }, 1000);
+      } catch (err) {
+        setVrMsg('Microphone access denied: ' + (err.message || 'Please check mic permissions.'), 'err');
+      }
+    }
+
+    function stopVoiceRecord() {
+      clearInterval(recTimer);
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.stop(); } catch (e) {}
+      }
+    }
+
+    function cancelVoiceRecord() {
+      clearInterval(recTimer);
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.stop(); } catch (e) {}
+      }
+      audioBlob = null;
+      audioChunks = [];
+      if (vrAudio) vrAudio.src = '';
+      if (vrActive) vrActive.hidden = true;
+      if (vrReview) vrReview.hidden = true;
+      if (vrIdle) vrIdle.hidden = false;
+      setVrMsg('');
+    }
+
+    async function sendVoiceRecord(sendBtn) {
+      if (!audioBlob) {
+        setVrMsg('No voice recording to send.', 'err');
+        return;
+      }
+      const label = sendBtn.innerHTML;
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Sending…';
+      setVrMsg('Sending voice reading to seeker…');
+      try {
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          try {
+            const base64Data = reader.result;
+            const res = await adminFetch(`/api/guruji/cases/${encodeURIComponent(caseData.orderId)}/voice-note`, {
+              method: 'POST',
+              body: {
+                data: base64Data,
+                type: audioBlob.type || 'audio/webm',
+                name: `Voice Reading - ${caseData.orderId}.webm`,
+                text: `Voice reading on ${photoLabel()} from Guruji.`
+              }
+            });
+            toast('Voice reading sent to seeker!', 'success');
+            setVrMsg('Voice reading sent successfully! ✓', 'ok');
+            setTimeout(cancelVoiceRecord, 2000);
+          } catch (err) {
+            setVrMsg('Failed to send voice reading: ' + (err.message || 'Server error'), 'err');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = label;
+          }
+        };
+      } catch (err) {
+        setVrMsg('Failed to process recording: ' + err.message, 'err');
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = label;
+      }
+    }
 
     // ---- Checklist beside the photo -----------------------------------------
     const checkPanel = el('checkpanel'), checkBody = el('checkbody'), checkBadge = el('checkbadge');
@@ -4985,6 +5179,10 @@
           setBook(false);
           setChecklist(true);
           break;
+        case 'vr-start': startVoiceRecord(); break;
+        case 'vr-stop': stopVoiceRecord(); break;
+        case 'vr-cancel': cancelVoiceRecord(); break;
+        case 'vr-send': await sendVoiceRecord(btn); break;
         // Undo takes back the last thing added, whichever kind it was.
         case 'undo':
           if (notes.length && (!strokes.length || noting)) {
@@ -5073,6 +5271,7 @@
     window.addEventListener('popstate', onPop);
 
     function close() {
+      cancelVoiceRecord();
       flushBook();   // whatever is still waiting to save goes now
       if (viewerAssessment && viewerAssessment.flush) {
         viewerAssessment.flush().catch(() => {});
