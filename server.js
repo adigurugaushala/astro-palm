@@ -541,8 +541,14 @@ async function getContent(store) {
   try { overrides = await store.getContentOverrides(); } catch (e) { console.error('[server] content overrides unavailable:', e.message); }
   const merged = { ...DEFAULT_CONTENT };
   for (const k of CONTENT_SECTIONS) if (overrides[k] !== undefined) merged[k] = overrides[k];
-  if (merged.about && (!merged.about.portrait || merged.about.portrait.includes('img-mwvpeyvaf2f031'))) {
-    merged.about.portrait = DEFAULT_CONTENT.about.portrait;
+  if (merged.about) {
+    if (!merged.about.portrait || merged.about.portrait.includes('img-mwvpeyvaf2f031')) {
+      merged.about.portrait = DEFAULT_CONTENT.about.portrait;
+    }
+    const j = (merged.about.sections || []).find(s => s.id === 'journey');
+    if (!j || !j.paragraphs || !j.paragraphs.length) {
+      merged.about.sections = DEFAULT_CONTENT.about.sections;
+    }
   }
   store.__contentCache = { at: Date.now(), value: merged };
   return merged;
@@ -553,6 +559,15 @@ function publicContent(content) {
     out[k] = LIST_SECTIONS_WITH_PUBLISH.includes(k) && Array.isArray(content[k])
       ? content[k].filter(item => item && item.published !== false)
       : content[k];
+  }
+  if (out.about) {
+    if (!out.about.portrait || out.about.portrait.includes('img-mwvpeyvaf2f031')) {
+      out.about.portrait = DEFAULT_CONTENT.about.portrait;
+    }
+    const j = (out.about.sections || []).find(s => s.id === 'journey');
+    if (!j || !j.paragraphs || !j.paragraphs.length) {
+      out.about.sections = DEFAULT_CONTENT.about.sections;
+    }
   }
   if (TEST_ONE_RUPEE) {
     if (Array.isArray(out.services)) {

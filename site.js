@@ -362,26 +362,33 @@
 
   RENDER.about = () => {
     const a = C().about;
-    const sec = (id) => (a.sections || []).find(s => s.id === id);
+    const defaultAbout = (window.GURUJI_CONTENT && window.GURUJI_CONTENT.about) || {};
+    const defaultSections = defaultAbout.sections || [];
+    const sec = (id) => {
+      const found = (a.sections || []).find(s => s.id === id);
+      if (found && (found.paragraphs || (found.body && found.body.trim()))) return found;
+      return defaultSections.find(s => s.id === id);
+    };
     const block = (s) => !s ? '' : `
       <div class="sp-panel space-y-4">
         <h2 class="sp-h3 text-2xl font-serif text-amber-950">${esc(s.title)}</h2>
         ${s.paragraphs ? s.paragraphs.map(p => `<p class="sp-text leading-relaxed text-ink-2">${p}</p>`).join('') : s.body ? `<p class="sp-text leading-relaxed text-ink-2">${esc(s.body)}</p>` : ''}
         ${s.list ? `<ul class="sp-ticks">${s.list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
       </div>`;
+    const approachSec = sec('approach');
     return `
-      ${hero({ eyebrow: 'About Guruji', title: a.name, sub: a.intro, crumbs: crumbs([['Home', '/'], ['About Guruji']]) })}
+      ${hero({ eyebrow: 'About Guruji', title: a.name || defaultAbout.name, sub: a.intro || defaultAbout.intro, crumbs: crumbs([['Home', '/'], ['About Guruji']]) })}
       <section class="sp-section">
         <div class="sp-wrap grid gap-10 lg:grid-cols-[340px_1fr] items-start">
           <div class="space-y-4">
             <figure class="sp-portrait">
-              <img src="${esc(a.portrait || '/assets/adiguru_swamiji_portrait.jpg')}" alt="Portrait of ${esc(a.name)}" onerror="this.onerror=null;this.src='/assets/adiguru_swamiji_portrait.jpg';">
-              <figcaption><strong>${esc(a.name)}</strong></figcaption>
+              <img src="${esc(a.portrait || '/assets/adiguru_swamiji_portrait.jpg')}" alt="Portrait of ${esc(a.name || 'Adiguru Swamiji')}" onerror="this.onerror=null;this.src='/assets/adiguru_swamiji_portrait.jpg';">
+              <figcaption><strong>${esc(a.name || 'Adiguru Swamiji')}</strong></figcaption>
             </figure>
           </div>
           <div class="space-y-6">
             ${block(sec('journey'))}
-            ${sec('approach') ? `<blockquote class="sp-quote"><p class="text-lg italic font-serif leading-relaxed text-amber-900">${esc(sec('approach').body)}</p><cite class="mt-2 block font-sans font-semibold text-xs tracking-wider uppercase text-amber-800">— ${esc(sec('approach').title)}</cite></blockquote>` : ''}
+            ${approachSec && approachSec.body ? `<blockquote class="sp-quote"><p class="text-lg italic font-serif leading-relaxed text-amber-900">${esc(approachSec.body)}</p><cite class="mt-2 block font-sans font-semibold text-xs tracking-wider uppercase text-amber-800">— ${esc(approachSec.title)}</cite></blockquote>` : ''}
           </div>
         </div>
       </section>`;
@@ -5129,8 +5136,14 @@
       else if (path.startsWith('/guruji') && typeof renderGuruji === 'function') renderGuruji();
     }
     if (content && content.content) {
-      if (content.content.about && (!content.content.about.portrait || content.content.about.portrait.includes('img-mwvpeyvaf2f031'))) {
-        content.content.about.portrait = '/assets/adiguru_swamiji_portrait.jpg';
+      if (content.content.about) {
+        if (!content.content.about.portrait || content.content.about.portrait.includes('img-mwvpeyvaf2f031')) {
+          content.content.about.portrait = '/assets/adiguru_swamiji_portrait.jpg';
+        }
+        const j = (content.content.about.sections || []).find(s => s.id === 'journey');
+        if (!j || !j.paragraphs || !j.paragraphs.length) {
+          content.content.about.sections = window.GURUJI_CONTENT.about.sections;
+        }
       }
       SITE.content = Object.assign({}, window.GURUJI_CONTENT, content.content);
       if (content.content.testOneRupee) {
