@@ -1349,7 +1349,7 @@
     if (pageId === 'home') renderHome();
     if (pageId === 'messages') setTimeout(bindMessages, 0);
     baseShowPage(target);
-    if (opts.keepScroll) window.scrollTo({ top: 0 });
+    if (!opts.keepScroll) window.scrollTo({ top: 0 });
 
     // Header highlight
     const nav = NAV_FOR[pageId];
