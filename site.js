@@ -3370,7 +3370,7 @@
   // -------------------------------------------------------------------------
   // cols holds the filter for each column of the table, which is what the
   // Filter button offers: seeker name, service name, booking id and status.
-  const GURUJI = { list: [], current: null, view: 'pending', section: '', q: '', sort: 'soonest',
+  const GURUJI = { list: [], current: null, view: 'dashboard', section: '', q: '', sort: 'soonest',
     cols: { seeker: '', service: '', booking: '', status: '' } };
   const gurujiFetch = (url, opts = {}) => {
     const headers = Object.assign({}, opts.headers);
@@ -3491,6 +3491,7 @@
       unread: all.reduce((t, c) => t + (c.unread || 0), 0)
     };
     const views = {
+      all: () => all.slice(),
       pending: () => all.filter(STAGE.pending),
       inprogress: () => all.filter(STAGE.inprogress),
       completed: () => all.filter(STAGE.completed),
@@ -3498,7 +3499,7 @@
       unread: () => all.filter(c => c.unread)
     };
     const q = GURUJI.q.trim().toLowerCase();
-    let list = (views[GURUJI.view] || views.pending)();
+    let list = (views[GURUJI.view] || views.all)();
     if (GURUJI.section) list = list.filter((c) => c.section === GURUJI.section);
     // The filter works on the columns of the table, one control per column.
     const colOf = {
@@ -3546,28 +3547,49 @@
     const folder = (id, label, icon, n) => `<a href="#" class="gm-folder${GURUJI.view === id ? ' is-active' : ''}" onclick="event.preventDefault(); gurujiView('${id}')">
         <i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
 
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const dash = {
+      pending: counts.pending,
+      inprogress: counts.inprogress,
+      doneMonth: all.filter(c => STAGE.completed(c) && new Date(c.updatedAt || c.createdAt || 0) >= monthStart).length,
+      dueToday: all.filter(c => isToday(c) && !STAGE.completed(c)).length
+    };
+    const workspaceCase = all.filter(STAGE.inprogress).sort((a, b) => (startsAt(a) || '9999').localeCompare(startsAt(b) || '9999'))[0]
+      || all.filter(c => STAGE.pending(c) && c.kind !== 'enquiry')[0];
+    const navItem = (label, icon, on, attrs, n) => `<a ${/href=/.test(attrs) ? '' : 'href="#" '}class="gp-nav${on ? ' is-active' : ''}" ${attrs}><i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
+    const onAssign = ['all', 'pending', 'inprogress', 'completed', 'unread'].includes(GURUJI.view);
+
     root.innerHTML = `
-      <div class="gm">
-        <header class="gm-top">
-          <a href="/guruji" data-link class="gm-logo"><i class="fa-solid fa-hands-praying" aria-hidden="true"></i><span>Guruji <b>cases</b></span></a>
+      <div class="gm gp">
+        <header class="gm-top gp-top">
+          <a href="/guruji" data-link class="gp-brandmark" aria-label="Guruji Portal home"><i class="fa-solid fa-hand" aria-hidden="true"></i></a>
+          <div class="gp-title"><strong>Guruji Palmistry – Guruji Portal <span>(Practitioner Workspace)</span></strong><small>Review · Analyse · Correlate · Create Reports · Guide Seekers</small></div>
           <input class="gm-search" type="search" value="${esc(GURUJI.q)}" placeholder="Search name, mobile or reference…" oninput="gurujiSearch(this.value)" aria-label="Search cases">
           <div class="gm-tools">
             <button type="button" class="gm-icon" title="Unread messages from seekers" aria-label="${counts.unread} unread message${counts.unread === 1 ? '' : 's'}" onclick="gurujiView('unread')">
               <i class="fa-regular fa-bell" aria-hidden="true"></i>${counts.unread ? `<span class="gm-badge">${counts.unread > 99 ? '99+' : counts.unread}</span>` : ''}
             </button>
             <button type="button" class="gm-icon" title="Refresh" aria-label="Refresh the case list" onclick="renderGuruji()"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+            <span class="gp-me"><span class="gp-me__avatar" aria-hidden="true">ॐ</span><span>${esc(ADMIN.email ? ADMIN.email.split('@')[0] : 'Guruji')}</span></span>
             <button type="button" class="gm-signout" onclick="adminLogout(); renderGuruji()">Sign out</button>
           </div>
         </header>
         <div class="gm-body">
-          <aside class="gm-side">
-            <button type="button" class="gm-compose" onclick="gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i> Day sheet</button>
-            <nav class="gm-folders" aria-label="Case folders">
+          <aside class="gm-side gp-side">
+            <div class="gp-portal"><i class="fa-solid fa-hand" aria-hidden="true"></i><span><strong>Guruji Portal</strong><small>Guruji Palmistry®</small></span></div>
+            <nav class="gp-navs" aria-label="Guruji portal">
+              ${navItem('Dashboard', 'fa-house', GURUJI.view === 'dashboard', `onclick="event.preventDefault(); gurujiView('dashboard')"`)}
+              ${navItem('Assignments', 'fa-clipboard-list', onAssign, `onclick="event.preventDefault(); gurujiView('all')"`, counts.pending + counts.inprogress)}
+              ${navItem('Analysis Workspace', 'fa-hand-sparkles', false, workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link` : `onclick="event.preventDefault(); toast('No case is waiting for analysis.')"`)}
+              ${navItem('Assessment Checklist', 'fa-table-list', false, workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link onclick="gurujiOpenChecklist('${esc(workspaceCase.orderId)}')"` : `onclick="event.preventDefault(); toast('Open a case to fill its checklist.')"`)}
+              ${navItem('Day Sheet', 'fa-print', false, `onclick="event.preventDefault(); gurujiPrintDay()"`)}
+            </nav>
+            ${onAssign ? `<nav class="gm-folders" aria-label="Case folders">
               ${folder('pending', 'Pending', 'fa-hourglass-half', counts.pending)}
               ${folder('inprogress', 'In progress', 'fa-spinner', counts.inprogress)}
               ${folder('completed', 'Completed', 'fa-circle-check', counts.completed)}
-            </nav>
-            ${sections.length > 1 ? `<nav class="gm-folders gm-folders--sections" aria-label="Sections">
+            </nav>` : ''}
+            ${sections.length > 1 && onAssign ? `<nav class="gm-folders gm-folders--sections" aria-label="Sections">
               <span class="gm-sectionhead">Sections</span>
               ${sectionLink('', 'All services', all.length)}
               ${sections.map((sn) => sectionLink(sn, sn, all.filter((c) => c.section === sn).length)).join('')}
@@ -3578,7 +3600,12 @@
               ${next ? `<span>${esc((next.devotee || {}).name || '')}</span>` : '<span>Nothing booked ahead</span>'}
             </div>
           </aside>
+          ${GURUJI.view === 'dashboard' ? gurujiDashboardHtml({ all, dash, counts, list: all, STAGE, isToday, startsAt, workspaceCase, statusLabel }) : `
           <main class="gm-main">
+            <div class="gp-tabs gp-tabs--list">
+              ${[['all', 'All', all.length], ['pending', 'Pending', counts.pending], ['inprogress', 'In Progress', counts.inprogress], ['completed', 'Completed', counts.completed]]
+                .map(([v, l, n]) => `<a href="#" class="${GURUJI.view === v ? 'is-active' : ''}" onclick="event.preventDefault(); gurujiView('${v}')">${l} (${n})</a>`).join('')}
+            </div>
             <div class="gm-listhead">
               <span class="gm-count">${list.length} ${list.length === 1 ? 'case' : 'cases'}</span>
               <details class="gm-filter"${activeCols ? ' open' : ''}>
@@ -3627,9 +3654,78 @@
             </div>
             <div class="gm-rows">${list.length ? list.map(row).join('')
               : `<p class="gm-empty">${all.length ? 'Nothing matches that.' : 'No paid bookings yet.'}</p>`}</div>
-          </main>
+          </main>`}
         </div>
       </div>`;
+  }
+
+  /** Opens a case straight on its assessment checklist tab. */
+  window.gurujiOpenChecklist = (orderId) => { GURUJI.caseTab = 'assessment'; GURUJI.caseTabFor = orderId; };
+
+  /** Guruji's home: the day at a glance, then straight into the work. */
+  function gurujiDashboardHtml({ all, dash, counts, STAGE, isToday, startsAt, workspaceCase, statusLabel }) {
+    const stat = (icon, n, label, sub, view) => `<button type="button" class="gp-stat" onclick="gurujiView('${view}')">
+      <i class="fa-solid ${icon}" aria-hidden="true"></i><strong>${n}</strong><span>${label}${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+    const pill = (c) => {
+      const st = statusLabel(c);
+      const cls = STAGE.completed(c) ? 'done' : STAGE.pending(c) ? 'new' : isToday(c) ? 'due' : 'prog';
+      const label = STAGE.completed(c) ? 'Completed' : STAGE.pending(c) ? (c.kind === 'enquiry' ? 'Enquiry' : 'New') : isToday(c) ? 'Due today' : 'In progress';
+      return `<span class="gp-pill gp-pill--${cls}" title="${esc(st)}">${label}</span>`;
+    };
+    const today = all.filter(c => isToday(c) && !STAGE.completed(c));
+    const upcoming = (today.length ? today : all.filter(c => !STAGE.completed(c) && c.kind !== 'enquiry'))
+      .sort((a, b) => (startsAt(a) || '9999').localeCompare(startsAt(b) || '9999')).slice(0, 6);
+    const recent = all.filter(c => !STAGE.completed(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6);
+    const action = (c) => STAGE.pending(c) ? 'Analyse' : 'Continue';
+    const link = (c) => c.kind === 'enquiry' ? '' : `href="/guruji/${esc(c.orderId)}" data-link`;
+    return `
+      <main class="gm-main gp-main">
+        <section class="gp-hello">
+          <div><h1>Namaste Guruji,</h1><p>Here is your consultation overview for ${esc(new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }))}.</p></div>
+          <span class="gp-hello__art" aria-hidden="true"></span>
+        </section>
+        <div class="gp-stats">
+          ${stat('fa-file-lines', dash.pending, 'Pending Analysis', '', 'pending')}
+          ${stat('fa-hourglass-half', dash.inprogress, 'In Progress', '', 'inprogress')}
+          ${stat('fa-circle-check', dash.doneMonth, 'Completed', 'This month', 'completed')}
+          ${stat('fa-calendar-day', dash.dueToday, 'Due Today', '', 'all')}
+        </div>
+        <div class="gp-grid">
+          <section class="gp-card">
+            <header><h2>${today.length ? `Today's Assignments (${today.length})` : 'Coming Up'}</h2><a href="#" onclick="event.preventDefault(); gurujiView('all')">View all</a></header>
+            ${upcoming.length ? `<ul class="gp-list">${upcoming.map(c => `<li><a ${link(c)}>
+              <i class="fa-regular fa-user" aria-hidden="true"></i>
+              <span class="gp-list__ref">${esc(c.orderId)}</span>
+              <span class="gp-list__svc">${esc((c.service && c.service.title) || 'Enquiry')}<small>${esc((c.devotee || {}).name || '')}${startsAt(c) ? ' · ' + esc(new Date(startsAt(c)).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) : ''}</small></span>
+              ${pill(c)}<i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a></li>`).join('')}</ul>`
+              : '<p class="gm-empty">Nothing waiting. Enjoy the quiet.</p>'}
+          </section>
+          <section class="gp-card">
+            <header><h2>Quick Actions</h2></header>
+            <div class="gp-quick">
+              <a href="#" onclick="event.preventDefault(); gurujiView('all')"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>View Assignments</span></a>
+              <a ${workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link` : 'href="#" onclick="event.preventDefault()"'}><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i><span>Start Analysis</span></a>
+              <a ${workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link onclick="gurujiOpenChecklist('${esc(workspaceCase.orderId)}')"` : 'href="#" onclick="event.preventDefault()"'}><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>Assessment Checklist</span></a>
+              <a href="#" onclick="event.preventDefault(); gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i><span>Day Sheet</span></a>
+            </div>
+          </section>
+        </div>
+        <section class="gp-card">
+          <header><h2>Pending Assignments</h2><div class="gp-tabs">
+            ${[['all', 'All', all.length], ['pending', 'Pending', counts.pending], ['inprogress', 'In Progress', counts.inprogress], ['completed', 'Completed', counts.completed]]
+              .map(([v, l, n]) => `<a href="#" onclick="event.preventDefault(); gurujiView('${v}')">${l} (${n})</a>`).join('')}</div></header>
+          ${recent.length ? `<div class="gp-table" role="table">
+            <div class="gp-tr gp-th" role="row"><span>Booking ID</span><span>Seeker Name</span><span>Service</span><span>Submitted On</span><span>Status</span><span>Action</span></div>
+            ${recent.map(c => `<div class="gp-tr" role="row">
+              <span class="gp-mono">${esc(c.orderId)}</span><span>${esc((c.devotee || {}).name || '—')}</span>
+              <span>${esc((c.service && c.service.title) || 'Enquiry')}</span>
+              <span>${esc(c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—')}</span>
+              <span>${pill(c)}</span>
+              <span>${c.kind === 'enquiry' ? '' : `<a ${link(c)} class="gp-act${STAGE.pending(c) ? ' gp-act--fill' : ''}">${action(c)} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>`}</span>
+            </div>`).join('')}
+          </div>` : '<p class="gm-empty">No open assignments.</p>'}
+        </section>
+      </main>`;
   }
 
   /** Unread chat from seekers, shown on the bell in the admin dashboard. */
@@ -3916,6 +4012,19 @@
           <button type="button" role="tab" data-case-tab="assessment" aria-selected="false" onclick="caseTab('assessment')">
             <i class="fa-solid fa-table-list" aria-hidden="true"></i> Assessment checklist
             <em data-pa-badge>${c.palmAssessment ? countAssessment(c.palmAssessment) : 0}/${window.PALM_ASSESSMENT ? window.PALM_ASSESSMENT.fields.length : 277}</em></button>
+          ${(() => {
+            // Prev / Next walk the open cases in appointment order.
+            const open = (GURUJI.list || []).filter(x => x.kind !== 'enquiry' && x.status !== 'COMPLETED')
+              .sort((a, b) => (a.slotStart || a.createdAt || '').localeCompare(b.slotStart || b.createdAt || ''));
+            const i = open.findIndex(x => x.orderId === c.orderId);
+            if (i < 0 || open.length < 2) return '';
+            const prev = open[i - 1], nxt = open[i + 1];
+            return `<span class="case-nav__step">
+              ${prev ? `<a href="/guruji/${esc(prev.orderId)}" data-link title="${esc((prev.devotee || {}).name || prev.orderId)}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Prev</a>` : ''}
+              <span>${i + 1} / ${open.length}</span>
+              ${nxt ? `<a href="/guruji/${esc(nxt.orderId)}" data-link title="${esc((nxt.devotee || {}).name || nxt.orderId)}">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>` : ''}
+            </span>`;
+          })()}
         </nav>
         <div class="case-assessment" data-assessment-root><div class="sp-spinner" aria-hidden="true"></div></div>
         ${assist ? assist.toolbar() + assist.steps(c) : ''}
