@@ -375,7 +375,7 @@
         <div class="sp-wrap grid gap-10 lg:grid-cols-[340px_1fr] items-start">
           <div class="space-y-4">
             <figure class="sp-portrait">
-              <img src="${esc(a.portrait)}" alt="Portrait of ${esc(a.name)}">
+              <img src="${esc(a.portrait || '/assets/adiguru_swamiji_portrait.jpg')}" alt="Portrait of ${esc(a.name)}" onerror="this.onerror=null;this.src='/assets/adiguru_swamiji_portrait.jpg';">
               <figcaption><strong>${esc(a.name)}</strong></figcaption>
             </figure>
           </div>
@@ -5129,6 +5129,9 @@
       else if (path.startsWith('/guruji') && typeof renderGuruji === 'function') renderGuruji();
     }
     if (content && content.content) {
+      if (content.content.about && (!content.content.about.portrait || content.content.about.portrait.includes('img-mwvpeyvaf2f031'))) {
+        content.content.about.portrait = '/assets/adiguru_swamiji_portrait.jpg';
+      }
       SITE.content = Object.assign({}, window.GURUJI_CONTENT, content.content);
       if (content.content.testOneRupee) {
         window.TEST_ONE_RUPEE = true;

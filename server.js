@@ -541,6 +541,9 @@ async function getContent(store) {
   try { overrides = await store.getContentOverrides(); } catch (e) { console.error('[server] content overrides unavailable:', e.message); }
   const merged = { ...DEFAULT_CONTENT };
   for (const k of CONTENT_SECTIONS) if (overrides[k] !== undefined) merged[k] = overrides[k];
+  if (merged.about && (!merged.about.portrait || merged.about.portrait.includes('img-mwvpeyvaf2f031'))) {
+    merged.about.portrait = DEFAULT_CONTENT.about.portrait;
+  }
   store.__contentCache = { at: Date.now(), value: merged };
   return merged;
 }
