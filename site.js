@@ -3756,9 +3756,86 @@
               : `<p class="gm-empty">${all.length ? 'Nothing matches that.' : 'No paid bookings yet.'}</p>`}</div>
           </main>`}
         </div>
+        ${gurujiFooterHtml({ counts, next: workspaceCase })}
       </div>`;
     if (GURUJI.view === 'dashboard') startGurujiDashboardClock(); else clearInterval(GURUJI.dashTimer);
   }
+
+  /** The portal's footer: the public site's maroon band and night footer,
+   *  with Guruji's own way in to the work instead of "Book a consultation". */
+  function gurujiFooterHtml({ counts, next }) {
+    const lotus = (cls) => `<svg class="${cls}" viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M32 6c-6.5 7.5-8.5 17.5 0 30 8.5-12.5 6.5-22.5 0-30z"/><path d="M31 36c-3-10.5-10.5-17-21-18 0 11 8.5 18 21 18zM33 36c3-10.5 10.5-17 21-18 0 11-8.5 18-21 18z"/><path d="M14 45c5.5 3 11.5 4.5 18 4.5S44.5 48 50 45"/></svg>`;
+    const view = (v, label, n) => `<li><a href="/guruji" data-link onclick="gurujiFooterGo('${v}', event)">${label}${n !== undefined ? ` <em>${n}</em>` : ''}</a></li>`;
+    const waiting = counts ? counts.pending + counts.inprogress : 0;
+    return `
+      <footer class="gp-footer">
+        <section class="gp-band">
+          ${lotus('gp-band__lotus gp-band__lotus--l')}${lotus('gp-band__lotus gp-band__lotus--r')}
+          <div class="gp-band__inner">
+            <span class="gp-band__om" aria-hidden="true">ॐ</span>
+            <h2>Every Palm Holds a Story. Read It with Care.</h2>
+            <p>Guide each seeker with clarity and compassion: guidance, not fear; awareness, not dependency.${waiting ? `<br>${waiting} ${waiting === 1 ? 'seeker is' : 'seekers are'} waiting for your reading.` : ''}</p>
+            <div class="gp-band__cta">
+              ${next ? `<a href="/guruji/${esc(next.orderId)}" data-link class="gold-gradient-btn gp-band__primary"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i> Start Next Analysis →</a>`
+                : `<a href="/guruji" data-link onclick="gurujiFooterGo('dashboard', event)" class="gold-gradient-btn gp-band__primary"><i class="fa-solid fa-house" aria-hidden="true"></i> Open Dashboard →</a>`}
+              <a href="/" data-link class="gp-band__ghost"><i class="fa-solid fa-globe" aria-hidden="true"></i> View Public Website</a>
+            </div>
+          </div>
+        </section>
+        <div class="gp-foot">
+          <div class="gp-foot__grid">
+            <div class="gp-foot__brand">
+              <a href="/guruji" data-link onclick="gurujiFooterGo('dashboard', event)" class="gp-foot__logo">${lotus('gp-foot__mark')}<span>GURUJI PALMISTRY</span></a>
+              <p class="gp-foot__tag">Guidance · Healing · Devotion · Learning</p>
+              <p class="gp-foot__about">Guruji Portal: the practitioner workspace for palm analysis, assessment checklists, written readings and guiding seekers.</p>
+            </div>
+            <nav aria-label="Portal — Workspace">
+              <h4>Workspace</h4>
+              <ul>
+                ${view('dashboard', 'Dashboard')}
+                ${view('all', 'Assignments')}
+                ${next ? `<li><a href="/guruji/${esc(next.orderId)}" data-link>Analysis Workspace</a></li>` : ''}
+                ${next ? `<li><a href="/guruji/${esc(next.orderId)}" data-link onclick="gurujiOpenChecklist('${esc(next.orderId)}')">Assessment Checklist</a></li>` : ''}
+                <li><a href="#" onclick="event.preventDefault(); gurujiPrintDay()">Day Sheet</a></li>
+              </ul>
+            </nav>
+            <nav aria-label="Portal — Cases">
+              <h4>Cases</h4>
+              <ul>
+                ${view('pending', 'Pending', counts ? counts.pending : undefined)}
+                ${view('inprogress', 'In progress', counts ? counts.inprogress : undefined)}
+                ${view('completed', 'Completed', counts ? counts.completed : undefined)}
+                ${view('unread', 'Unread messages', counts ? counts.unread : undefined)}
+              </ul>
+            </nav>
+            <nav aria-label="Portal — Help">
+              <h4>Help</h4>
+              <ul>
+                <li><a href="/" data-link>Public website</a></li>
+                <li><a href="/services" data-link>Services</a></li>
+                <li><a href="/track" data-link>Track status</a></li>
+                <li><a href="#" onclick="event.preventDefault(); adminLogout(); renderGuruji()">Sign out</a></li>
+              </ul>
+            </nav>
+          </div>
+          <div class="gp-foot__base">
+            <span>© ${new Date().getFullYear()} Guruji Palmistry · Guruji Portal</span>
+            <span><i class="fa-solid fa-lock" aria-hidden="true"></i> Staff only. Seeker details stay private.</span>
+          </div>
+        </div>
+      </footer>`;
+  }
+
+  /** Footer links to a folder: on the list it switches in place; from a case
+   *  it sets the folder and lets the link take Guruji back to the list. */
+  window.gurujiFooterGo = (v, e) => {
+    GURUJI.view = v;
+    if (location.pathname.replace(/\/$/, '') === '/guruji') {
+      if (e) e.preventDefault();
+      gurujiView(v);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   /** Opens a case straight on its assessment checklist tab. */
   window.gurujiOpenChecklist = (orderId) => { GURUJI.caseTab = 'assessment'; GURUJI.caseTabFor = orderId; };
@@ -4391,7 +4468,8 @@
 
           <aside class="case-side" data-case-chat>${chatMarkup('Chat with ' + (d.name || 'the devotee'))}</aside>
         </div>
-      </div>`;
+      </div>
+      ${gurujiFooterHtml({})}`;
 
     if (c.chart) showChart(root.querySelector('[data-chart-slot]'), c.chart);
     startChat(root.querySelector('[data-case-chat]'), c.orderId, { pin: ADMIN.pin });
