@@ -109,6 +109,15 @@
   <link rel="stylesheet" href="/assets/tailwind.css">
 
   <!-- Google Firebase App & Auth SDK -->
+  <script>
+    window.__googleAuthPending = false;
+    window.loginWithGoogle = function() {
+      window.__googleAuthPending = true;
+      if (typeof showVedicToast === 'function') {
+        showVedicToast('Connecting to Google Sign-In...', 'info');
+      }
+    };
+  </script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -163,14 +172,19 @@
         if (res.ok && (data.ok || data.success) && data.token) {
           linked = data;
           localStorage.setItem('guruji_cust_token', data.token);
-          if (data.customer && typeof state !== 'undefined' && state.user) {
-            state.user.customerId = data.customer.id;
-            if (data.customer.mobile) state.user.mobile = data.customer.mobile;
+          if (data.customer) {
+            localStorage.setItem('guruji_cust_user', JSON.stringify(data.customer));
+            if (typeof state !== 'undefined' && state.user) {
+              state.user.customerId = data.customer.id;
+              if (data.customer.name) state.user.name = data.customer.name;
+              if (data.customer.email) state.user.email = data.customer.email;
+              if (data.customer.mobile) state.user.mobile = data.customer.mobile;
+            }
           }
         } else if (typeof showVedicToast === 'function') {
           // The server says why: an expired sign-in, the wrong Firebase project,
           // or Google itself being unreachable. Say so rather than failing quietly.
-          showVedicToast(data.error || 'Google sign-in could not be verified.', 'warn');
+          showVedicToast(data.message || data.error || 'Google sign-in could not be verified.', 'warn');
         }
       } catch (e) {
         console.warn('[Google Auth Customer Link]', e);
@@ -215,12 +229,19 @@
         if (typeof showVedicToast === 'function') {
           if (err.code === 'auth/unauthorized-domain') {
             showVedicToast('Domain not authorized in Firebase yet. Add ' + window.location.hostname + ' in Firebase Console → Authorized Domains.', 'warn');
+          } else if (err.code === 'auth/network-request-failed') {
+            showVedicToast('Network error during Google sign-in. Please check your connection and retry.', 'warn');
           } else {
-            showVedicToast('Google sign-in could not be completed.', 'warn');
+            showVedicToast('Google sign-in error: ' + (err.message || err.code || 'Please try again.'), 'warn');
           }
         }
       }
     };
+
+    if (window.__googleAuthPending) {
+      window.__googleAuthPending = false;
+      window.loginWithGoogle();
+    }
 
     // Coming back from the redirect flow.
     getRedirectResult(auth).then((result) => {

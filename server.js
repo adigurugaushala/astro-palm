@@ -90,6 +90,8 @@ const APP_VERSION = (() => {
 })();
 const STARTED_AT = new Date().toISOString();
 const verifiedCustomerTokens = new Map();
+const revokedCustomerTokens = new Set();
+const AUTH_SECRET = process.env.SESSION_SECRET || process.env.AUTH_SECRET || 'guruji-vedic-session-secret-key-2026';
 const CASHFREE = cashfreeConfig();
 const JITSI = jitsiConfig();
 // Guruji signs in to his own case area with this PIN; the owner PIN works there too.
@@ -290,9 +292,10 @@ let testCertFetch = null;
 function fetchGoogleCerts({ fresh = false } = {}) {
   if (!fresh && googleCerts.keys && Date.now() < googleCerts.expiresAt) return Promise.resolve(googleCerts.keys);
   if (testCertFetch) return Promise.resolve(testCertFetch());
-  return new Promise((resolve) => {
+
+  const doFetch = () => new Promise((resolve) => {
     const done = (keys, why) => { fetchGoogleCerts.lastError = why || ''; resolve(keys); };
-    const req = https.get(GOOGLE_CERT_URL, { timeout: 6000 }, (res) => {
+    const req = https.get(GOOGLE_CERT_URL, { timeout: 8000 }, (res) => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
@@ -307,6 +310,17 @@ function fetchGoogleCerts({ fresh = false } = {}) {
     });
     req.on('error', (e) => done(null, e.code || e.message || 'network_error'));
     req.on('timeout', () => { req.destroy(); done(null, 'timeout'); });
+  });
+
+  return doFetch().then((keys) => {
+    if (keys) return keys;
+    // Retry once with 600ms backoff
+    return new Promise((r) => setTimeout(r, 600)).then(doFetch).then((retryKeys) => {
+      if (retryKeys) return retryKeys;
+      // Retain existing valid certs rather than failing if fresh fetch had a transient error
+      if (googleCerts.keys) return googleCerts.keys;
+      return null;
+    });
   });
 }
 
@@ -370,7 +384,8 @@ async function verifyFirebaseToken(idToken) {
   const now = Math.floor(Date.now() / 1000);
   if (claims.aud !== FIREBASE_PROJECT_ID) return fail('wrong_project');
   if (claims.iss !== 'https://securetoken.google.com/' + FIREBASE_PROJECT_ID) return fail('wrong_issuer');
-  if (!claims.exp || claims.exp < now - 60) return fail('token_expired');
+  // 120s tolerance for clock drift between server and client device
+  if (!claims.exp || claims.exp < now - 120) return fail('token_expired');
   if (claims.iat && claims.iat > now + 300) return fail('token_from_the_future');
   if (!claims.sub) return fail('no_subject');
   if (!claims.email) return fail('no_email');
@@ -429,7 +444,7 @@ function pruneAdminSessions() {
  *  a reading PDF is opened or downloaded from the chat.
  *  SameSite=Lax is the point: a top-level click still carries it, while a
  *  cross-site form post does not, so it cannot be used to act as the seeker. */
-function customerCookie(req, token, maxAgeSeconds = 30 * 24 * 3600) {
+function customerCookie(req, token, maxAgeSeconds = 90 * 24 * 3600) {
   const https = (req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https'
     || String(process.env.SITE_URL || '').startsWith('https://');
   const bits = [
@@ -440,18 +455,72 @@ function customerCookie(req, token, maxAgeSeconds = 30 * 24 * 3600) {
   return bits.join('; ');
 }
 
+function parseCustomerToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  if (revokedCustomerTokens.has(token)) return null;
+
+  if (verifiedCustomerTokens.has(token)) {
+    const entry = verifiedCustomerTokens.get(token);
+    if (Date.now() <= entry.expiresAt) return entry.customer;
+    verifiedCustomerTokens.delete(token);
+    return null;
+  }
+
+  // Token not in RAM cache (e.g. server restarted or multi-worker): verify HMAC signature
+  if (token.startsWith('cst_')) {
+    try {
+      const dot = token.indexOf('.', 4);
+      if (dot !== -1) {
+        const rawPayload = token.slice(4, dot);
+        const sig = token.slice(dot + 1);
+        const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(rawPayload).digest('hex');
+        const a = Buffer.from(sig);
+        const b = Buffer.from(expectedSig);
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+          const payload = JSON.parse(Buffer.from(rawPayload, 'base64url').toString('utf8'));
+          if (payload && payload.exp && Date.now() <= payload.exp) {
+            const customer = {
+              id: payload.id,
+              name: payload.name || 'Seeker',
+              email: payload.email || '',
+              mobile: payload.mobile || '',
+              provider: payload.provider || 'local'
+            };
+            verifiedCustomerTokens.set(token, { customer, expiresAt: payload.exp });
+            return customer;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 function customerFromToken(req) {
   const bearer = (req.headers.authorization || '').match(/^Bearer\s+([A-Za-z0-9._-]+)$/);
   const token = req.headers['x-customer-token']
     || (bearer && bearer[1])
-    || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([a-f0-9]+)/) || [])[1]);
-  if (!token || !verifiedCustomerTokens.has(token)) return null;
-  const entry = verifiedCustomerTokens.get(token);
-  if (Date.now() > entry.expiresAt) {
-    verifiedCustomerTokens.delete(token);
-    return null;
-  }
-  return entry.customer;
+    || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([A-Za-z0-9._-]+)/) || [])[1]);
+  if (!token) return null;
+  return parseCustomerToken(token);
+}
+
+function createCustomerToken(customer, ttlMs = 90 * 24 * 3600 * 1000) {
+  const expiresAt = Date.now() + ttlMs;
+  const payload = {
+    id: customer.id,
+    name: customer.name || 'Seeker',
+    email: (customer.email || '').toLowerCase().trim(),
+    mobile: customer.mobile || '',
+    provider: customer.provider || 'local',
+    exp: expiresAt
+  };
+  const rawPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(rawPayload).digest('hex');
+  const token = `cst_${rawPayload}.${sig}`;
+  const { passwordHash: _h, ...safeCustomer } = customer;
+  verifiedCustomerTokens.set(token, { customer: safeCustomer, expiresAt });
+  return token;
 }
 
 function hashPassword(password) {
@@ -2475,8 +2544,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         });
       }
 
-      const token = crypto.randomBytes(32).toString('hex');
-      verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
+      const token = createCustomerToken(customer);
       // `ok` is what the browser checks; `success` is kept for older clients.
       return [200, { ok: true, success: true, customer, token, consentId: consentRecord?.id, __setCookie: customerCookie(req, token) }];
     }],
@@ -2501,8 +2569,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       }
 
       const { passwordHash, ...safeCustomer } = customer;
-      const token = crypto.randomBytes(32).toString('hex');
-      verifiedCustomerTokens.set(token, { customer: safeCustomer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
+      const token = createCustomerToken(safeCustomer);
       return [200, { ok: true, success: true, customer: safeCustomer, token, __setCookie: customerCookie(req, token) }];
     }],
 
@@ -2512,8 +2579,11 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const bearer = (req.headers.authorization || '').match(/^Bearer\s+([A-Za-z0-9._-]+)$/);
       const token = req.headers['x-customer-token']
         || (bearer && bearer[1])
-        || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([a-f0-9]+)/) || [])[1]);
-      if (token) verifiedCustomerTokens.delete(token);
+        || (req.headers.cookie && (req.headers.cookie.match(/guruji_cust_token=([A-Za-z0-9._-]+)/) || [])[1]);
+      if (token) {
+        revokedCustomerTokens.add(token);
+        verifiedCustomerTokens.delete(token);
+      }
       return [200, { ok: true, success: true, __setCookie: customerCookie(req, '', 0) }];
     }],
 
@@ -2567,15 +2637,21 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         });
       }
 
-      const token = crypto.randomBytes(32).toString('hex');
-      verifiedCustomerTokens.set(token, { customer, expiresAt: Date.now() + 30 * 24 * 3600 * 1000 });
+      const token = createCustomerToken(customer);
       return [200, { ok: true, success: true, customer, token, needsMobile: !customer.mobile, __setCookie: customerCookie(req, token) }];
     }],
 
     ['GET', /^\/api\/customer\/me$/, async (req) => {
       rateLimit(req, 'customer-me', 60);
-      const customer = customerFromToken(req);
+      let customer = customerFromToken(req);
       if (!customer) throw new HttpError(401, 'Not signed in');
+      if (customer.id && typeof store.findCustomer === 'function') {
+        const fresh = await store.findCustomer(customer.id);
+        if (fresh) {
+          const { passwordHash: _h, ...safeFresh } = fresh;
+          customer = safeFresh;
+        }
+      }
       return [200, { ok: true, customer }];
     }],
 

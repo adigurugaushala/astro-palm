@@ -81,6 +81,7 @@ function restoreHeldSlot() {
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
+  initCustomerSession();
   restoreHeldSlot();
   renderReviews();
   loadSavedReviews();
@@ -103,6 +104,56 @@ document.addEventListener("DOMContentLoaded", () => {
   // Show home page on startup
   showPage("home");
 });
+
+function initCustomerSession() {
+  const token = localStorage.getItem("guruji_cust_token");
+  const savedUserStr = localStorage.getItem("guruji_cust_user");
+  if (savedUserStr) {
+    try {
+      const savedUser = JSON.parse(savedUserStr);
+      if (savedUser && typeof state !== 'undefined' && state.user) {
+        if (savedUser.name) state.user.name = savedUser.name;
+        if (savedUser.email) state.user.email = savedUser.email;
+        if (savedUser.mobile) state.user.mobile = savedUser.mobile;
+        if (savedUser.id) state.user.customerId = savedUser.id;
+      }
+    } catch (e) {}
+  }
+  if (token) {
+    fetch("/api/customer/me", { headers: custHeaders(token) })
+      .then(r => {
+        if (r.status === 401) {
+          localStorage.removeItem("guruji_cust_token");
+          localStorage.removeItem("guruji_cust_user");
+          if (location.pathname.replace(/\/$/, '') === '/account') {
+            renderAccountPortal();
+          }
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
+      .then(data => {
+        if (data && data.customer) {
+          localStorage.setItem("guruji_cust_user", JSON.stringify(data.customer));
+          if (typeof state !== 'undefined' && state.user) {
+            state.user.name = data.customer.name || state.user.name;
+            state.user.email = data.customer.email || state.user.email;
+            state.user.mobile = data.customer.mobile || state.user.mobile;
+            state.user.customerId = data.customer.id;
+          }
+          const devName = document.getElementById("devotee-fullname");
+          if (devName && !devName.value && data.customer.name) devName.value = data.customer.name;
+          const payMobile = document.getElementById("pay-mobile");
+          if (payMobile && !payMobile.value && data.customer.mobile) {
+            payMobile.value = String(data.customer.mobile).replace(/\D/g, "").slice(-10);
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('[Session background restore]', err);
+      });
+  }
+}
 
 // ==========================================
 // NATURAL WEBSITE PAGE NAVIGATION
@@ -1276,7 +1327,10 @@ async function handleAuthSubmit(event) {
     if ((data.ok || data.success) && data.token) {
       localStorage.setItem("guruji_cust_token", data.token);
       if (data.customer) {
+        localStorage.setItem("guruji_cust_user", JSON.stringify(data.customer));
         state.user.customerId = data.customer.id;
+        state.user.name = data.customer.name || state.user.name;
+        state.user.email = data.customer.email || state.user.email;
         if (data.customer.mobile) state.user.mobile = data.customer.mobile;
       }
     } else if (data.error) {
@@ -1363,6 +1417,7 @@ window.handleBookSignIn = async function(e) {
 
     localStorage.setItem("guruji_cust_token", data.token);
     if (data.customer) {
+      localStorage.setItem("guruji_cust_user", JSON.stringify(data.customer));
       state.user.name = data.customer.name || state.user.name;
       state.user.email = data.customer.email || state.user.email;
       state.user.mobile = data.customer.mobile || state.user.mobile;
@@ -3500,11 +3555,14 @@ window.handleCustomerLogin = async function(e) {
     if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Login failed");
 
     localStorage.setItem("guruji_cust_token", data.token);
-    if (data.customer && typeof state !== 'undefined' && state.user) {
-      state.user.name = data.customer.name || state.user.name;
-      state.user.email = data.customer.email || state.user.email;
-      state.user.mobile = data.customer.mobile || state.user.mobile;
-      state.user.customerId = data.customer.id;
+    if (data.customer) {
+      localStorage.setItem("guruji_cust_user", JSON.stringify(data.customer));
+      if (typeof state !== 'undefined' && state.user) {
+        state.user.name = data.customer.name || state.user.name;
+        state.user.email = data.customer.email || state.user.email;
+        state.user.mobile = data.customer.mobile || state.user.mobile;
+        state.user.customerId = data.customer.id;
+      }
     }
     if (typeof showVedicToast === "function") {
       showVedicToast(`Namaste ${data.customer.name}, welcome back!`, "success");
@@ -3544,11 +3602,14 @@ window.handleCustomerSignup = async function(e) {
     if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Registration failed");
 
     localStorage.setItem("guruji_cust_token", data.token);
-    if (data.customer && typeof state !== 'undefined' && state.user) {
-      state.user.name = data.customer.name;
-      state.user.email = data.customer.email;
-      state.user.mobile = data.customer.mobile;
-      state.user.customerId = data.customer.id;
+    if (data.customer) {
+      localStorage.setItem("guruji_cust_user", JSON.stringify(data.customer));
+      if (typeof state !== 'undefined' && state.user) {
+        state.user.name = data.customer.name;
+        state.user.email = data.customer.email;
+        state.user.mobile = data.customer.mobile;
+        state.user.customerId = data.customer.id;
+      }
     }
     if (typeof showVedicToast === "function") showVedicToast(`Namaste ${data.customer.name}, your account is created!`, "success");
     renderAccountPortal();
@@ -3592,10 +3653,13 @@ window.saveCustomerProfile = async function(e, form) {
     });
     const data = await res.json();
     if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Could not save your details.");
-    if (data.customer && typeof state !== "undefined" && state.user) {
-      state.user.name = data.customer.name;
-      state.user.email = data.customer.email;
-      state.user.mobile = data.customer.mobile;
+    if (data.customer) {
+      localStorage.setItem("guruji_cust_user", JSON.stringify(data.customer));
+      if (typeof state !== "undefined" && state.user) {
+        state.user.name = data.customer.name;
+        state.user.email = data.customer.email;
+        state.user.mobile = data.customer.mobile;
+      }
     }
     if (typeof showVedicToast === "function") showVedicToast("Your details are saved.", "success");
     renderAccountPortal();
@@ -3619,10 +3683,14 @@ window.handleCustomerLogout = async function() {
   // tell it; clearing localStorage alone would leave the cookie signed in.
   const token = localStorage.getItem("guruji_cust_token");
   localStorage.removeItem("guruji_cust_token");
+  localStorage.removeItem("guruji_cust_user");
+  if (typeof state !== 'undefined' && state.user) {
+    state.user = { name: "", email: "", mobile: "", gotram: "", dob: "", tob: "", pob: "", questions: "" };
+  }
   try {
     await fetch("/api/customer/logout", {
       method: "POST",
-      headers: token ? { "x-customer-token": token } : {}
+      headers: token ? { "x-customer-token": token, "Authorization": `Bearer ${token}` } : {}
     });
   } catch (e) { /* the local session is gone either way */ }
   if (typeof showVedicToast === "function") {
@@ -3894,14 +3962,25 @@ window.renderAccountPortal = async function() {
 
   try {
     const res = await fetch("/api/customer/me", { headers: custHeaders(token) });
-    const data = await res.json();
-    if (!res.ok || !(data.ok || data.success || data.customer)) {
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) {
       localStorage.removeItem("guruji_cust_token");
+      localStorage.removeItem("guruji_cust_user");
       renderAccountPortal();
       return;
     }
+    if (!res.ok || !(data.ok || data.success || data.customer)) {
+      throw new Error(data.error || "Unable to load account details. Please retry.");
+    }
 
     const cust = data.customer;
+    localStorage.setItem("guruji_cust_user", JSON.stringify(cust));
+    if (typeof state !== 'undefined' && state.user) {
+      state.user.name = cust.name || state.user.name;
+      state.user.email = cust.email || state.user.email;
+      state.user.mobile = cust.mobile || state.user.mobile;
+      state.user.customerId = cust.id;
+    }
     const bRes = await fetch("/api/customer/bookings", { headers: custHeaders(token) });
     const bData = await bRes.json();
     const bookings = Array.isArray(bData.bookings) ? bData.bookings : [];

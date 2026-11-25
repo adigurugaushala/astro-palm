@@ -4810,18 +4810,34 @@
       vrMsg.className = 'pv-vr-msg text-2xs mt-1 ' + (tone === 'ok' ? 'text-emerald-700 font-semibold' : tone === 'err' ? 'text-rose-700 font-semibold' : 'text-ink-3');
     }
 
+    let cachedBase64Audio = null;
+
     async function startVoiceRecord() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setVrMsg('Audio recording is not supported in this browser.', 'err');
         return;
       }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
         audioChunks = [];
+        cachedBase64Audio = null;
         const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
           : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
           : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
-        mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        const recOptions = { audioBitsPerSecond: 24000 };
+        if (mime) recOptions.mimeType = mime;
+        try {
+          mediaRecorder = new MediaRecorder(stream, recOptions);
+        } catch (_) {
+          mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        }
         mediaRecorder.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) audioChunks.push(e.data);
         };
@@ -4835,9 +4851,16 @@
           if (vrActive) vrActive.hidden = true;
           if (vrReview) vrReview.hidden = false;
           setVrMsg('Listen to your recording. Press "Send to Seeker" to send it.', 'ok');
+
+          // Pre-encode in background while Guruji listens, so sending is instant
+          const preReader = new FileReader();
+          preReader.onloadend = () => {
+            cachedBase64Audio = preReader.result;
+          };
+          preReader.readAsDataURL(audioBlob);
         };
 
-        mediaRecorder.start(250);
+        mediaRecorder.start(1000);
         recSeconds = 0;
         if (vrIdle) vrIdle.hidden = true;
         if (vrReview) vrReview.hidden = true;
@@ -4870,6 +4893,7 @@
       }
       audioBlob = null;
       audioChunks = [];
+      cachedBase64Audio = null;
       if (vrAudio) vrAudio.src = '';
       if (vrActive) vrActive.hidden = true;
       if (vrReview) vrReview.hidden = true;
@@ -4886,34 +4910,42 @@
       sendBtn.disabled = true;
       sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Sending…';
       setVrMsg('Sending voice reading to seeker…');
-      try {
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          try {
-            const base64Data = reader.result;
-            const res = await adminFetch(`/api/guruji/cases/${encodeURIComponent(caseData.orderId)}/voice-note`, {
-              method: 'POST',
-              body: {
-                data: base64Data,
-                type: audioBlob.type || 'audio/webm',
-                name: `Voice Reading - ${caseData.orderId}.webm`,
-                text: `Voice reading on ${photoLabel()} from Guruji.`
-              }
-            });
-            toast('Voice reading sent to seeker!', 'success');
-            setVrMsg('Voice reading sent successfully! ✓', 'ok');
-            setTimeout(cancelVoiceRecord, 2000);
-          } catch (err) {
-            setVrMsg('Failed to send voice reading: ' + (err.message || 'Server error'), 'err');
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = label;
-          }
-        };
-      } catch (err) {
-        setVrMsg('Failed to process recording: ' + err.message, 'err');
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = label;
+
+      const doSend = async (base64Data) => {
+        try {
+          const res = await adminFetch(`/api/guruji/cases/${encodeURIComponent(caseData.orderId)}/voice-note`, {
+            method: 'POST',
+            body: {
+              data: base64Data,
+              type: audioBlob.type || 'audio/webm',
+              name: `Voice Reading - ${caseData.orderId}.webm`,
+              text: `Voice reading on ${photoLabel()} from Guruji.`
+            }
+          });
+          toast('Voice reading sent to seeker!', 'success');
+          setVrMsg('Voice reading sent successfully! ✓', 'ok');
+          setTimeout(cancelVoiceRecord, 1500);
+        } catch (err) {
+          setVrMsg('Failed to send voice reading: ' + (err.message || 'Server error'), 'err');
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = label;
+        }
+      };
+
+      if (cachedBase64Audio) {
+        await doSend(cachedBase64Audio);
+      } else {
+        try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            await doSend(reader.result);
+          };
+          reader.readAsDataURL(audioBlob);
+        } catch (err) {
+          setVrMsg('Failed to process recording: ' + err.message, 'err');
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = label;
+        }
       }
     }
 
