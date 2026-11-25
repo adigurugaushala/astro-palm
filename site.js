@@ -3975,8 +3975,9 @@
             <h1>${greet}, Guruji</h1>
             <p>${today.length ? `${today.length} ${today.length === 1 ? 'seeker is' : 'seekers are'} booked with you today` : 'No sessions booked for today'}${awaitingReport.length ? ` · ${awaitingReport.length} ${awaitingReport.length === 1 ? 'reading' : 'readings'} to write` : ''}${counts.unread ? ` · ${counts.unread} unread ${counts.unread === 1 ? 'message' : 'messages'}` : ''}.</p>
             <div class="gp-hello__cta">
-              ${workspaceCase ? `<a href="/guruji/${esc(workspaceCase.orderId)}" data-link class="gp-btn gp-btn--maroon"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i> Start analysis · ${esc((workspaceCase.devotee || {}).name || workspaceCase.orderId)}</a>` : ''}
+              ${workspaceCase ? `<a href="/guruji/${esc(workspaceCase.orderId)}" data-link class="gp-btn gp-btn--maroon"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i> Start Analysis</a>` : ''}
               <button type="button" class="gp-btn gp-btn--ghost" onclick="gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i> Day sheet</button>
+              ${all.length ? `<button type="button" class="gp-btn gp-btn--ghost" style="color:#b91c1c;border-color:rgba(185,28,28,0.4)" onclick="gurujiClearAllTestData()" title="Clear all test data for fresh live launch"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Clear Test Cases (Fresh Live)</button>` : ''}
             </div>
           </div>
           <span class="gp-hello__art" aria-hidden="true"><span>ॐ</span></span>
