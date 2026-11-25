@@ -4572,6 +4572,8 @@
     wrap.className = 'palm-viewer';
     wrap.innerHTML = `
       <div class="palm-viewer__bar">
+        <button type="button" class="palm-viewer__back" data-pv="back" title="Back to Case">&#8592; Back to Case</button>
+        <span class="palm-viewer__sep"></span>
         <button type="button" data-pv="prev" title="Previous photo">&#8249;</button>
         <span class="palm-viewer__name" data-pv="name"></span>
         <button type="button" data-pv="next" title="Next photo">&#8250;</button>
@@ -4584,6 +4586,7 @@
         <button type="button" data-pv="pencil" title="Draw on the photo">&#9998; Mark</button>
         <button type="button" data-pv="note" title="Write a note on the photo">&#9997; Note</button>
         <button type="button" data-pv="book" title="Open the notebook beside the photo (B)">&#128211; Notebook</button>
+        <button type="button" data-pv="checklist" title="Open the assessment checklist beside the photo (C)">&#9745; Checklist</button>
         <span class="palm-viewer__tools" data-pv="tools" hidden>
           ${['#e3342f', '#f6ad26', '#1f9d55', '#2f6fed', '#1b1b1b'].map(c =>
             `<button type="button" class="palm-swatch" data-pv-colour="${c}" style="background:${c}" title="${c}"></button>`).join('')}
@@ -4607,6 +4610,7 @@
           <div class="palm-notebook__head">
             <strong>&#128211; My notes</strong>
             <span class="palm-notebook__actions">
+              <button type="button" class="palm-tab-btn" data-pv="switchtochecklist" title="Open assessment checklist">&#9745; Checklist</button>
               <button type="button" data-pv="bookside" title="Move the notebook to the other side">&#8644; Side</button>
               <button type="button" data-pv="bookclose" title="Hide the notebook">&times;</button>
             </span>
@@ -4615,6 +4619,23 @@
           <button type="button" class="palm-notebook__label" data-pv="booklabel" title="Start a new line for this photo"></button>
           <textarea data-pv="booktext" spellcheck="true" placeholder="Write what you see while you look at the palm…"></textarea>
           <span class="palm-notebook__state" data-pv="bookstate" aria-live="polite"></span>
+        </aside>
+        <aside class="palm-checklist" data-pv="checkpanel" hidden aria-label="Assessment Checklist">
+          <div class="palm-checklist__head">
+            <div class="palm-checklist__title">
+              <strong>&#9745; Assessment Checklist</strong>
+              <em class="palm-checklist__badge" data-pv="checkbadge">0/277</em>
+            </div>
+            <span class="palm-notebook__actions">
+              <button type="button" class="palm-tab-btn" data-pv="switchtonotes" title="Open notebook notes">&#128211; Notes</button>
+              <button type="button" data-pv="checkwiden" title="Toggle wide view">&#10530; Widen</button>
+              <button type="button" data-pv="checkside" title="Move checklist to the other side">&#8644; Side</button>
+              <button type="button" data-pv="checkclose" title="Hide checklist">&times;</button>
+            </span>
+          </div>
+          <div class="palm-checklist__body" data-pv="checkbody">
+            <div class="sp-spinner" aria-hidden="true" style="margin:2rem auto;"></div>
+          </div>
         </aside>
       </div>
       <p class="palm-viewer__hint" data-pv="hint"></p>`;
@@ -4655,6 +4676,11 @@
     }
     function setBook(open) {
       bookPref.open = open; saveBookPref();
+      if (open && checkPref.open) {
+        checkPref.open = false;
+        saveCheckPref();
+        paintChecklist();
+      }
       if (open) pullBook();
       paintBook();
       if (open) bookText.focus();
@@ -4696,6 +4722,68 @@
     }
     pullBook();
     paintBook();
+
+    // ---- Checklist beside the photo -----------------------------------------
+    const checkPanel = el('checkpanel'), checkBody = el('checkbody'), checkBadge = el('checkbadge');
+    const CHECK_PREF = 'guruji_pv_checklist';
+    let checkPref = { open: false, wide: false };
+    try { checkPref = Object.assign(checkPref, JSON.parse(localStorage.getItem(CHECK_PREF) || '{}')); } catch (e) { /* defaults */ }
+    let viewerAssessment = null;
+
+    function saveCheckPref() { try { localStorage.setItem(CHECK_PREF, JSON.stringify(checkPref)); } catch (e) { /* private mode */ } }
+
+    function updateCheckBadge() {
+      const c = GURUJI.current || caseData;
+      const count = Object.values((c.palmAssessment && c.palmAssessment.rows) || {}).filter(r => r && r.value).length;
+      const total = (window.PALM_ASSESSMENT && window.PALM_ASSESSMENT.fields.length) || 277;
+      if (checkBadge) checkBadge.textContent = `${count}/${total}`;
+      const pageBadge = document.querySelector('[data-pa-badge]');
+      if (pageBadge) pageBadge.textContent = `${count}/${total}`;
+    }
+
+    async function mountChecklist() {
+      if (!checkBody || checkBody.dataset.mounted === caseData.orderId) return;
+      checkBody.dataset.mounted = caseData.orderId;
+      const PA = await loadAssessment();
+      if (!PA) {
+        checkBody.dataset.mounted = '';
+        checkBody.innerHTML = '<p class="sp-notice" style="color:#7a6668;padding:1rem;">The assessment checklist could not load. Check your connection and try again.</p>';
+        return;
+      }
+      checkBody.innerHTML = '';
+      const c = GURUJI.current || caseData;
+      viewerAssessment = PA.mount(checkBody, c, async (payload) => {
+        await gurujiFetch(`/api/guruji/cases/${encodeURIComponent(c.orderId)}/assessment`, {
+          method: 'PUT',
+          body: payload
+        });
+        c.palmAssessment = Object.assign({}, payload, { updatedAt: new Date().toISOString() });
+        updateCheckBadge();
+      });
+      updateCheckBadge();
+    }
+
+    function paintChecklist() {
+      checkPanel.hidden = !checkPref.open;
+      wrap.classList.toggle('has-checklist', checkPref.open);
+      wrap.classList.toggle('checklist-wide', Boolean(checkPref.wide));
+      wrap.classList.toggle('book-left', bookPref.side === 'left');
+      const btn = el('checklist');
+      if (btn) btn.classList.toggle('is-on', checkPref.open);
+      if (checkPref.open) mountChecklist();
+    }
+
+    function setChecklist(open) {
+      checkPref.open = open;
+      saveCheckPref();
+      if (open && bookPref.open) {
+        bookPref.open = false;
+        saveBookPref();
+        paintBook();
+      }
+      paintChecklist();
+    }
+    paintChecklist();
 
     function apply() {
       box.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
@@ -4863,6 +4951,7 @@
         return;
       }
       switch (btn.getAttribute('data-pv')) {
+        case 'back': close(); break;
         case 'close': close(); break;
         case 'in': setZoom(zoom * 1.25); break;
         case 'out': setZoom(zoom / 1.25); break;
@@ -4873,8 +4962,29 @@
         case 'note': setNoting(!noting); break;
         case 'book': setBook(!bookPref.open); break;
         case 'bookclose': setBook(false); break;
-        case 'bookside': bookPref.side = bookPref.side === 'left' ? 'right' : 'left'; saveBookPref(); paintBook(); break;
+        case 'bookside': bookPref.side = bookPref.side === 'left' ? 'right' : 'left'; saveBookPref(); paintBook(); paintChecklist(); break;
         case 'booklabel': insertLabel(); break;
+        case 'checklist': setChecklist(!checkPref.open); break;
+        case 'checkclose': setChecklist(false); break;
+        case 'checkwiden':
+          checkPref.wide = !checkPref.wide;
+          saveCheckPref();
+          paintChecklist();
+          break;
+        case 'checkside':
+          bookPref.side = bookPref.side === 'left' ? 'right' : 'left';
+          saveBookPref();
+          paintBook();
+          paintChecklist();
+          break;
+        case 'switchtonotes':
+          setChecklist(false);
+          setBook(true);
+          break;
+        case 'switchtochecklist':
+          setBook(false);
+          setChecklist(true);
+          break;
         // Undo takes back the last thing added, whichever kind it was.
         case 'undo':
           if (notes.length && (!strokes.length || noting)) {
@@ -4942,6 +5052,7 @@
       else if (ev.key.toLowerCase() === 'm') setPencil(!pencil);
       else if (ev.key.toLowerCase() === 'n') setNoting(!noting);
       else if (ev.key.toLowerCase() === 'b') setBook(!bookPref.open);
+      else if (ev.key.toLowerCase() === 'c') setChecklist(!checkPref.open);
       else if (ev.key === ' ') { spaceHeld = true; }
       else if (ev.key === 'ArrowLeft' && i > 0) { i--; load(); }
       else if (ev.key === 'ArrowRight' && i < photos.length - 1) { i++; load(); }
@@ -4963,6 +5074,9 @@
 
     function close() {
       flushBook();   // whatever is still waiting to save goes now
+      if (viewerAssessment && viewerAssessment.flush) {
+        viewerAssessment.flush().catch(() => {});
+      }
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('popstate', onPop);

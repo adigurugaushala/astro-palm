@@ -2008,6 +2008,89 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .palm-viewer__body .palm-viewer__stage { min-width: 0; }
 .palm-viewer.has-book .palm-viewer__canvasbox,
 .palm-viewer.has-book .palm-viewer__canvasbox img { max-width: calc(94vw - 23rem); }
+.palm-viewer.has-checklist .palm-viewer__canvasbox,
+.palm-viewer.has-checklist .palm-viewer__canvasbox img { max-width: calc(94vw - 32rem); }
+.palm-viewer.has-checklist.checklist-wide .palm-viewer__canvasbox,
+.palm-viewer.has-checklist.checklist-wide .palm-viewer__canvasbox img { max-width: calc(94vw - 48rem); }
+.palm-viewer__back {
+  background: #6b2140 !important;
+  color: #fff !important;
+  border-color: #832b50 !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .35rem !important;
+  padding: .35rem .75rem !important;
+  border-radius: .45rem !important;
+}
+.palm-viewer__back:hover {
+  background: #832b50 !important;
+}
+.palm-checklist {
+  width: 31rem;
+  max-width: 90vw;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  background: #fbf6ee;
+  color: #2a1d1a;
+  border-left: 1px solid #3b2b28;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.palm-viewer.book-left .palm-checklist { border-left: 0; border-right: 1px solid #3b2b28; }
+.palm-viewer.checklist-wide .palm-checklist { width: 46rem; max-width: 65vw; }
+.palm-checklist[hidden] { display: none; }
+.palm-checklist__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: calc(1.2rem + .5px);
+  padding-bottom: .35rem;
+  border-bottom: 1px solid #e3d6c3;
+}
+.palm-checklist__title { display: flex; align-items: center; gap: .5rem; }
+.palm-checklist__badge {
+  font-style: normal;
+  font-family: system-ui, sans-serif;
+  font-size: calc(.75rem + .5px);
+  background: #6b2140;
+  color: #fff;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.palm-checklist__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #e3d6c3;
+  border-radius: .6rem;
+  padding: .5rem;
+}
+.palm-checklist__body .pa-tools { margin-bottom: .5rem; }
+.palm-checklist__body .pa-cats { gap: .25rem; }
+.palm-checklist__body .pa-cats button { padding: .2rem .5rem; font-size: calc(.74rem + .5px); }
+.palm-checklist__body .pa-search { min-width: 140px; font-size: calc(.8rem + .5px); padding: .3rem .5rem; }
+.palm-checklist__body .pa-sheet { max-height: calc(100vh - 180px); border: none; }
+.palm-tab-btn {
+  font-family: system-ui, sans-serif;
+  font-size: calc(.78rem + .5px);
+  padding: .2rem .55rem;
+  border: 1px solid #c8963c !important;
+  border-radius: 999px !important;
+  background: #fff7e8 !important;
+  color: #7a1f24 !important;
+  cursor: pointer;
+  font-weight: 600;
+}
+.palm-tab-btn:hover { background: #fdeccc !important; }
 .palm-notebook { width: 22rem; flex-shrink: 0; display: flex; flex-direction: column; gap: .5rem;
   padding: .75rem; background: #fbf6ee; color: #2a1d1a; border-left: 1px solid #3b2b28; }
 .palm-viewer.book-left .palm-notebook { border-left: 0; border-right: 1px solid #3b2b28; }
@@ -2033,9 +2116,12 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 @media (max-width: 899px) {
   .palm-viewer__body, .palm-viewer.book-left .palm-viewer__body { flex-direction: column; }
   .palm-notebook { width: 100%; height: 42vh; border-left: 0; border-right: 0; border-top: 1px solid #3b2b28; }
+  .palm-checklist { width: 100% !important; max-width: 100% !important; height: 50vh; border-left: 0; border-right: 0; border-top: 1px solid #3b2b28; }
   .palm-viewer.has-book .palm-viewer__canvasbox,
-  .palm-viewer.has-book .palm-viewer__canvasbox img { max-width: 94vw; max-height: 40vh; }
-  [data-pv="bookside"] { display: none; }
+  .palm-viewer.has-book .palm-viewer__canvasbox img,
+  .palm-viewer.has-checklist .palm-viewer__canvasbox,
+  .palm-viewer.has-checklist .palm-viewer__canvasbox img { max-width: 94vw; max-height: 40vh; }
+  [data-pv="bookside"], [data-pv="checkside"], [data-pv="checkwiden"] { display: none; }
 }
 /* ------------------------------------------------------------------
    Booking sign-in card ("Welcome back"), page-book-auth

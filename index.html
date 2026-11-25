@@ -1803,28 +1803,16 @@
               <label class="block font-semibold text-ink mb-1">Date of Birth *</label>
               <input type="date" id="devotee-dob" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
             </div>
-             <div data-birth-detail>
-              <label class="block font-semibold text-ink mb-1">Time of Birth</label>
+            <div>
+              <label class="block font-semibold text-ink mb-1">Time of Birth <span class="text-xs text-ink-3 font-normal">(Optional)</span></label>
               <input type="time" id="devotee-tob" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
             </div>
-             <div class="sm:col-span-2" data-birth-detail>
-              <label for="devotee-pob" class="block font-semibold text-ink mb-1">Place of Birth (City, State)</label>
-              <div class="relative" data-place-wrap>
-                <input type="text" id="devotee-pob" placeholder="Start typing your birth place, e.g. Narasaraopet" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="pob-list" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
-                <ul id="pob-list" role="listbox" class="gotra-list hidden"></ul>
-              </div>
-              <p class="text-2xs text-ink-3 mt-1">The chart is cast from the latitude and longitude of your birth place — choose it from the list so we get them right.</p>
-            </div>
-            <div data-birth-detail class="sm:col-span-2 grid grid-cols-2 sm:grid-cols-[minmax(0,180px)_minmax(0,180px)_minmax(0,1fr)] gap-3 items-end" id="pob-coords">
-              <div>
-                <label for="devotee-lat" class="block font-semibold text-ink mb-1">Latitude</label>
-                <input type="text" id="devotee-lat" inputmode="decimal" placeholder="e.g. 16.2349" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
-              </div>
-              <div>
-                <label for="devotee-lon" class="block font-semibold text-ink mb-1">Longitude</label>
-                <input type="text" id="devotee-lon" inputmode="decimal" placeholder="e.g. 80.0493" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
-              </div>
-              <p class="col-span-2 sm:col-span-1 text-2xs text-ink-3 sm:pb-2.5" id="pob-coord-note">Filled in for you when you pick a place. Born outside India? Type the place and enter the co-ordinates yourself.</p>
+            <div class="sm:col-span-2">
+              <label for="devotee-pob" class="block font-semibold text-ink mb-1">Address / Location</label>
+              <input type="text" id="devotee-pob" placeholder="Enter your address (House/Flat, Street, City, State, PIN)" autocomplete="street-address" class="w-full px-3 py-2 rounded-xl border border-line focus:border-maroon focus:outline-none">
+              <!-- Hidden coordinate fields to maintain script compatibility -->
+              <input type="hidden" id="devotee-lat" value="">
+              <input type="hidden" id="devotee-lon" value="">
             </div>
             <div class="sm:col-span-2">
               <label class="block font-semibold text-ink mb-1">Questions for Guruji (Career, Marriage, Health, etc.)</label>
