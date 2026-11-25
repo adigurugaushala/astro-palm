@@ -48,16 +48,16 @@
     .gl-lotus path:nth-child(3) { animation-delay: .45s; }
     .gl-lotus path:nth-child(4) { animation-delay: .7s; }
     .gl-word { margin-top: 18px; font-family: 'Cinzel', 'Times New Roman', serif; font-weight: 600;
-      font-size: 34px; letter-spacing: .32em; padding-left: .32em; color: #f1d9b0;
+      font-size: calc(34px + .5px); letter-spacing: .32em; padding-left: .32em; color: #f1d9b0;
       opacity: 0; animation: gl-rise .9s .55s cubic-bezier(.16,1,.3,1) forwards; }
-    .gl-tag { margin-top: 8px; font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: rgba(245,237,227,.75);
+    .gl-tag { margin-top: 8px; font-size: calc(11px + .5px); letter-spacing: .28em; text-transform: uppercase; color: rgba(245,237,227,.75);
       opacity: 0; animation: gl-rise .9s .75s cubic-bezier(.16,1,.3,1) forwards; }
     .gl-bar { position: relative; margin-top: 30px; width: 180px; height: 2px; border-radius: 2px; background: rgba(245,184,90,.18); overflow: hidden; }
     .gl-bar i { position: absolute; inset: 0 auto 0 0; width: 8%; border-radius: 2px;
       background: linear-gradient(90deg, #c8893a, #f5b85a, #ffe2a8); box-shadow: 0 0 10px rgba(245,184,90,.7);
       transition: width .5s cubic-bezier(.16,1,.3,1); }
     .gl-msg { margin-top: 14px; min-height: 20px; font-family: 'Playfair Display', Georgia, serif; font-style: italic;
-      font-size: 15px; color: rgba(245,237,227,.82); transition: opacity .35s ease; }
+      font-size: calc(15px + .5px); color: rgba(245,237,227,.82); transition: opacity .35s ease; }
     .gl-msg.gl-fade { opacity: 0; }
     .gl-sound { margin-top: 22px; display: inline-flex; align-items: center; gap: 8px;
       padding: 8px 16px; border-radius: 9999px; border: 1px solid rgba(245,184,90,.35);
@@ -78,7 +78,7 @@
     @media (max-width: 480px) {
       .gl-emblem { width: 210px; height: 210px; }
       .gl-lotus { width: 86px; height: 76px; }
-      .gl-word { font-size: 28px; }
+      .gl-word { font-size: calc(28px + .5px); }
     }
     @media (prefers-reduced-motion: reduce) {
       .gl-wheel, .gl-halo { animation: none; }
@@ -448,13 +448,13 @@
           <path d="M14 45c5.5 3 11.5 4.5 18 4.5S44.5 48 50 45"/>
         </svg>
         <div class="leading-tight">
-          <div class="font-cinzel text-[15px] min-[400px]:text-[17px] sm:text-xl min-[2000px]:text-[26px] font-semibold tracking-[0.06em] min-[400px]:tracking-[0.08em] sm:tracking-[0.1em] text-[#f1d9b0] leading-none whitespace-nowrap">GURUJI PALMISTRY</div>
+          <div class="font-cinzel text-[15.5px] min-[400px]:text-[17.5px] sm:text-xl min-[2000px]:text-[26.5px] font-semibold tracking-[0.06em] min-[400px]:tracking-[0.08em] sm:tracking-[0.1em] text-[#f1d9b0] leading-none whitespace-nowrap">GURUJI PALMISTRY</div>
           <div class="hidden sm:block lg:hidden min-[1500px]:block text-2xs tracking-[0.14em] text-cream/90 font-medium uppercase mt-1 whitespace-nowrap">Palmistry · Reiki · Conscious Living</div>
         </div>
       </a>
 
       <!-- Desktop navigation -->
-      <nav class="hidden min-[1100px]:flex items-center gap-0 min-[1050px]:gap-0.5 xl:gap-1 text-[12px] min-[1120px]:text-[13px] xl:text-[14px] min-[2000px]:text-[16px] whitespace-nowrap" aria-label="Primary">
+      <nav class="hidden min-[1100px]:flex items-center gap-0 min-[1050px]:gap-0.5 xl:gap-1 text-[12.5px] min-[1120px]:text-[13.5px] xl:text-[14.5px] min-[2000px]:text-[16.5px] whitespace-nowrap" aria-label="Primary">
         <a href="/" data-link data-nav="home" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-home">Home</a>
         <a href="/about" data-link data-nav="about" class="nav-link px-2 xl:px-3 min-[2000px]:px-[18px] py-1.5 min-[2000px]:py-2 rounded-full min-[2000px]:rounded-xl transition text-cream-2 hover:text-cream hover:bg-white/10" id="nav-about">About Guruji</a>
         <div class="relative group nav-dropdown">
@@ -523,17 +523,17 @@
           <i class="fa-regular fa-bell" aria-hidden="true"></i>
           <span id="seeker-unread" class="seeker-badge hidden" aria-hidden="true"></span>
         </a>
-        <a href="/account" data-link id="header-account-btn" class="hidden min-[1200px]:flex items-center gap-1.5 px-3 min-[2000px]:px-4 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="My Account">
+        <a href="/account" data-link id="header-account-btn" class="hidden min-[1200px]:flex items-center gap-1.5 px-3 min-[2000px]:px-4 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16.5px] font-medium transition whitespace-nowrap" aria-label="My Account">
           <i class="fa-regular fa-user text-amber-400" aria-hidden="true"></i>
           <span class="hidden min-[1560px]:inline">My Account</span>
         </a>
 
-        <a href="/track" data-link id="header-track-btn" class="relative hidden min-[1280px]:flex items-center gap-2 px-3 min-[2000px]:px-5 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16px] font-medium transition whitespace-nowrap" aria-label="Track Status">
+        <a href="/track" data-link id="header-track-btn" class="relative hidden min-[1280px]:flex items-center gap-2 px-3 min-[2000px]:px-5 h-10 min-[2000px]:h-12 rounded-full border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-gold-soft hover:text-white text-sm min-[2000px]:text-[16.5px] font-medium transition whitespace-nowrap" aria-label="Track Status">
           <i class="fa-solid fa-magnifying-glass-location text-amber-400" aria-hidden="true"></i>
           <span class="hidden min-[1700px]:inline">Track Status</span>
         </a>
 
-        <a href="/services" data-link class="header-book gold-gradient-btn px-3.5 sm:px-5 min-[2000px]:px-6 h-10 min-[2000px]:h-12 rounded-full text-sm min-[2000px]:text-[16px] whitespace-nowrap">
+        <a href="/services" data-link class="header-book gold-gradient-btn px-3.5 sm:px-5 min-[2000px]:px-6 h-10 min-[2000px]:h-12 rounded-full text-sm min-[2000px]:text-[16.5px] whitespace-nowrap">
           <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
           <span class="hidden min-[2000px]:inline">Book Consultation</span><span class="min-[2000px]:hidden">Book</span>
         </a>
@@ -546,7 +546,7 @@
 
     <!-- Mobile navigation -->
     <div id="mobile-menu" class="is-closed min-[1100px]:hidden absolute inset-x-0 top-full bg-night border-b border-night-line shadow-2xl max-h-[calc(100vh-72px)] overflow-y-auto">
-      <nav class="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid gap-1 text-[15px]" aria-label="Mobile">
+      <nav class="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid gap-1 text-[15.5px]" aria-label="Mobile">
         <div class="grid grid-cols-2 gap-2 mb-2">
           <a href="/account" data-link class="px-3 py-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-gold-soft font-semibold flex items-center justify-center gap-2 text-sm"><i class="fa-regular fa-user text-amber-400"></i>My Account</a>
           <a href="/messages" data-link class="px-3 py-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-gold-soft font-semibold flex items-center justify-center gap-2 text-sm"><i class="fa-regular fa-comments text-amber-400"></i>Messages</a>
@@ -556,7 +556,7 @@
         <a href="/" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Home</a>
         <a href="/about" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">About Guruji</a>
         <a href="/services" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Services</a>
-        <div class="grid grid-cols-2 gap-x-2 pl-3 pb-1 text-[14px]">
+        <div class="grid grid-cols-2 gap-x-2 pl-3 pb-1 text-[14.5px]">
           <a href="/services/astro-palmistry-correlation" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Astro-Palmistry</a>
           <a href="/services/detailed-palm-analysis" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Palm Analysis</a>
           <a href="/services/kundali-analysis" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Comprehensive Kundali Analysis</a>
@@ -567,7 +567,7 @@
         <a href="/reiki-healing" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Reiki Healing</a>
         <a href="/courses" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Courses</a>
         <a href="/resources" data-link class="px-3 py-3 rounded-lg text-cream hover:bg-white/5">Resources</a>
-        <div class="grid grid-cols-2 gap-x-2 pl-3 pb-1 text-[14px]">
+        <div class="grid grid-cols-2 gap-x-2 pl-3 pb-1 text-[14.5px]">
           <a href="/mantras" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Mantras &amp; Stotras</a>
           <a href="/palmistry" data-link class="px-3 py-2 rounded-lg text-cream/85 hover:bg-white/5">Palmistry Guide</a>
         </div>
@@ -625,7 +625,7 @@
 
         <div class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-6 xl:py-0 xl:min-h-[480px] flex items-center">
           <div class="w-full max-w-2xl xl:max-w-[520px] 2xl:max-w-[540px] space-y-5 hero-copy">
-            <h1 id="hero-title" class="font-serif text-[44px] sm:text-[58px] xl:text-[60px] 2xl:text-[66px] leading-[1.02] text-cream font-bold tracking-tight">Ancient Wisdom. Personal Guidance. Inner Clarity.</h1>
+            <h1 id="hero-title" class="font-serif text-[44.5px] sm:text-[58.5px] xl:text-[60.5px] 2xl:text-[66.5px] leading-[1.02] text-cream font-bold tracking-tight">Ancient Wisdom. Personal Guidance. Inner Clarity.</h1>
 
             <p id="hero-subtitle" class="text-cream/85 text-base sm:text-lg leading-relaxed">
               Discover the wisdom of Palmistry, Vedic Astrology and Reiki through personal consultations, spiritual practices and traditional knowledge. Guidance to understand yourself better, navigate life's challenges and move forward with greater clarity.
@@ -774,32 +774,32 @@
       <section class="bg-[#fbf1e4] border-b border-line-strong/60 sticky top-[72px] z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-auto no-scrollbar">
           <div class="flex items-center gap-1 min-w-max lg:min-w-0 lg:justify-between py-3" role="tablist" aria-label="Palmistry topics">
-            <button onclick="openPalmTopic(this, 'overview')" class="subnav-tab active h-11 px-5 rounded-xl bg-maroon text-cream flex items-center gap-2.5 font-medium text-[15px] transition-all shadow-sm" role="tab" aria-selected="true">
+            <button onclick="openPalmTopic(this, 'overview')" class="subnav-tab active h-11 px-5 rounded-xl bg-maroon text-cream flex items-center gap-2.5 font-medium text-[15.5px] transition-all shadow-sm" role="tab" aria-selected="true">
               <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 C10 8, 7 13, 12 19 C17 13, 14 8, 12 3 Z"/><path d="M12 9 C8 11, 5 15, 8 20 C10 18, 11 14, 12 9 Z"/><path d="M12 9 C16 11, 19 15, 16 20 C14 18, 13 14, 12 9 Z"/></svg>
               <span>Overview</span>
             </button>
             <span class="h-6 w-px bg-line-strong hidden lg:block" aria-hidden="true"></span>
-            <button onclick="openPalmTopic(this, 'hand-types')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15px] transition-all" role="tab" aria-selected="false">
+            <button onclick="openPalmTopic(this, 'hand-types')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15.5px] transition-all" role="tab" aria-selected="false">
               <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a2 2 0 014 0v4m0 0V5a2 2 0 014 0v6m0 0V7a2 2 0 014 0v6m0 0a6 6 0 01-12 0v-2a2 2 0 014 0v4" /></svg>
               <span>Hand Types</span>
             </button>
             <span class="h-6 w-px bg-line-strong hidden lg:block" aria-hidden="true"></span>
-            <button onclick="openPalmTopic(this, 'lines')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15px] transition-all" role="tab" aria-selected="false">
+            <button onclick="openPalmTopic(this, 'lines')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15.5px] transition-all" role="tab" aria-selected="false">
               <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4m14.14-5.66l-11.3 11.3m0-11.3l11.3 11.3" /></svg>
               <span>Lines</span>
             </button>
             <span class="h-6 w-px bg-line-strong hidden lg:block" aria-hidden="true"></span>
-            <button onclick="openPalmTopic(this, 'mounts')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15px] transition-all" role="tab" aria-selected="false">
+            <button onclick="openPalmTopic(this, 'mounts')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15.5px] transition-all" role="tab" aria-selected="false">
               <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19l6-10 4 6 6-9" /><circle cx="12" cy="7" r="2" /></svg>
               <span>Mounts</span>
             </button>
             <span class="h-6 w-px bg-line-strong hidden lg:block" aria-hidden="true"></span>
-            <button onclick="openPalmTopic(this, 'fingers')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15px] transition-all" role="tab" aria-selected="false">
+            <button onclick="openPalmTopic(this, 'fingers')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15.5px] transition-all" role="tab" aria-selected="false">
               <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 11V5a1.5 1.5 0 013 0v6m0-1V4a1.5 1.5 0 013 0v7m0-1.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-1a6 6 0 01-5-2.7L4 15.5a1.6 1.6 0 012.6-1.8L9 16" /></svg>
               <span>Fingers &amp; Thumb</span>
             </button>
             <span class="h-6 w-px bg-line-strong hidden lg:block" aria-hidden="true"></span>
-            <button onclick="openPalmTopic(this, 'learn')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15px] transition-all" role="tab" aria-selected="false">
+            <button onclick="openPalmTopic(this, 'learn')" class="subnav-tab h-11 px-5 rounded-xl hover:bg-sand text-ink flex items-center gap-2.5 font-medium text-[15.5px] transition-all" role="tab" aria-selected="false">
               <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
               <span>Learn Palmistry</span>
             </button>
@@ -846,7 +846,7 @@
               <svg class="w-12 h-12 shrink-0 text-night-line" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 48 48" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18 10v12m4-14v14m4-12v12m4-8v12c0 8-5 14-12 14s-12-6-12-14V22a4 4 0 018 0v2" /></svg>
               <span class="flex-1 flex flex-col">
                 <span class="text-xl font-semibold text-ink">Introduction</span>
-                <span class="text-[15px] text-ink-2 mt-1.5 leading-relaxed">What is Palmistry? Origin, history and its relevance.</span>
+                <span class="text-[15.5px] text-ink-2 mt-1.5 leading-relaxed">What is Palmistry? Origin, history and its relevance.</span>
                 <span class="arrow-circle self-end mt-4 w-9 h-9 rounded-full border border-night-line/60 flex items-center justify-center text-night-line text-sm transition-all"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
               </span>
             </button>
@@ -854,7 +854,7 @@
               <svg class="w-12 h-12 shrink-0 text-night-line" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 48 48" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M24 10l16 8-16 8-16-8 16-8z" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 26l16 8 16-8" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 34l16 8 16-8" /></svg>
               <span class="flex-1 flex flex-col">
                 <span class="text-xl font-semibold text-ink">Types of Hands</span>
-                <span class="text-[15px] text-ink-2 mt-1.5 leading-relaxed">Earth, Fire, Air, Water and Classical hand types.</span>
+                <span class="text-[15.5px] text-ink-2 mt-1.5 leading-relaxed">Earth, Fire, Air, Water and Classical hand types.</span>
                 <span class="arrow-circle self-end mt-4 w-9 h-9 rounded-full border border-night-line/60 flex items-center justify-center text-night-line text-sm transition-all"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
               </span>
             </button>
@@ -862,7 +862,7 @@
               <svg class="w-12 h-12 shrink-0 text-night-line" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 48 48" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16c5-4 11-4 16 0s11 4 16 0" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 24c5-4 11-4 16 0s11 4 16 0" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 32c5-4 11-4 16 0s11 4 16 0" /></svg>
               <span class="flex-1 flex flex-col">
                 <span class="text-xl font-semibold text-ink">Major Lines</span>
-                <span class="text-[15px] text-ink-2 mt-1.5 leading-relaxed">Life, Head, Heart, Fate, Sun and more.</span>
+                <span class="text-[15.5px] text-ink-2 mt-1.5 leading-relaxed">Life, Head, Heart, Fate, Sun and more.</span>
                 <span class="arrow-circle self-end mt-4 w-9 h-9 rounded-full border border-night-line/60 flex items-center justify-center text-night-line text-sm transition-all"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
               </span>
             </button>
@@ -870,7 +870,7 @@
               <svg class="w-12 h-12 shrink-0 text-night-line" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 48 48" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 36l14-22 9 14 6-9 7 17H6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M20 14l5 8" /></svg>
               <span class="flex-1 flex flex-col">
                 <span class="text-xl font-semibold text-ink">Mounts</span>
-                <span class="text-[15px] text-ink-2 mt-1.5 leading-relaxed">The nine mounts and their significance.</span>
+                <span class="text-[15.5px] text-ink-2 mt-1.5 leading-relaxed">The nine mounts and their significance.</span>
                 <span class="arrow-circle self-end mt-4 w-9 h-9 rounded-full border border-night-line/60 flex items-center justify-center text-night-line text-sm transition-all"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
               </span>
             </button>
@@ -1359,7 +1359,7 @@
             <h2 class="bk-heading mt-8"><svg class="w-7 h-7 text-maroon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M7.5 8C5 8 5 4 7.5 4 10 4 12 8 12 8s2-4 4.5-4C19 4 19 8 16.5 8"/></svg>Prasadam Delivery</h2>
             <label class="flex items-start gap-3 cursor-pointer select-none">
               <input type="checkbox" id="prasadam-deliver" class="pooja-check !pointer-events-auto mt-0.5" checked onchange="togglePrasadamAddress()">
-              <span class="text-[15px] text-ink">Send the blessed prasadam to my address <span class="block text-xs text-ink-3 mt-0.5">Delivered across India after the pooja is performed.</span></span>
+              <span class="text-[15.5px] text-ink">Send the blessed prasadam to my address <span class="block text-xs text-ink-3 mt-0.5">Delivered across India after the pooja is performed.</span></span>
             </label>
             <div id="prasadam-address" class="grid grid-cols-1 md:grid-cols-2 gap-x-7 gap-y-3 mt-4">
               <div class="md:col-span-2">
@@ -1435,7 +1435,7 @@
             <div class="bk-card bk-card--side">
               <h2 class="bk-side-title"><svg class="w-8 h-8 text-maroon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>Your Selection</h2>
               <div id="pooja-selection-item" class="bk-selection"></div>
-              <div class="bk-selection__row text-[15px] pt-4" id="pooja-summary-when-row">
+              <div class="bk-selection__row text-[15.5px] pt-4" id="pooja-summary-when-row">
                 <span class="text-ink-3">Date &amp; Slot</span>
                 <span id="pooja-summary-when" class="font-medium text-right">Not chosen yet</span>
               </div>
@@ -2898,7 +2898,7 @@
           <svg class="w-10 h-9 text-[#e9b25c]" viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M32 6c-6.5 7.5-8.5 17.5 0 30 8.5-12.5 6.5-22.5 0-30z"/><path d="M31 36c-3-10.5-10.5-17-21-18 0 11 8.5 18 21 18zM33 36c3-10.5 10.5-17 21-18 0 11-8.5 18-21 18z"/><path d="M14 45c5.5 3 11.5 4.5 18 4.5S44.5 48 50 45"/></svg>
           <span class="font-cinzel text-lg tracking-[0.1em] text-[#f1d9b0] font-semibold">GURUJI PALMISTRY</span>
         </a>
-        <p class="mt-3 text-[13px] text-gold-soft tracking-[0.14em] uppercase">Guidance · Healing · Devotion · Learning</p>
+        <p class="mt-3 text-[13.5px] text-gold-soft tracking-[0.14em] uppercase">Guidance · Healing · Devotion · Learning</p>
         <div class="lang-switch lang-switch--footer mt-4" data-lang-switch="full" role="group" aria-label="Language"></div>
         <p class="mt-2 text-xs text-zinc-400" data-lang-note hidden></p>
         <p class="mt-3 text-sm leading-relaxed text-zinc-400">Palmistry, Vedic astrology, Reiki healing and spiritual guidance — guidance, not fear; awareness, not dependency.</p>
@@ -2946,10 +2946,10 @@
               2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana - 500039
             </a>
           </li>
-          <li class="pt-1 text-[11px] text-zinc-400 leading-normal">
+          <li class="pt-1 text-[11.5px] text-zinc-400 leading-normal">
             <span class="text-amber-300/90 font-semibold">Registered Establishment:</span><br>
             GURUJI PALMISTRY, 2-3-123/E, Swaroop Nagar, Ayyappa Swamy Temple Road, Hyderabad, Uppal Bagayath, Uppal, Medchal (Malkajgiri)<br>
-            <span class="font-mono text-amber-400 text-[10px]">Reg: SEA/MED/ALO/NR/1439866/2026</span>
+            <span class="font-mono text-amber-400 text-[10.5px]">Reg: SEA/MED/ALO/NR/1439866/2026</span>
           </li>
         </ul>
         <div class="mt-3 flex flex-wrap gap-2">
@@ -2985,7 +2985,7 @@
     <a href="/account" data-link data-bnav="account"><i class="fa-solid fa-user" aria-hidden="true"></i><span>Account</span></a>
   </nav>
 
-  <a id="whatsapp-fab" href="#" target="_blank" rel="noopener" class="hidden fixed z-40 right-4 bottom-4 sm:right-6 sm:bottom-6 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,.45)] flex items-center justify-center text-[28px] hover:scale-105 transition" aria-label="Chat with us on WhatsApp">
+  <a id="whatsapp-fab" href="#" target="_blank" rel="noopener" class="hidden fixed z-40 right-4 bottom-4 sm:right-6 sm:bottom-6 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,.45)] flex items-center justify-center text-[28.5px] hover:scale-105 transition" aria-label="Chat with us on WhatsApp">
     <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
   </a>
 

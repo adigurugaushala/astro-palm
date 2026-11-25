@@ -397,9 +397,9 @@ function renderTrackedBooking(b) {
   const pct = failed ? 0 : ((done - 1) / (steps.length - 1)) * 100;
 
   let action = "";
-  if (failed) action = `<button onclick="showPage('${isPooja ? "book-pooja" : "book-consultation"}')" class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15px]">Book again</button>`;
-  else if (isCourse) action = `<a href="/learn/${encodeURIComponent(b.orderId)}" data-link class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15px] inline-flex items-center">Open your lessons</a>`;
-  else if (!isPooja && b.status === "PAID") action = `<button onclick="showPage('book-upload')" class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15px]">Upload palm photos</button>`;
+  if (failed) action = `<button onclick="showPage('${isPooja ? "book-pooja" : "book-consultation"}')" class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15.5px]">Book again</button>`;
+  else if (isCourse) action = `<a href="/learn/${encodeURIComponent(b.orderId)}" data-link class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15.5px] inline-flex items-center">Open your lessons</a>`;
+  else if (!isPooja && b.status === "PAID") action = `<button onclick="showPage('book-upload')" class="bk-cta !mt-0 !w-auto px-6 !h-11 !text-[15.5px]">Upload palm photos</button>`;
 
   box.innerHTML = `
     <div class="bg-white p-6 sm:p-8 rounded-2xl border border-line shadow-sm space-y-7">
@@ -426,7 +426,7 @@ function renderTrackedBooking(b) {
         </ol>
       </div>
 
-      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-[15px] border-t border-line pt-6">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-[15.5px] border-t border-line pt-6">
         <div><dt class="text-ink-3 text-sm">${isPooja ? "Poojas" : isCourse ? "Course" : "Service"}</dt><dd class="font-semibold text-ink">${escapeHTML(what)}</dd></div>
         <div><dt class="text-ink-3 text-sm">${isPooja ? "Pooja date & slot" : isCourse ? "Lessons" : "Consultation slot"}</dt><dd class="font-semibold text-ink">${escapeHTML(when || "—")}</dd></div>
         <div><dt class="text-ink-3 text-sm">Seeker</dt><dd class="font-semibold text-ink">${escapeHTML(b.devotee.name)}${b.devotee.gotram ? ` · ${escapeHTML(b.devotee.gotram)}` : ""}</dd></div>
