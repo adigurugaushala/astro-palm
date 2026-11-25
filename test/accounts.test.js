@@ -57,11 +57,24 @@ describe('devotee accounts', () => {
     token = r.body.token;
   });
 
-  test('registration refuses bad details and missing consent', async () => {
-    assert.equal((await call('POST', '/api/customer/register', newAccount({ consent: false, disclaimerAccepted: false, termsAccepted: false, privacyAccepted: false, email: 'a@b.co', mobile: '9000000099' }))).status, 400);
+  test('registration refuses bad details; the terms and mobile are asked on the payment page', async () => {
+    // Sign-up needs only a name and an email now: no mobile, no consent tick.
+    const lite = await call('POST', '/api/customer/register', { name: 'Light Signup', email: 'light@example.com', password: 'Secret123' });
+    assert.equal(lite.status, 200);
+    assert.equal(lite.body.customer.mobile, '');
+    assert.equal(lite.body.consentId, undefined, 'no consent is recorded when none was given');
+    assert.equal((await call('POST', '/api/customer/register', { name: 'No Contact', password: 'Secret123' })).status, 422, 'an email or mobile is still needed');
     assert.equal((await call('POST', '/api/customer/register', newAccount({ name: 'x', email: 'new1@example.com', mobile: '9000000098' }))).status, 422);
     assert.equal((await call('POST', '/api/customer/register', newAccount({ mobile: '123', email: 'new2@example.com' }))).status, 422);
     assert.equal((await call('POST', '/api/customer/register', newAccount({ email: 'not-an-email', mobile: '9000000097' }))).status, 422);
+  });
+
+  test('registering again without the password does not open the account', async () => {
+    // Before: sending no password (or the address of a Google account) got a
+    // session for someone else's account.
+    const r = await call('POST', '/api/customer/register', newAccount({ password: undefined }));
+    assert.equal(r.status, 409);
+    assert.equal(r.body.token, undefined);
   });
 
   test('a second registration with the wrong password does not take over the account', async () => {

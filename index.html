@@ -165,11 +165,7 @@
           localStorage.setItem('guruji_cust_token', data.token);
           if (data.customer && typeof state !== 'undefined' && state.user) {
             state.user.customerId = data.customer.id;
-            if (data.customer.mobile) {
-              state.user.mobile = data.customer.mobile;
-              const mobInput = document.getElementById('auth-mobile');
-              if (mobInput && !mobInput.value) mobInput.value = data.customer.mobile;
-            }
+            if (data.customer.mobile) state.user.mobile = data.customer.mobile;
           }
         } else if (typeof showVedicToast === 'function') {
           // The server says why: an expired sign-in, the wrong Firebase project,
@@ -187,22 +183,16 @@
         showVedicToast('Namaste ' + (user.displayName || 'Seeker') + ', signed in with Google!', 'success');
       }
 
-      // On the account page, show the portal: it asks for the mobile number if
-      // Google did not give us one.
+      // On the account page, show the portal.
       if (location.pathname.replace(/\/$/, '') === '/account') {
         if (typeof renderAccountPortal === 'function') renderAccountPortal();
         return;
       }
-
-      const mobileVal = document.getElementById('auth-mobile')?.value;
-      if (mobileVal && mobileVal.replace(/\D/g, '').length === 10) {
-        if (typeof showPage === 'function') showPage('book-payment');
-      } else {
-        if (typeof setBookAuthMode === 'function') setBookAuthMode('register');
-        document.getElementById('auth-mobile')?.focus();
-        if (typeof showVedicToast === 'function') {
-          showVedicToast('Please confirm your 10-digit mobile number so Guruji can reach you.', 'info');
-        }
+      // The mobile number is asked on the payment page, so carry straight on.
+      if (typeof state !== 'undefined' && state.currentPage === 'book-auth' && typeof showPage === 'function') {
+        showPage('book-consultation');
+      } else if (typeof prefillPayDetails === 'function') {
+        prefillPayDetails();
       }
     }
 
@@ -543,7 +533,7 @@
           <span class="hidden min-[1700px]:inline">Track Status</span>
         </a>
 
-        <a href="/services" data-link class="gold-gradient-btn px-3.5 sm:px-5 min-[2000px]:px-6 h-10 min-[2000px]:h-12 rounded-full text-sm min-[2000px]:text-[16px] whitespace-nowrap">
+        <a href="/services" data-link class="header-book gold-gradient-btn px-3.5 sm:px-5 min-[2000px]:px-6 h-10 min-[2000px]:h-12 rounded-full text-sm min-[2000px]:text-[16px] whitespace-nowrap">
           <i class="fa-regular fa-calendar-check" aria-hidden="true"></i>
           <span class="hidden min-[2000px]:inline">Book Consultation</span><span class="min-[2000px]:hidden">Book</span>
         </a>
@@ -1634,22 +1624,13 @@
           <!-- Create account (new seekers) -->
           <form id="book-register-form" onsubmit="handleAuthSubmit(event)" novalidate class="gp-auth-form hidden">
             <input type="text" id="auth-name" required class="gp-auth-input" placeholder="Full name" autocomplete="name" aria-label="Full name">
-            <div class="gp-auth-phone">
-              <span>+91</span>
-              <input type="tel" id="auth-mobile" required inputmode="numeric" maxlength="11" class="gp-auth-input" placeholder="Mobile number (WhatsApp updates)" autocomplete="tel-national" aria-label="Mobile number">
-            </div>
-            <input type="email" id="auth-email" class="gp-auth-input" placeholder="Email address (optional)" autocomplete="email" aria-label="Email address">
+            <input type="email" id="auth-email" required class="gp-auth-input" placeholder="Email address" autocomplete="email" aria-label="Email address">
             <div class="gp-auth-pwd">
               <input type="password" id="auth-password" class="gp-auth-input" placeholder="Create a password (min 6 chars)" autocomplete="new-password" aria-label="Password">
               <button type="button" class="gp-auth-eye" onclick="togglePwdVisibility('auth-password', this)" aria-label="Show password"><i class="fa-regular fa-eye"></i></button>
             </div>
 
-            <label class="gp-auth-consent">
-              <input type="checkbox" id="auth-consent">
-              <span>
-                I understand and agree that Guruji Palmistry provides Palmistry, Astrology, Kundali Analysis, Astro-Palmistry, Reiki, Spiritual Guidance, Poojas, Rituals and related services based on traditional, spiritual and interpretive practices. I understand that these services do not guarantee any particular prediction, result or outcome and are not substitutes for medical, psychological, financial, legal or other professional advice. I acknowledge that my decisions and actions remain my responsibility. I have read and agree to the <a href="/disclaimer" onclick="openPolicyModal('disclaimer', event)">Disclaimer</a>, <a href="/terms" onclick="openPolicyModal('terms', event)">Terms &amp; Conditions</a> and <a href="/privacy-policy" onclick="openPolicyModal('privacy-policy', event)">Privacy Policy</a>.
-              </span>
-            </label>
+            <p class="gp-auth-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Your mobile number and the terms are asked once, on the payment page.</p>
 
             <button type="submit" class="gp-auth-submit">Create account &amp; continue</button>
             <div class="gp-auth-links gp-auth-links--center">
@@ -1684,6 +1665,18 @@
             <div class="flex justify-between gap-4 px-4 py-3"><dt class="text-ink-3">Payee</dt><dd class="font-semibold text-ink">Guruji Palmistry</dd></div>
           </dl>
           <p class="text-sm text-ink-2 leading-relaxed">You will be taken to <strong>Cashfree Payments</strong> to pay by UPI, card, net banking or wallet. Your booking is confirmed only after the payment gateway confirms the payment.</p>
+          <div id="pay-details" class="pay-details">
+            <label for="pay-mobile" class="pay-label">Mobile number <span>for booking updates on WhatsApp</span></label>
+            <div class="gp-auth-phone">
+              <span>+91</span>
+              <input type="tel" id="pay-mobile" oninput="document.getElementById('pay-details-err').classList.add('hidden')" inputmode="numeric" maxlength="12" class="gp-auth-input" placeholder="10-digit mobile number" autocomplete="tel-national" aria-label="Mobile number">
+            </div>
+            <label class="gp-auth-consent pay-consent">
+              <input type="checkbox" id="pay-consent" onchange="document.getElementById('pay-details-err').classList.add('hidden')">
+              <span>I agree to the <a href="/disclaimer" onclick="openPolicyModal('disclaimer', event)">Disclaimer</a>, <a href="/terms" onclick="openPolicyModal('terms', event)">Terms &amp; Conditions</a> and <a href="/privacy-policy" onclick="openPolicyModal('privacy-policy', event)">Privacy Policy</a>. I understand these are traditional, interpretive services with no guaranteed outcome, and not medical, legal or financial advice.</span>
+            </label>
+            <div id="pay-details-err" class="gp-auth-err hidden" role="alert"></div>
+          </div>
           <button id="pay-now-btn" onclick="startOnlinePayment(this)" class="w-full h-14 rounded-xl gold-gradient-btn text-base font-semibold">
             <i class="fa-solid fa-lock" aria-hidden="true"></i>
             <span>Pay securely</span>
@@ -2983,6 +2976,15 @@
   </footer>
 
   <!-- WhatsApp floating contact -->
+  <!-- Bottom navigation on phones (hidden on wide screens and on staff pages) -->
+  <nav id="bottom-nav" class="bottom-nav" aria-label="Main">
+    <a href="/" data-link data-bnav="home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Home</span></a>
+    <a href="/services" data-link data-bnav="services"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i><span>Services</span></a>
+    <a href="/book" data-link data-bnav="book" class="bottom-nav__book"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span>Book</span></a>
+    <a href="/account?tab=reports" data-link data-bnav="reports"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>Reports</span></a>
+    <a href="/account" data-link data-bnav="account"><i class="fa-solid fa-user" aria-hidden="true"></i><span>Account</span></a>
+  </nav>
+
   <a id="whatsapp-fab" href="#" target="_blank" rel="noopener" class="hidden fixed z-40 right-4 bottom-4 sm:right-6 sm:bottom-6 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,.45)] flex items-center justify-center text-[28px] hover:scale-105 transition" aria-label="Chat with us on WhatsApp">
     <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
   </a>
@@ -3452,5 +3454,6 @@
   <!-- The same SEO module the server uses, so the head stays right as pages change -->
   <script src="/seo.js"></script>
   <script src="/site.js"></script>
+  <script src="/account-ui.js"></script>
 </body>
 </html>

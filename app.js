@@ -16,16 +16,9 @@ const state = {
   slotTimerSeconds: 600, // 10 minutes hold
   slotTimerInterval: null,
   isSlotHeld: true,
-  user: {
-    name: "Srikar Babu G",
-    email: "srikar.babu@example.com",
-    mobile: "+91 89776 25078",
-    gotram: "Bharadwaja Gotram",
-    dob: "1994-07-18",
-    tob: "06:45 AM",
-    pob: "Hyderabad, Telangana",
-    questions: "Career trajectory, startup venture timing and overseas relocation guidance."
-  },
+  // Starts empty: these are filled from the seeker's own sign-in and forms.
+  // (Sample values here once leaked into real bookings and the payment page.)
+  user: { name: "", email: "", mobile: "", gotram: "", dob: "", tob: "", pob: "", questions: "" },
   orderId: "GURUJI-PLM-7843",
   paymentStatus: "PENDING",
   uploadedPhotos: [
@@ -231,7 +224,8 @@ function currentBookingRequest() {
       poojaDate: state.pooja.date,
       poojaSlot: state.pooja.slot && state.pooja.slot.id,
       prasadam: state.pooja.prasadam || { deliver: false },
-      devotee: { name: state.user.name, mobile: state.user.mobile, gotram: state.user.gotram, dob: state.user.dob }
+      devotee: { name: state.user.name, mobile: state.user.mobile, gotram: state.user.gotram, dob: state.user.dob },
+      consent: Boolean(state.payConsent)
     };
   }
   return {
@@ -239,7 +233,8 @@ function currentBookingRequest() {
     serviceId: state.selectedService.id,
     handedness: state.handedness,
     slot: { date: state.selectedDate, time: state.selectedTime, iso: state.selectedDateISO || '' },
-    devotee: { name: state.user.name, mobile: state.user.mobile, email: state.user.email }
+    devotee: { name: state.user.name, mobile: state.user.mobile, email: state.user.email },
+    consent: Boolean(state.payConsent)
   };
 }
 
@@ -1251,62 +1246,47 @@ function selectTimeSlot(slotTime) {
 
 async function handleAuthSubmit(event) {
   event.preventDefault();
+  // Only who they are here. The mobile number and the agreement to the terms
+  // are asked once, on the payment page (see collectPayDetails).
+  VALIDATORS.password6 = (v) => v.length >= 6;
   const ok = validateFields([
     { id: "auth-name", rule: "name", msg: "Please enter your full name." },
-    { id: "auth-mobile", rule: "mobile", msg: "Enter a valid 10-digit mobile number." }
+    { id: "auth-email", rule: "email", msg: "Please enter a valid email address." },
+    { id: "auth-password", rule: "password6", msg: "Please create a password of at least 6 characters, so you can sign in again." }
   ]);
   if (!ok) return;
 
-  const consentBox = document.getElementById("auth-consent");
-  if (consentBox && !consentBox.checked) {
-    if (typeof showVedicToast === "function") {
-      showVedicToast("Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.", "error");
-    } else {
-      alert("Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.");
-    }
-    consentBox.focus();
-    return;
-  }
-
   const name = document.getElementById("auth-name").value.trim();
-  const mobile = document.getElementById("auth-mobile").value.replace(/\D/g, "");
-  // No address is asked for any more: the reading is delivered in the account, not by mail.
   const email = (document.getElementById("auth-email")?.value || "").trim().toLowerCase();
   const password = document.getElementById("auth-password") ? document.getElementById("auth-password").value : "";
-  const serviceAck = Boolean(document.getElementById("consult-service-ack")?.checked);
 
   state.user.name = name;
-  state.user.mobile = mobile;
   state.user.email = email;
 
   // Persist slot hold immediately so it cannot be lost (only when one is held)
   if (state.selectedDateISO) persistHeldSlot();
 
-  // Securely register or update customer account in DB with legal consent record
   try {
     const res = await fetch("/api/customer/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        mobile,
-        email,
-        password: password || undefined,
-        consent: true,
-        disclaimerAccepted: true,
-        termsAccepted: true,
-        privacyAccepted: true,
-        serviceAcknowledgement: serviceAck,
-        serviceType: 'consultation',
-        consentSource: 'booking_auth'
-      })
+      body: JSON.stringify({ name, email, password: password || undefined })
     });
     const data = await res.json();
     if ((data.ok || data.success) && data.token) {
       localStorage.setItem("guruji_cust_token", data.token);
       if (data.customer) {
         state.user.customerId = data.customer.id;
+        if (data.customer.mobile) state.user.mobile = data.customer.mobile;
       }
+    } else if (data.error) {
+      showVedicToast(data.error, "error");
+      if (res.status === 409 && typeof setBookAuthMode === "function") {
+        setBookAuthMode("signin");
+        const id = document.getElementById("book-login-id");
+        if (id) id.value = email;
+      }
+      return;
     }
   } catch (e) {
     console.warn("[Customer Account Register]", e);
@@ -1404,8 +1384,41 @@ window.handleBookSignIn = async function(e) {
 // PAYU GATEWAY SIMULATION
 // ==========================================
 
+/** Fills the payment page's mobile box from what we already know. */
+function prefillPayDetails() {
+  const box = document.getElementById("pay-mobile");
+  if (box && !box.value && state.user.mobile) box.value = String(state.user.mobile).replace(/\D/g, "").slice(-10);
+}
+window.prefillPayDetails = prefillPayDetails;
+
+/** The payment page asks for the mobile number and the agreement to the terms
+ *  (they used to be on the login card). Returns true when both are given. */
+function collectPayDetails() {
+  const box = document.getElementById("pay-mobile");
+  const tick = document.getElementById("pay-consent");
+  const err = document.getElementById("pay-details-err");
+  const fail = (msg, el) => {
+    if (err) { err.textContent = msg; err.classList.remove("hidden"); }
+    if (el) el.focus();
+    return false;
+  };
+  if (!box) return true; // older page without the block
+  let digits = box.value.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  if (!/^[6-9]\d{9}$/.test(digits)) return fail("Please enter your 10-digit mobile number, so Guruji can reach you.", box);
+  if (tick && !tick.checked) return fail("Please tick the box to agree to the Disclaimer, Terms & Conditions and Privacy Policy.", tick);
+  if (err) err.classList.add("hidden");
+  box.value = digits;
+  state.user.mobile = digits;
+  state.payConsent = true;
+  return true;
+}
+window.collectPayDetails = collectPayDetails;
+
 async function simulatePaymentSuccess(btn) {
   if (state.paymentInFlight || state.paymentStatus === "SUCCESS") return;
+  if (!collectPayDetails()) return;
   state.paymentInFlight = true;
   setButtonLoading(btn, true, "Processing payment…");
   try {
@@ -3450,58 +3463,26 @@ window.handleCustomerLogin = async function(e) {
 
 window.handleCustomerSignup = async function(e) {
   e.preventDefault();
+  // Name, email and password only: the mobile number and the agreement to the
+  // terms are asked on the payment page, before any booking is paid for.
   const name = (document.getElementById("cust-reg-name")?.value || "").trim();
-  const mobile = (document.getElementById("cust-reg-mobile")?.value || "").replace(/\D/g, "");
   const email = (document.getElementById("cust-reg-email")?.value || "").trim().toLowerCase();
   const password = document.getElementById("cust-reg-pwd")?.value || "";
   const errEl = document.getElementById("cust-signup-err");
   const btn = document.getElementById("cust-signup-btn");
+  const fail = (msg) => { if (errEl) { errEl.textContent = msg; errEl.classList.remove("hidden"); } };
 
-  if (name.length < 2) {
-    if (errEl) { errEl.textContent = "Please enter your full name."; errEl.classList.remove("hidden"); }
-    return;
-  }
-  if (mobile.length !== 10) {
-    if (errEl) { errEl.textContent = "Please enter a valid 10-digit mobile number."; errEl.classList.remove("hidden"); }
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    if (errEl) { errEl.textContent = "Please enter a valid email address."; errEl.classList.remove("hidden"); }
-    return;
-  }
-  if (password.length < 6) {
-    if (errEl) { errEl.textContent = "Password must be at least 6 characters."; errEl.classList.remove("hidden"); }
-    return;
-  }
-
-  const consentBox = document.getElementById("cust-reg-consent");
-  if (consentBox && !consentBox.checked) {
-    if (errEl) {
-      errEl.textContent = "Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.";
-      errEl.classList.remove("hidden");
-    }
-    consentBox.focus();
-    return;
-  }
+  if (name.length < 2) return fail("Please enter your full name.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Please enter a valid email address.");
+  if (password.length < 6) return fail("Password must be at least 6 characters.");
 
   if (errEl) errEl.classList.add("hidden");
   if (btn) { btn.disabled = true; btn.textContent = "Creating Account..."; }
-
   try {
     const res = await fetch("/api/customer/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        mobile,
-        email,
-        password,
-        consent: true,
-        disclaimerAccepted: true,
-        termsAccepted: true,
-        privacyAccepted: true,
-        consentSource: 'portal_signup'
-      })
+      body: JSON.stringify({ name, email, password })
     });
     const data = await res.json();
     if (!res.ok || !(data.ok || data.success)) throw new Error(data.error || "Registration failed");
@@ -3513,12 +3494,10 @@ window.handleCustomerSignup = async function(e) {
       state.user.mobile = data.customer.mobile;
       state.user.customerId = data.customer.id;
     }
-    if (typeof showVedicToast === "function") {
-      showVedicToast(`Namaste ${data.customer.name}, your account is created!`, "success");
-    }
+    if (typeof showVedicToast === "function") showVedicToast(`Namaste ${data.customer.name}, your account is created!`, "success");
     renderAccountPortal();
   } catch (err) {
-    if (errEl) { errEl.textContent = err.message || "Failed to create account."; errEl.classList.remove("hidden"); }
+    fail(err.message || "Failed to create account.");
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "Create Account"; }
   }
@@ -3833,13 +3812,6 @@ window.renderAccountPortal = async function() {
             <input type="text" id="cust-reg-name" required placeholder="Your full name" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
           </div>
           <div>
-            <label class="block font-semibold text-ink mb-1">Mobile Number (WhatsApp updates) <span class="text-red-500">*</span></label>
-            <div class="flex">
-              <span class="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-line bg-zinc-50 text-ink-3 text-xs font-semibold">+91</span>
-              <input type="tel" id="cust-reg-mobile" required inputmode="numeric" maxlength="11" placeholder="98765 43210" class="w-full px-3.5 py-2.5 rounded-r-xl border border-line focus:border-maroon focus:outline-none text-ink">
-            </div>
-          </div>
-          <div>
             <label class="block font-semibold text-ink mb-1">Email Address <span class="text-red-500">*</span></label>
             <input type="email" id="cust-reg-email" required placeholder="you@example.com" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
           </div>
@@ -3848,16 +3820,7 @@ window.renderAccountPortal = async function() {
             <input type="password" id="cust-reg-pwd" required minlength="6" placeholder="At least 6 characters" class="w-full px-3.5 py-2.5 rounded-xl border border-line focus:border-maroon focus:outline-none text-ink">
           </div>
 
-          <!-- Mandatory Legal Consent Checkbox -->
-          <div class="p-3 bg-amber-50/70 rounded-xl border border-amber-200/90 text-left">
-            <label class="flex items-start gap-2.5 cursor-pointer select-none">
-              <input type="checkbox" id="cust-reg-consent" class="mt-0.5 h-4 w-4 rounded border-amber-400 text-maroon focus:ring-amber-500 shrink-0">
-              <span class="text-2xs sm:text-xs text-ink-2 leading-relaxed">
-                I understand and agree that Guruji Palmistry provides Palmistry, Astrology, Kundali Analysis, Astro-Palmistry, Reiki, Spiritual Guidance, Poojas, Rituals and related services based on traditional, spiritual and interpretive practices. I understand that these services do not guarantee any particular prediction, result or outcome and are not substitutes for medical, psychological, financial, legal or other professional advice. I acknowledge that my decisions and actions remain my responsibility. I have read and agree to the <a href="/disclaimer" onclick="openPolicyModal('disclaimer', event)" class="font-semibold text-maroon underline hover:text-amber-700">Disclaimer</a>, <a href="/terms" onclick="openPolicyModal('terms', event)" class="font-semibold text-maroon underline hover:text-amber-700">Terms &amp; Conditions</a> and <a href="/privacy-policy" onclick="openPolicyModal('privacy-policy', event)" class="font-semibold text-maroon underline hover:text-amber-700">Privacy Policy</a>.
-              </span>
-            </label>
-          </div>
-
+          <p class="text-2xs text-ink-3"><i class="fa-solid fa-circle-info text-amber-700"></i> Your mobile number and the terms are asked once, on the payment page.</p>
           <div id="cust-signup-err" class="hidden text-red-600 text-xs bg-red-50 p-2.5 rounded-xl border border-red-200"></div>
           <button type="submit" id="cust-signup-btn" class="w-full gold-gradient-btn py-3 rounded-xl font-semibold text-xs shadow-md">Create Account</button>
         </form>
@@ -3908,152 +3871,11 @@ window.renderAccountPortal = async function() {
       } catch (e) {}
     }
 
-    container.innerHTML = `
-      <div class="space-y-6">
-        ${slotResumeHtml}
-
-        ${!cust.mobile ? `
-        <!-- Profile completion: a Google sign-in brings a name and an email, never a mobile -->
-        <div class="bg-gradient-to-br from-amber-50 to-white p-6 sm:p-7 rounded-3xl border-2 border-amber-300 shadow-sm space-y-4" data-profile-complete>
-          <div class="text-center space-y-1">
-            <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-xl"><i class="fa-regular fa-user-circle"></i></div>
-            <h2 class="font-serif text-xl font-bold text-night-2">Almost there, ${(cust.name || 'Seeker').split(' ')[0]}</h2>
-            <p class="text-xs text-ink-3 max-w-sm mx-auto">Guruji needs a mobile number to confirm your appointment and reach you on the day. Nothing else is missing.</p>
-          </div>
-          <form onsubmit="saveCustomerProfile(event, this)" class="max-w-sm mx-auto space-y-3">
-            <label class="block text-xs font-semibold text-ink-2" for="profile-mobile">Mobile number</label>
-            <div class="flex items-center gap-2">
-              <span class="px-3 h-11 flex items-center rounded-xl border border-line bg-zinc-50 text-sm text-ink-2">+91</span>
-              <input id="profile-mobile" name="mobile" inputmode="numeric" maxlength="10" required
-                class="flex-1 h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm"
-                placeholder="98765 43210" value="">
-            </div>
-            <p class="text-xs text-red-600 hidden" data-profile-error role="alert"></p>
-            <button type="submit" class="w-full gold-gradient-btn h-11 rounded-xl text-sm font-semibold">Save and continue</button>
-          </form>
-        </div>
-        ` : ''}
-
-        <!-- Profile Card -->
-        <div class="bg-white p-6 sm:p-7 rounded-3xl border border-line shadow-sm space-y-4">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 text-amber-900 flex items-center justify-center text-2xl font-bold font-serif shadow-xs">
-                ${(cust.name || 'D').charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <h2 class="font-serif text-xl sm:text-2xl font-bold text-night-2">${cust.name || 'Seeker'}</h2>
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3 mt-0.5">
-                  <span><i class="fa-solid fa-phone text-2xs text-amber-700"></i> ${cust.mobile ? '+91 ' + cust.mobile : 'No mobile number yet'}</span>
-                  <span>•</span>
-                  <span><i class="fa-solid fa-envelope text-2xs text-amber-700"></i> ${cust.email || '—'}</span>
-                  ${cust.provider === 'google' ? '<span>•</span><span><i class="fa-brands fa-google text-2xs text-amber-700"></i> Google</span>' : ''}
-                </div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <button type="button" onclick="toggleProfileEdit()" class="px-4 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-semibold text-maroon flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-pen text-2xs"></i> <span data-edit-label>Edit profile</span>
-              </button>
-              <button type="button" onclick="handleCustomerLogout()" class="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs font-semibold text-zinc-600 flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-arrow-right-from-bracket text-2xs"></i> Sign Out
-              </button>
-            </div>
-          </div>
-
-          <form onsubmit="saveCustomerProfile(event, this)" class="hidden border-t border-line pt-4 grid gap-3 sm:grid-cols-3" data-profile-form>
-            <div>
-              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-name">Full name</label>
-              <input id="profile-name" name="name" required minlength="2" value="${(cust.name || '').replace(/"/g, '&quot;')}"
-                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-mobile-edit">Mobile number</label>
-              <input id="profile-mobile-edit" name="mobile" inputmode="numeric" maxlength="10" required value="${cust.mobile || ''}"
-                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-email">Email</label>
-              <input id="profile-email" name="email" type="email" required value="${cust.email || ''}"
-                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
-            </div>
-            <div class="sm:col-span-3">
-              <label class="block text-xs font-semibold text-ink-2 mb-1" for="profile-password">
-                ${cust.provider === 'google' ? 'Set a password (optional)' : 'New password (optional)'}
-              </label>
-              <input id="profile-password" name="password" type="password" minlength="8" autocomplete="new-password"
-                placeholder="${cust.provider === 'google' ? 'Add one if you also want to sign in without Google' : 'Leave blank to keep your current password'}"
-                class="w-full h-11 px-3 rounded-xl border border-line focus:border-amber-500 focus:outline-none text-sm">
-            </div>
-            <p class="text-xs text-red-600 hidden sm:col-span-3" data-profile-error role="alert"></p>
-            <div class="sm:col-span-3 flex gap-2 justify-end">
-              <button type="button" onclick="toggleProfileEdit()" class="px-4 h-10 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-600">Cancel</button>
-              <button type="submit" class="gold-gradient-btn px-5 h-10 rounded-xl text-xs font-semibold">Save changes</button>
-            </div>
-          </form>
-        </div>
-
-        ${myReportsHtml(bookings, cust)}
-
-        ${reportShopHtml()}
-
-        <!-- Bookings Section -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="font-serif text-lg font-bold text-night-2 flex items-center gap-2">
-              <i class="fa-regular fa-calendar-check text-maroon"></i> Your Consultations &amp; Sevas (${bookings.length})
-            </h3>
-            <a href="/services/astro-palmistry-correlation" data-link class="text-xs text-maroon font-semibold hover:underline">
-              + Book New Consultation
-            </a>
-          </div>
-
-          ${bookings.length === 0 ? `
-            <div class="bg-white p-8 rounded-2xl border border-line text-center space-y-3">
-              <div class="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto text-xl">
-                <i class="fa-regular fa-folder-open"></i>
-              </div>
-              <p class="text-sm text-ink-2">You don't have any consultation bookings yet.</p>
-              <a href="/services" data-link class="inline-block gold-gradient-btn px-5 py-2.5 rounded-xl text-xs font-semibold">Explore Services</a>
-            </div>
-          ` : `
-            <div class="grid gap-4">
-              ${bookings.map(b => {
-                const isPaid = !['PENDING', 'FAILED', 'PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(b.status);
-                const reportReady = b.report && b.report.status === 'ready';
-                const reportUrl = reportReady ? `/api/bookings/${encodeURIComponent(b.orderId)}/${b.reportFile ? 'report-file' : 'report'}.pdf${((b.devotee && b.devotee.mobile) || cust.mobile) ? '?mobile=' + encodeURIComponent((b.devotee && b.devotee.mobile) || cust.mobile) : ''}` : '';
-                const statusBadge = isPaid ? '<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-2xs font-bold">Confirmed</span>' : '<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-2xs font-bold">Pending Payment</span>';
-                return `
-                  <div class="bg-white p-5 sm:p-6 rounded-2xl border border-line shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div class="space-y-1.5">
-                      <div class="flex items-center gap-2 flex-wrap">
-                        <span class="font-mono text-2xs font-bold px-2 py-0.5 rounded bg-night text-cream">${b.orderId}</span>
-                        ${statusBadge}
-                        <span class="text-2xs text-ink-3">${(b.createdAt || b.created) ? new Date(b.createdAt || b.created).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
-                      </div>
-                      <h4 class="font-serif text-base font-bold text-night-2">${b.service?.title || 'Vedic Consultation'}</h4>
-                      <p class="text-xs text-ink-3">
-                        <i class="fa-regular fa-clock text-amber-600 mr-1"></i> Slot: <strong>${b.slot?.date || '—'} at ${b.slot?.time || '—'}</strong>
-                      </p>
-                    </div>
-                    <div class="flex items-center gap-2 self-end md:self-center">
-                      <a href="/track" onclick="fillAndTrack('${b.orderId}', '${cust.mobile || cust.email}')" data-link class="px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-maroon border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-magnifying-glass-location text-2xs"></i> Track Details
-                      </a>
-                      ${reportUrl ? `
-                        <a href="${reportUrl}" target="_blank" download class="gold-gradient-btn px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs">
-                          <i class="fa-solid fa-download text-2xs"></i> Download Report
-                        </a>
-                      ` : ''}
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `}
-        </div>
-      </div>
-    `;
+    if (window.AccountUI) {
+      window.AccountUI.render(container, { cust, bookings, token, slotResumeHtml });
+      return;
+    }
+    container.innerHTML = `<div class="space-y-6">${slotResumeHtml}${myReportsHtml(bookings, cust)}${reportShopHtml()}</div>`;
     initReportCarousels(container);
   } catch (e) {
     container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-line text-center text-xs text-red-600">Failed to load account details. <button onclick="renderAccountPortal()" class="underline font-semibold ml-2">Retry</button></div>`;
