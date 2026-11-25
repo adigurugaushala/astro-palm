@@ -976,10 +976,14 @@
         window.renderAccountPortal();
       }
     }, 0);
+    // Signed in, the account draws its own banner (account-ui.js), so the
+    // page hero is only for the sign-in screen.
+    let signedIn = false;
+    try { signedIn = Boolean(localStorage.getItem('guruji_cust_token')); } catch (e) { /* private mode */ }
     return `
-      ${hero({ eyebrow: 'Seeker Portal', title: 'My Account', sub: 'Access your consultation bookings, pooja sevas, reports and account profile.', crumbs: crumbs([['Home', '/'], ['My Account']]) })}
-      <section class="sp-section">
-        <div class="sp-wrap max-w-4xl" id="account-portal-container">
+      ${signedIn ? '' : hero({ eyebrow: 'Seeker Portal', title: 'My Account', sub: 'Access your consultation bookings, pooja sevas, reports and account profile.', crumbs: crumbs([['Home', '/'], ['My Account']]) })}
+      <section class="sp-section${signedIn ? ' ac-section-wrap' : ''}">
+        <div class="sp-wrap ${signedIn ? 'ac-wrap' : 'max-w-4xl'}" id="account-portal-container">
           <div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-2xl text-maroon"></i><p class="text-xs text-ink-3 mt-2">Loading account portal...</p></div>
         </div>
       </section>
