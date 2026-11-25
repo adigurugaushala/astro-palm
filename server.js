@@ -1624,6 +1624,12 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       // reading PDF. One of the two must be there.
       const attachment = chatAttachment(body.attachment);
       if (!text && !attachment) throw new HttpError(422, 'Please write a message');
+      // A seeker can only point at files stored against this booking. Before,
+      // any media id could be named here and then fetched through the thread.
+      if (attachment && !actor.moderator) {
+        const item = await store.getMedia(attachment.mediaId);
+        if (!item || item.orderId !== orderId) throw new HttpError(422, 'That file is not part of this booking');
+      }
       const message = {
         id: 'msg-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
         orderId, from: actor.who, name: actor.name, text, at: nowIso(),
@@ -1631,6 +1637,40 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       };
       await store.addMessage(message);
       return [201, { message }];
+    }],
+
+    /** A photo sent from the chat: usually a seeker re-sending a clearer palm
+     *  after Guruji asked for one. It joins the booking's palm photos (so it
+     *  is on the case beside the others) and arrives as a chat message. */
+    ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/chat-photo$/, async (req, [, orderId]) => {
+      rateLimit(req, 'chat-photo', 30);
+      const body = await readJsonBody(req, MAX_PHOTO_BODY_BYTES);
+      const booking = await store.getBooking(orderId);
+      const actor = bookingActor(req, booking, body);
+      if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
+      const type = str(body.type, 40);
+      if (!MEDIA_TYPES[type]) throw new HttpError(422, 'Please send a JPG, PNG, WebP or GIF image');
+      const bytes = Buffer.from(String(body.data || '').replace(/^data:[^,]+,/, ''), 'base64');
+      if (!bytes.length) throw new HttpError(422, 'The image is empty');
+      if (bytes.length > 6 * 1024 * 1024) throw new HttpError(413, 'Photos must be 6 MB or smaller');
+      const existing = Array.isArray(booking.photos) ? booking.photos : [];
+      if (existing.length >= 20) throw new HttpError(422, 'This booking already has 20 photos. Please message Guruji instead.');
+      const id = 'palm-' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      const name = str(body.name, 120) || id + MEDIA_TYPES[type];
+      const at = nowIso();
+      await store.saveMedia({ id, type, size: bytes.length, private: true, orderId, name, data: bytes.toString('base64'), createdAt: at });
+      // A new slot after the last, so the earlier photos stay for comparison.
+      const slot = existing.reduce((n, p) => Math.max(n, Number(p.slot) || 0), 0) + 1;
+      const photo = { id, slot, name, size: bytes.length, type, at, via: 'chat', by: actor.who };
+      await store.updateBooking(orderId, { photos: existing.concat([photo]), updatedAt: at });
+      const message = {
+        id: 'msg-' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
+        orderId, from: actor.who, name: actor.name,
+        text: str(body.text, 2000) || (actor.moderator ? '' : 'Here is a new photo of my palm.'),
+        at, attachment: { kind: 'image', mediaId: id, name, size: bytes.length }
+      };
+      await store.addMessage(message);
+      return [201, { message, photo }];
     }],
 
     // Video and audio session --------------------------------------------------

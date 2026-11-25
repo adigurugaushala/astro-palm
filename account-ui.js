@@ -255,9 +255,9 @@
         <header><div><h3>${esc(title(b))}</h3><p class="ac-meta"><span><i class="fa-solid fa-hashtag"></i> ${esc(b.orderId)}</span><span><i class="fa-regular fa-calendar"></i> Submitted ${esc(day(b.photos[0].at))}</span></p></div>
           <span class="ac-pill ac-pill--ok"><i class="fa-solid fa-check"></i> ${isReady(b) ? 'Used for analysis' : 'Images received'}</span></header>
         <div class="ac-photo-grid">${b.photos.map(p => `<figure>
-          <span class="ac-photo-tag">${p.slot === 1 ? 'Left palm' : p.slot === 2 ? 'Right palm' : 'Photo ' + esc(p.slot || '')}</span>
+          <span class="ac-photo-tag">${p.via === 'chat' ? 'Sent in chat' : p.slot === 1 ? 'Left palm' : p.slot === 2 ? 'Right palm' : 'Photo ' + esc(p.slot || '')}</span>
           <a href="/api/bookings/${encodeURIComponent(b.orderId)}/photos/${encodeURIComponent(p.id)}" target="_blank" rel="noopener"><img loading="lazy" src="/api/bookings/${encodeURIComponent(b.orderId)}/photos/${encodeURIComponent(p.id)}" alt="${esc(p.slot === 1 ? 'Left palm' : p.slot === 2 ? 'Right palm' : 'Palm photo')}"></a>
-          ${isReady(b) ? '' : `<label class="ac-photo-act"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Replace<input type="file" accept="image/*" hidden onchange="AccountUI.upload('${esc(b.orderId)}', ${Number(p.slot) || 0}, this)"></label>`}
+          ${isReady(b) || p.via === 'chat' ? '' : `<label class="ac-photo-act"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Replace<input type="file" accept="image/*" hidden onchange="AccountUI.upload('${esc(b.orderId)}', ${Number(p.slot) || 0}, this)"></label>`}
         </figure>`).join('')}</div>
       </section>`).join('')}
       ${!withPhotos.length && !needs.length ? emptyCard('fa-hand', 'No palm images yet', 'After you book a palm reading you can upload your photos here.', '/services', 'Book a palm reading') : ''}`;

@@ -40,6 +40,10 @@
   };
   // The four slots the seeker's upload form offers, in its order.
   const PALM_SLOTS = { 1: 'Left palm', 2: 'Right palm', 3: 'Side of the palm', 4: 'Back of the hands' };
+  /** A photo's label: its upload slot, or "New photo (from chat), 25 Nov" for one sent in the chat. */
+  const palmLabel = (p, fallback) => (p && p.via === 'chat')
+    ? 'New photo from chat' + (p.at ? ', ' + new Date(p.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '')
+    : (PALM_SLOTS[(p || {}).slot] || fallback);
   const toast = (msg, variant) => (typeof showVedicToast === 'function' ? showVedicToast(msg, variant) : alert(msg));
 
   async function fetchJson(url, opts = {}) {
@@ -315,10 +319,12 @@
           <small>${esc(t.subtitle)}</small>
         </span>
       </header>
-      <div class="msg__chat" data-msg-chat>${chatMarkup('', { bare: true })}</div>`;
-    // One endpoint family, whichever kind of thread this is.
+      <div class="msg__chat" data-msg-chat>${chatMarkup('', { bare: true, photo: t.kind !== 'general' })}</div>`;
+    // One endpoint family, whichever kind of thread this is. A booking's
+    // thread can take a new palm photo; the general one has no case to file it on.
     startChat(pane.querySelector('[data-msg-chat]'), key, { token: seekerToken() }, {
-      base: `/api/customer/threads/${encodeURIComponent(key)}`
+      base: `/api/customer/threads/${encodeURIComponent(key)}`,
+      photoUrl: t.kind !== 'general' ? `/api/bookings/${encodeURIComponent(key)}/chat-photo` : ''
     });
     // The badge clears as soon as it is read.
     const row = MSG.threads.find(x => x.key === key);
@@ -1842,6 +1848,30 @@
     });
   }
 
+  /** Reads a photo and scales it so its long side is at most `max` px, as JPEG.
+   *  A GIF or an image that is already small is sent as it is. */
+  function shrinkPhoto(file, max, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('That photo could not be read.'));
+      reader.onload = () => {
+        const url = reader.result;
+        if (file.type === 'image/gif' || file.size < 600 * 1024) return resolve({ url, type: file.type });
+        const img = new Image();
+        img.onerror = () => resolve({ url, type: file.type });
+        img.onload = () => {
+          const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.naturalWidth * scale); c.height = Math.round(img.naturalHeight * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve({ url: c.toDataURL('image/jpeg', quality), type: 'image/jpeg' });
+        };
+        img.src = url;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   /** Marks your own messages Seen up to the point the other side has read. */
   function applySeen(list, seenUpTo) {
     list.querySelectorAll('.chat-msg--mine').forEach((li) => {
@@ -1857,11 +1887,16 @@
     return `<div class="chat${opts.bare ? ' chat--bare' : ''}">
       <div class="chat__head"${opts.bare ? ' hidden' : ''}><h3>${esc(title)}</h3><span class="chat__state" data-chat-state>Connecting…</span></div>
       <ul class="chat__list" data-chat-list aria-live="polite" aria-label="Messages"></ul>
-      <form class="chat__form" data-chat-form>
+      <form class="chat__form${opts.photo ? ' chat__form--photo' : ''}" data-chat-form>
+        ${opts.photo ? `<label class="chat__photo" title="Send a photo of your palm">
+          <i class="fa-solid fa-camera" aria-hidden="true"></i><span class="sr-only">Send a palm photo</span>
+          <input type="file" accept="image/*" hidden data-chat-photo>
+        </label>` : ''}
         <label class="sr-only" for="chat-input">Your message</label>
         <textarea id="chat-input" rows="2" maxlength="2000" placeholder="Write to Guruji…" data-chat-input></textarea>
         <button type="submit" class="gold-gradient-btn h-11 px-5 rounded-xl">Send</button>
       </form>
+      ${opts.photo ? '<p class="chat__photohint"><i class="fa-solid fa-camera" aria-hidden="true"></i> Photo not clear? Tap the camera to send Guruji a new palm photo. Daylight, whole palm, fingers apart.</p>' : ''}
     </div>`;
   }
 
@@ -1918,6 +1953,38 @@
       } catch (err) { toast(err.message, 'error'); input.value = text; }
     });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) form.requestSubmit(); });
+
+    // A new palm photo from the chat (opts.photoUrl): shrunk on the phone so a
+    // 12 MB camera picture still goes through, then sent with any typed caption.
+    const picker = container.querySelector('[data-chat-photo]');
+    if (picker && opts.photoUrl) {
+      picker.addEventListener('change', async () => {
+        const file = picker.files && picker.files[0];
+        picker.value = '';
+        if (!file) return;
+        if (!/^image\//.test(file.type)) { toast('Please choose a photo.', 'error'); return; }
+        const label = picker.closest('.chat__photo');
+        label.classList.add('is-busy');
+        state.textContent = 'Sending photo…';
+        try {
+          const data = await shrinkPhoto(file, 2000, 0.85);
+          const caption = input.value.trim();
+          await fetchJson(opts.photoUrl, {
+            method: 'POST', headers,
+            body: Object.assign({ type: data.type, data: data.url, name: file.name.replace(/\.[^.]+$/, '') + (data.type === 'image/jpeg' ? '.jpg' : '') , text: caption },
+              auth.mobile ? { mobile: auth.mobile } : {})
+          });
+          if (caption) input.value = '';
+          list.querySelector('.chat__empty')?.remove();
+          toast('Photo sent to Guruji.');
+          await poll();
+          list.scrollTop = list.scrollHeight;
+        } catch (err) {
+          toast(err.message || 'The photo could not be sent.', 'error');
+          state.textContent = 'Live';
+        } finally { label.classList.remove('is-busy'); }
+      });
+    }
     // Open / Download on a shared file. A plain link cannot carry Guruji's PIN
     // or a seeker's token, so the file is fetched with them and handed over.
     if (!list.dataset.fileClicks) {
@@ -3363,7 +3430,7 @@
           </div>
           ${ready ? '' : '<p class="text-xs text-ink-3 mt-2">Your written reading appears here once Guruji has finished it.</p>'}
         </div>
-        <div data-track-chat>${chatMarkup('Chat with Guruji')}</div>
+        <div data-track-chat>${chatMarkup('Chat with Guruji', { photo: true })}</div>
         <div class="sp-panel hidden" data-track-chart></div>
       </div>`;
 
@@ -3392,7 +3459,7 @@
         showChart(panel, res.chart);
       } catch (err) { panel.innerHTML = `<p class="sp-text">${esc(err.message)}</p>`; }
     });
-    startChat(host.querySelector('[data-track-chat]'), b.orderId, { mobile });
+    startChat(host.querySelector('[data-track-chat]'), b.orderId, { mobile }, { photoUrl: `/api/bookings/${encodeURIComponent(b.orderId)}/chat-photo` });
   };
 
   // -------------------------------------------------------------------------
@@ -4250,9 +4317,9 @@
                      <li class="palm-thumb">
                        <button type="button" class="palm-thumb__btn" data-palm-open="${i}"
                                title="Open ${esc(p.name)}">
-                         <img data-palm-src="${esc(p.id)}" alt="${esc(PALM_SLOTS[p.slot] || 'Palm photo')} sent by ${esc(c.devotee && c.devotee.name || 'the seeker')}">
+                         <img data-palm-src="${esc(p.id)}" alt="${esc(palmLabel(p, 'Palm photo'))} sent by ${esc(c.devotee && c.devotee.name || 'the seeker')}">
                        </button>
-                       <small>${esc(PALM_SLOTS[p.slot] || ('Photo ' + (i + 1)))} · ${Math.round((p.size || 0) / 1024)} KB</small>
+                       <small>${esc(palmLabel(p, 'Photo ' + (i + 1)))} · ${Math.round((p.size || 0) / 1024)} KB</small>
                      </li>`).join('')}</ul>
                    <p class="text-xs text-ink-3 mt-2">Click a photo to open it full size, zoom and draw on it.</p>`
         : '<p class="sp-text">No photos uploaded yet.</p>'}
@@ -4482,7 +4549,7 @@
     let bookPref = { open: window.innerWidth >= 900, side: 'right' };
     try { bookPref = Object.assign(bookPref, JSON.parse(localStorage.getItem(BOOK_PREF) || '{}')); } catch (e) { /* defaults */ }
     let bookTimer = null;
-    const photoLabel = () => PALM_SLOTS[(photos[i] || {}).slot] || ('Photo ' + (i + 1));
+    const photoLabel = () => palmLabel(photos[i], 'Photo ' + (i + 1));
 
     function saveBookPref() { try { localStorage.setItem(BOOK_PREF, JSON.stringify(bookPref)); } catch (e) { /* private mode */ } }
     function bookState(text, ok) { bookStateEl.textContent = text; bookStateEl.classList.toggle('is-ok', Boolean(ok)); }
@@ -4604,9 +4671,9 @@
       const p = photos[i];
       if (!p) return;
       strokes = []; notes = [];
-      el('name').textContent = `${PALM_SLOTS[p.slot] || 'Photo'} — ${p.name || ''}`;
-      el('booklabel').textContent = '+ ' + (PALM_SLOTS[p.slot] || ('Photo ' + (i + 1))) + ':';
-      img.alt = `${PALM_SLOTS[p.slot] || 'Palm photo'} sent by the seeker`;
+      el('name').textContent = `${palmLabel(p, 'Photo')} — ${p.name || ''}`;
+      el('booklabel').textContent = '+ ' + palmLabel(p, 'Photo ' + (i + 1)) + ':';
+      img.alt = `${palmLabel(p, 'Palm photo')} sent by the seeker`;
       hint.textContent = 'Scroll to zoom, drag to move. M to draw, N for a note, B for the notebook, Esc to close.';
       img.onload = () => {
         // The ink layer matches the photo's own pixels, so a saved copy is
@@ -4655,7 +4722,7 @@
     stage.addEventListener('pointerdown', (ev) => {
       if (noting && ev.isPrimary) {
         const where = pointOnPhoto(ev);
-        const photoLabel = PALM_SLOTS[(photos[i] || {}).slot] || ('Photo ' + (i + 1));
+        const photoLabel = palmLabel(photos[i], 'Photo ' + (i + 1));
         const ask = window.GurujiAssist
           ? window.GurujiAssist.askNote(wrap, `Note on the ${photoLabel.toLowerCase()}`)
           : Promise.resolve(prompt('Write the note to place here:'));

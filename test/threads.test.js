@@ -368,4 +368,44 @@ describe('seeker threads, palm photos and attachments', () => {
     assert.equal(last.from, 'devotee');
     assert.equal(last.name, 'Ravi Kumar');
   });
+  // ---- a new palm photo sent from the chat -------------------------------
+
+  test('a seeker sends a new palm photo from the chat: it is a message and a case photo', async () => {
+    const before = ((await store.getBooking(raviOrder)).photos || []).length;
+    const sent = await call('POST', `/api/bookings/${raviOrder}/chat-photo`,
+      { type: 'image/png', data: PNG, name: 'clearer-left.png', text: 'Is this better, Guruji?' }, ravi.auth);
+    assert.equal(sent.status, 201);
+    assert.equal(sent.body.message.from, 'devotee');
+    assert.equal(sent.body.message.text, 'Is this better, Guruji?');
+    assert.equal(sent.body.message.attachment.kind, 'image');
+
+    const b = await store.getBooking(raviOrder);
+    assert.equal(b.photos.length, before + 1, 'kept beside the earlier photos, not replacing them');
+    const added = b.photos.find(p => p.id === sent.body.photo.id);
+    assert.equal(added.via, 'chat');
+
+    // Guruji sees it in the chat and can open it; so can Ravi.
+    const thread = await call('GET', `/api/bookings/${raviOrder}/messages`, null, GURUJI);
+    assert.ok(thread.body.messages.some(m => m.attachment && m.attachment.mediaId === added.id));
+    const file = await fetch(`${base}/api/bookings/${raviOrder}/files/${added.id}`, { headers: GURUJI });
+    assert.equal(file.status, 200);
+    assert.equal((await call('GET', `/api/bookings/${raviOrder}/photos/${added.id}`, null, ravi.auth)).status, 200);
+
+    // Nobody else can send into Ravi's booking.
+    assert.equal((await call('POST', `/api/bookings/${raviOrder}/chat-photo`,
+      { type: 'image/png', data: PNG }, meera.auth)).status, 404);
+    assert.equal((await call('POST', `/api/bookings/${raviOrder}/chat-photo`,
+      { type: 'text/plain', data: PNG }, ravi.auth)).status, 422);
+  });
+
+  test("a seeker cannot attach a file that belongs to someone else's booking", async () => {
+    const meeraOrder = await bookFor(meera, 'Meera Iyer');
+    const own = await call('POST', `/api/bookings/${meeraOrder}/photos`,
+      { slot: 1, name: 'meera.png', type: 'image/png', data: PNG }, meera.auth);
+    assert.equal(own.status, 201);
+    const steal = await call('POST', `/api/bookings/${raviOrder}/messages`,
+      { text: 'look', attachment: { kind: 'image', mediaId: own.body.photo.id } }, ravi.auth);
+    assert.equal(steal.status, 422);
+    assert.equal((await fetch(`${base}/api/bookings/${raviOrder}/files/${own.body.photo.id}`, { headers: ravi.auth })).status, 404);
+  });
 });
