@@ -14,6 +14,20 @@ fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 
 for (const f of PUBLIC_FILES) fs.copyFileSync(path.join(root, f), path.join(out, f));
+// Version the page's own scripts and styles by content, so browsers that
+// cached an older copy pick up a new deployment straight away.
+{
+  const crypto = require('crypto');
+  const file = path.join(out, 'index.html');
+  let html = fs.readFileSync(file, 'utf8');
+  const hash = crypto.createHash('sha1');
+  for (const m of html.matchAll(/(?:src|href)="\/([\w./-]+\.(?:js|css))"/g)) {
+    try { hash.update(fs.readFileSync(path.join(root, m[1]))); } catch (e) { /* skip */ }
+  }
+  for (const f of ['guruji-assist.js', 'palm-assessment.js', 'palm-assessment-data.js']) hash.update(fs.readFileSync(path.join(root, f)));
+  const v = hash.digest('hex').slice(0, 10);
+  fs.writeFileSync(file, html.replace(/((?:src|href)="\/[\w./-]+\.(?:js|css))"/g, `$1?v=${v}"`));
+}
 for (const d of PUBLIC_DIRS) fs.cpSync(path.join(root, d), path.join(out, d), { recursive: true });
 
 const count = (dir) => fs.readdirSync(dir, { withFileTypes: true })
