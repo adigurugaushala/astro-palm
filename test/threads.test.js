@@ -51,7 +51,7 @@ describe('seeker threads, palm photos and attachments', () => {
   };
 
   const signUp = async (name, mobile) => {
-    const r = await call('POST', '/api/customer/register', { name, mobile, consent: true });
+    const r = await call('POST', '/api/customer/register', { name, mobile, password: 'Secret123', consent: true });
     assert.equal(r.status, 200, `${name} could register`);
     return { auth: { Authorization: `Bearer ${r.body.token}` }, mobile };
   };
@@ -307,9 +307,11 @@ describe('seeker threads, palm photos and attachments', () => {
 
   test('a download link works with only the cookie, as a browser sends it', async () => {
     // Ravi already has the reading PDF in his thread from the test above.
-    const login = await fetch(base + '/api/customer/register', {
+    // Signing in again is a real sign-in now: registering over an existing
+    // account no longer hands out its session.
+    const login = await fetch(base + '/api/customer/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Ravi Kumar', mobile: '9811100011', consent: true })
+      body: JSON.stringify({ identifier: '9811100011', password: 'Secret123' })
     });
     const cookie = (login.headers.get('set-cookie') || '').split(';')[0];
     assert.match(cookie, /guruji_cust_token=/);
