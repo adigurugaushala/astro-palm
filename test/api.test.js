@@ -488,26 +488,31 @@ for (const backend of ['mongodb', 'file']) {
       assert.ok(!xml.includes('/admin'), 'the admin page is not in the sitemap');
     });
 
-    test('customer registration requires mandatory consent and stores consent record', async () => {
-      // 1. Missing consent is rejected with 400
+    test('consent is recorded at sign-up when given, and with the booking on the payment page', async () => {
+      // 1. Sign-up no longer needs the agreement: it is asked before payment.
       const noConsent = await call('POST', '/api/customer/register', {
-        name: 'Suresh Sharma',
-        mobile: '9876543210',
-        email: 'suresh@example.com',
-        password: 'password123'
+        name: 'Ravi Signup', email: 'ravi.signup@example.com', password: 'password123'
       });
-      assert.equal(noConsent.status, 400, 'must reject registration without consent');
-      assert.match(noConsent.body.error, /consent/i);
+      assert.equal(noConsent.status, 200);
+      assert.equal(noConsent.body.consentId, undefined);
 
-      // 2. Explicit consent: false is rejected with 400
-      const falseConsent = await call('POST', '/api/customer/register', {
-        name: 'Suresh Sharma',
-        mobile: '9876543210',
-        email: 'suresh@example.com',
-        password: 'password123',
-        consent: false
-      });
-      assert.equal(falseConsent.status, 400);
+      // 2. The payment page sends it with the booking, which records it and
+      //    gives the account the mobile it signed up without.
+      const auth = { Authorization: 'Bearer ' + noConsent.body.token };
+      const booked = await call('POST', '/api/bookings', {
+        type: 'consultation', serviceId: 'combined_consultation',
+        slot: { date: 'Mon, 1 Jun', time: '10:00 AM' },
+        devotee: { name: 'Ravi Signup', mobile: '9811122233', email: 'ravi.signup@example.com' },
+        consent: true
+      }, auth);
+      assert.equal(booked.status, 201);
+      assert.ok(booked.body.booking.consent === undefined || booked.body.booking.consent.at, 'consent stamp');
+      const stored = await store.getBooking(booked.body.booking.orderId);
+      assert.ok(stored.consent && stored.consent.id, 'the booking keeps the consent record id');
+      const me = await call('GET', '/api/customer/me', null, auth);
+      assert.equal(me.body.customer.mobile, '9811122233', 'the account picked up the mobile');
+      const ravi = await call('GET', '/api/admin/consents?q=Ravi', null, admin);
+      assert.ok(ravi.body.consents.some(c => c.consentSource === 'booking_payment' && c.mobile === '9811122233'));
 
       // 3. Valid consent: true succeeds with 200 and issues token & consentId
       const valid = await call('POST', '/api/customer/register', {

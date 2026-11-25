@@ -2145,6 +2145,31 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       // still be valid, so a typo is caught rather than stored.
       if (devotee.email && !isEmail(devotee.email)) throw new HttpError(422, 'Please enter a valid email address');
 
+      // The payment page asks for the mobile and the agreement to the terms.
+      // Record that agreement, and give an account that signed up without a
+      // mobile this one, so its bookings show in "My account".
+      const account = customerFromToken(req);
+      let consentId = '';
+      if (b.consent === true && typeof store.recordConsent === 'function') {
+        const rec = await store.recordConsent({
+          customerId: account ? account.id : '', name: devotee.name, email: devotee.email, mobile: devotee.mobile,
+          disclaimerAccepted: true, termsAccepted: true, privacyAccepted: true,
+          serviceType: type, consentSource: 'booking_payment',
+          ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '',
+          userAgent: req.headers['user-agent'] || ''
+        }).catch(() => null);
+        consentId = (rec && rec.id) || '';
+      }
+      if (account && !account.mobile && !(await store.findCustomer(devotee.mobile))) {
+        const saved = await store.createOrUpdateCustomer({ ...account, mobile: devotee.mobile }).catch(() => null);
+        if (saved) {
+          const { passwordHash: _h, ...fresh } = saved;
+          for (const [token, entry] of verifiedCustomerTokens) {
+            if (entry.customer && entry.customer.id === account.id) verifiedCustomerTokens.set(token, { ...entry, customer: fresh });
+          }
+        }
+      }
+
       const booking = {
         orderId: newOrderId(type),
         roomName: newRoomName(), type, status: 'PENDING_PAYMENT', currency: 'INR',
@@ -2152,6 +2177,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
         payment: { provider: PAYMENT_MODE, status: 'PENDING' },
         history: [{ at: nowIso(), event: 'created' }]
       };
+      if (b.consent === true) booking.consent = { at: nowIso(), id: consentId, source: 'booking_payment' };
 
       if (type === 'course') {
         const slug = str(b.courseSlug, 120);
@@ -2306,14 +2332,16 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const email = str(b.email, 160).toLowerCase();
       const password = str(b.password, 100);
 
-      // Mandatory legal consent check
-      const consent = b.consent === true || (b.disclaimerAccepted && b.termsAccepted && b.privacyAccepted);
-      if (!consent) {
-        throw new HttpError(400, 'Legal consent to the Disclaimer, Terms & Conditions and Privacy Policy is required to create an account.');
-      }
+      // The agreement to the terms is now given on the payment page, before any
+      // money is taken (it is recorded with the booking). An older client that
+      // still sends it here has it recorded too.
+      const consent = b.consent === true || Boolean(b.disclaimerAccepted && b.termsAccepted && b.privacyAccepted);
 
       if (name.length < 2) throw new HttpError(422, 'Please enter your full name');
-      if (!mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
+      // The mobile number is asked on the payment page too, so signing up needs
+      // only an email (or a mobile, from older clients) to sign in with later.
+      if (b.mobile && !mobile) throw new HttpError(422, 'Please enter a valid 10-digit Indian mobile number');
+      if (!mobile && !email) throw new HttpError(422, 'Please enter your email address');
       // An address is optional: the site sends no mail, so the sign-up form no
       // longer asks for one. A seeker is identified by mobile, which login and
       // booking lookup both accept. One that is given must still be valid.
@@ -2333,7 +2361,7 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '127.0.0.1';
       const userAgent = req.headers['user-agent'] || '';
       let consentRecord = null;
-      if (typeof store.recordConsent === 'function') {
+      if (consent && typeof store.recordConsent === 'function') {
         consentRecord = await store.recordConsent({
           customerId: customer.id,
           name: customer.name,

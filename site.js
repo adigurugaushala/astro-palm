@@ -1349,6 +1349,19 @@
       on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
     });
 
+    // Bottom navigation on phones
+    const bkey = pageId === 'home' ? 'home'
+      : /^(services|service-detail|reiki-healing|courses|course-detail|palmistry|mantras|resources|resource-detail)$/.test(pageId) ? 'services'
+      : /^book/.test(pageId) ? 'book'
+      : pageId === 'account' ? ((params.query && params.query.tab === 'reports') ? 'reports' : 'account') : '';
+    document.querySelectorAll('[data-bnav]').forEach(a => {
+      const on = a.dataset.bnav === bkey;
+      a.classList.toggle('is-active', on);
+      on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
+    });
+    // Not over staff workspaces, a live session, a lesson, or the pay button.
+    document.body.classList.toggle('no-bottom-nav', /^(admin|guruji|session|learn|book-payment)$/.test(pageId));
+
     // Address bar
     if (routerReady && !opts.fromRouter) {
       let url = opts.url || pathFor(pageId, params);
@@ -1631,7 +1644,11 @@
     // the payment page itself: this runs on every page load, and creating a
     // booking from, say, the home page filled the records with abandoned ones.
     if (state.currentPage !== 'book-payment') return;
+    if (typeof prefillPayDetails === 'function') prefillPayDetails();
     if (typeof ensureBooking !== 'function' || state.paymentStatus === 'SUCCESS') return;
+    // The booking is created once the seeker has given a mobile number and
+    // agreed to the terms (on this page), when they press Pay.
+    if (!/^[6-9]\d{9}$/.test(String(state.user.mobile || '').replace(/\D/g, '').slice(-10)) || !state.payConsent) return;
     try {
       const booking = await ensureBooking();
       if (!booking || state.currentPage !== 'book-payment') return;
@@ -1650,6 +1667,7 @@
   window.startOnlinePayment = async function (btn) {
     if (SITE.payments !== 'cashfree') return simulatePaymentSuccess(btn);
     if (state.paymentInFlight) return;
+    if (typeof collectPayDetails === 'function' && !collectPayDetails()) return;
     state.paymentInFlight = true;
     setButtonLoading(btn, true, 'Opening secure payment…');
     try {
