@@ -3455,7 +3455,10 @@
         : `<a href="/guruji/${esc(c.orderId)}" data-link class="gm-row${c.unread ? ' is-unread' : ''}">${body}</a>`;
     };
     const startsAt = (c) => (c.slotStart || '');
-    const isToday = (c) => startsAt(c).slice(0, 10) === today;
+    // Compared as local (India) dates: slicing the UTC timestamp put sessions
+    // between midnight and 5:30 am on the previous day.
+    const todayLocal = new Date().toDateString();
+    const isToday = (c) => Boolean(startsAt(c)) && new Date(startsAt(c)).toDateString() === todayLocal;
     // Guruji works a case through three stages, so the folders follow the status.
     const STAGE = {
       pending: (c) => c.status === 'PAID' || c.kind === 'enquiry',
@@ -3635,75 +3638,223 @@
           </main>`}
         </div>
       </div>`;
+    if (GURUJI.view === 'dashboard') startGurujiDashboardClock(); else clearInterval(GURUJI.dashTimer);
   }
 
   /** Opens a case straight on its assessment checklist tab. */
   window.gurujiOpenChecklist = (orderId) => { GURUJI.caseTab = 'assessment'; GURUJI.caseTabFor = orderId; };
 
-  /** Guruji's home: the day at a glance, then straight into the work. */
+  /** Guruji's home: the day at a glance, then straight into the work.
+   *  Everything here is worked out from the case list itself. */
   function gurujiDashboardHtml({ all, dash, counts, STAGE, isToday, startsAt, workspaceCase, statusLabel }) {
-    const stat = (icon, n, label, sub, view) => `<button type="button" class="gp-stat" onclick="gurujiView('${view}')">
-      <i class="fa-solid ${icon}" aria-hidden="true"></i><strong>${n}</strong><span>${label}${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+    const now = new Date();
+    const hour = now.getHours();
+    const greet = hour < 12 ? 'Suprabhatam' : hour < 17 ? 'Namaste' : 'Shubh Sandhya';
+    const cases = all.filter(c => c.kind === 'case' || !c.kind);
+    const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    const link = (c) => c.kind === 'case' || !c.kind ? `href="/guruji/${esc(c.orderId)}" data-link` : '';
+    const checklistDone = (c) => Object.values((c.palmAssessment && c.palmAssessment.rows) || {}).filter(r => r && r.value).length;
+    const total = (window.PALM_ASSESSMENT && window.PALM_ASSESSMENT.fields.length) || 277;
     const pill = (c) => {
-      const st = statusLabel(c);
-      const cls = STAGE.completed(c) ? 'done' : STAGE.pending(c) ? 'new' : isToday(c) ? 'due' : 'prog';
-      const label = STAGE.completed(c) ? 'Completed' : STAGE.pending(c) ? (c.kind === 'enquiry' ? 'Enquiry' : 'New') : isToday(c) ? 'Due today' : 'In progress';
-      return `<span class="gp-pill gp-pill--${cls}" title="${esc(st)}">${label}</span>`;
+      const cls = STAGE.completed(c) ? 'done' : STAGE.pending(c) ? 'new' : c.status === 'AWAITING_REPORT' ? 'rep' : isToday(c) ? 'due' : 'prog';
+      const label = STAGE.completed(c) ? 'Completed' : STAGE.pending(c) ? (c.kind === 'enquiry' ? 'Enquiry' : 'New')
+        : c.status === 'AWAITING_REPORT' ? 'Report due' : isToday(c) ? 'Due today' : 'In progress';
+      return `<span class="gp-pill gp-pill--${cls}" title="${esc(statusLabel(c))}">${label}</span>`;
     };
-    const today = all.filter(c => isToday(c) && !STAGE.completed(c));
-    const upcoming = (today.length ? today : all.filter(c => !STAGE.completed(c) && c.kind !== 'enquiry'))
-      .sort((a, b) => (startsAt(a) || '9999').localeCompare(startsAt(b) || '9999')).slice(0, 6);
-    const recent = all.filter(c => !STAGE.completed(c)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 6);
-    const action = (c) => STAGE.pending(c) ? 'Analyse' : 'Continue';
-    const link = (c) => c.kind === 'enquiry' ? '' : `href="/guruji/${esc(c.orderId)}" data-link`;
-    return `
-      <main class="gm-main gp-main">
-        <section class="gp-hello">
-          <div><h1>Namaste Guruji,</h1><p>Here is your consultation overview for ${esc(new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }))}.</p></div>
-          <span class="gp-hello__art" aria-hidden="true"></span>
-        </section>
-        <div class="gp-stats">
-          ${stat('fa-file-lines', dash.pending, 'Pending Analysis', '', 'pending')}
-          ${stat('fa-hourglass-half', dash.inprogress, 'In Progress', '', 'inprogress')}
-          ${stat('fa-circle-check', dash.doneMonth, 'Completed', 'This month', 'completed')}
-          ${stat('fa-calendar-day', dash.dueToday, 'Due Today', '', 'all')}
+
+    // Today's sessions, in order, with a live countdown on each.
+    const today = cases.filter(c => isToday(c) && !STAGE.completed(c)).sort((a, b) => startsAt(a).localeCompare(startsAt(b)));
+    const awaitingReport = cases.filter(c => c.status === 'AWAITING_REPORT')
+      .sort((a, b) => (startsAt(a) || a.createdAt || '').localeCompare(startsAt(b) || b.createdAt || ''));
+    const unreadCases = all.filter(c => c.unread).sort((a, b) => b.unread - a.unread);
+    const waitingPhotos = cases.filter(c => STAGE.pending(c) && !(c.photos || []).length && c.type !== 'pooja');
+
+    // The last seven days, bookings in and readings finished.
+    const days = [...Array(7)].map((_, i) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - i)); return d; });
+    const sameDay = (iso, d) => iso && new Date(iso).toDateString() === d.toDateString();
+    const week = days.map(d => ({
+      label: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+      booked: cases.filter(c => sameDay(c.createdAt, d)).length,
+      done: cases.filter(c => STAGE.completed(c) && sameDay(c.updatedAt, d)).length
+    }));
+    const peak = Math.max(1, ...week.map(w => Math.max(w.booked, w.done)));
+
+    // Which services the open work is for.
+    const mix = {};
+    cases.filter(c => !STAGE.completed(c)).forEach(c => { const t = (c.service && c.service.title) || 'Other'; mix[t] = (mix[t] || 0) + 1; });
+    const mixList = Object.entries(mix).sort((a, b) => b[1] - a[1]);
+    const top = mixList.slice(0, 4);
+    if (mixList.length > 4) top.push(['Other services', mixList.slice(4).reduce((n, x) => n + x[1], 0)]);
+    const mixTotal = top.reduce((n, x) => n + x[1], 0);
+    const COLORS = ['#7a2140', '#d9a043', '#b4652a', '#4c7a5a', '#8a7a9a'];
+    let acc = 0;
+    const donut = mixTotal ? top.map(([, n], i) => { const a = acc; acc += n / mixTotal * 360; return `${COLORS[i]} ${a}deg ${acc}deg`; }).join(', ') : '#efdcc2 0deg 360deg';
+
+    const stat = (icon, n, label, sub, view, tone) => `<button type="button" class="gp-stat gp-stat--${tone}" onclick="gurujiView('${view}')">
+      <i class="fa-solid ${icon}" aria-hidden="true"></i><strong>${n}</strong><span>${label}${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+
+    const slot = (c) => {
+      const start = new Date(startsAt(c));
+      const mins = Number(c.slotMinutes) || 45;
+      const done = checklistDone(c);
+      const photos = (c.photos || []).length;
+      return `<li class="gp-slot" data-start="${esc(startsAt(c))}" data-minutes="${mins}">
+        <div class="gp-slot__time"><strong>${esc(fmtTime(start))}</strong><small>${mins} min</small></div>
+        <span class="gp-slot__dot" aria-hidden="true"></span>
+        <div class="gp-slot__card">
+          <div class="gp-slot__head"><a ${link(c)} class="gp-slot__who">${esc((c.devotee || {}).name || 'Seeker')}</a>${pill(c)}<span class="gp-when" data-countdown></span></div>
+          <p class="gp-slot__svc">${esc((c.service && c.service.title) || 'Consultation')} · <span class="gp-mono">${esc(c.orderId)}</span></p>
+          <div class="gp-slot__meta">
+            <span class="${photos ? 'is-ok' : 'is-miss'}"><i class="fa-solid fa-hand" aria-hidden="true"></i> ${photos ? photos + ' photo' + (photos === 1 ? '' : 's') : 'No photos yet'}</span>
+            <span class="${c.chart ? 'is-ok' : ''}"><i class="fa-solid fa-dharmachakra" aria-hidden="true"></i> ${c.chart ? 'Chart cast' : 'No chart'}</span>
+            <span class="${done ? 'is-ok' : ''}"><i class="fa-solid fa-table-list" aria-hidden="true"></i> Checklist ${done}/${total}</span>
+            ${c.unread ? `<span class="is-new"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i> ${c.unread} new</span>` : ''}
+          </div>
+          <div class="gp-slot__actions">
+            <a href="/session/${esc(c.orderId)}" data-link class="gp-act gp-act--fill" data-join hidden><i class="fa-solid fa-video" aria-hidden="true"></i> Join session</a>
+            <a ${link(c)} class="gp-act">Open case <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            <a ${link(c)} onclick="gurujiOpenChecklist('${esc(c.orderId)}')" class="gp-act">Checklist</a>
+          </div>
         </div>
+      </li>`;
+    };
+
+    const mini = (c, extra) => `<li><a ${link(c)}>
+      <span class="gp-mini__avatar" aria-hidden="true">${esc(((c.devotee || {}).name || 'S').charAt(0).toUpperCase())}</span>
+      <span class="gp-mini__text"><strong>${esc((c.devotee || {}).name || 'Seeker')}</strong><small>${esc(extra)}</small></span>
+      <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a></li>`;
+
+    return `
+      <main class="gm-main gp-main" data-gp-dashboard>
+        <section class="gp-hello">
+          <div>
+            <span class="gp-hello__kicker">${esc(now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · <span data-gp-clock>${esc(fmtTime(now))}</span></span>
+            <h1>${greet}, Guruji</h1>
+            <p>${today.length ? `${today.length} ${today.length === 1 ? 'seeker is' : 'seekers are'} booked with you today` : 'No sessions booked for today'}${awaitingReport.length ? ` · ${awaitingReport.length} ${awaitingReport.length === 1 ? 'reading' : 'readings'} to write` : ''}${counts.unread ? ` · ${counts.unread} unread ${counts.unread === 1 ? 'message' : 'messages'}` : ''}.</p>
+            <div class="gp-hello__cta">
+              ${workspaceCase ? `<a href="/guruji/${esc(workspaceCase.orderId)}" data-link class="gp-btn gp-btn--maroon"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i> Start analysis · ${esc((workspaceCase.devotee || {}).name || workspaceCase.orderId)}</a>` : ''}
+              <button type="button" class="gp-btn gp-btn--ghost" onclick="gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i> Day sheet</button>
+            </div>
+          </div>
+          <span class="gp-hello__art" aria-hidden="true"><span>ॐ</span></span>
+        </section>
+
+        <div class="gp-stats">
+          ${stat('fa-file-lines', dash.pending, 'Pending Analysis', 'New and waiting', 'pending', 'rose')}
+          ${stat('fa-hourglass-half', dash.inprogress, 'In Progress', awaitingReport.length ? awaitingReport.length + ' reports to write' : 'Being worked on', 'inprogress', 'amber')}
+          ${stat('fa-calendar-day', dash.dueToday, 'Due Today', today.length ? 'Next at ' + fmtTime(startsAt(today[0])) : 'Clear day', 'all', 'maroon')}
+          ${stat('fa-circle-check', dash.doneMonth, 'Completed', 'This month', 'completed', 'green')}
+        </div>
+
         <div class="gp-grid">
           <section class="gp-card">
-            <header><h2>${today.length ? `Today's Assignments (${today.length})` : 'Coming Up'}</h2><a href="#" onclick="event.preventDefault(); gurujiView('all')">View all</a></header>
-            ${upcoming.length ? `<ul class="gp-list">${upcoming.map(c => `<li><a ${link(c)}>
-              <i class="fa-regular fa-user" aria-hidden="true"></i>
-              <span class="gp-list__ref">${esc(c.orderId)}</span>
-              <span class="gp-list__svc">${esc((c.service && c.service.title) || 'Enquiry')}<small>${esc((c.devotee || {}).name || '')}${startsAt(c) ? ' · ' + esc(new Date(startsAt(c)).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) : ''}</small></span>
-              ${pill(c)}<i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a></li>`).join('')}</ul>`
-              : '<p class="gm-empty">Nothing waiting. Enjoy the quiet.</p>'}
+            <header><h2><i class="fa-regular fa-clock" aria-hidden="true"></i> Today's Schedule</h2><a href="#" onclick="event.preventDefault(); gurujiView('all')">All assignments</a></header>
+            ${today.length ? `<ol class="gp-timeline">${today.map(slot).join('')}</ol>`
+              : `<div class="gp-calm"><span aria-hidden="true">🪔</span><p><strong>No sessions today.</strong> A good day to finish the readings waiting below.</p></div>`}
+          </section>
+          <div class="gp-stack">
+            <section class="gp-card">
+              <header><h2><i class="fa-solid fa-bell" aria-hidden="true"></i> Needs Attention</h2></header>
+              ${awaitingReport.length || unreadCases.length || waitingPhotos.length ? `
+                ${unreadCases.length ? `<h3 class="gp-sub">Unread messages</h3><ul class="gp-mini">${unreadCases.slice(0, 3).map(c => mini(c, c.unread + ' new · ' + ((c.service && c.service.title) || ''))).join('')}</ul>` : ''}
+                ${awaitingReport.length ? `<h3 class="gp-sub">Readings to write</h3><ul class="gp-mini">${awaitingReport.slice(0, 3).map(c => mini(c, ((c.service && c.service.title) || '') + (startsAt(c) ? ' · session ' + new Date(startsAt(c)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''))).join('')}</ul>` : ''}
+                ${waitingPhotos.length ? `<h3 class="gp-sub">Waiting for palm photos</h3><ul class="gp-mini">${waitingPhotos.slice(0, 3).map(c => mini(c, (c.service && c.service.title) || '')).join('')}</ul>` : ''}`
+                : '<div class="gp-calm"><span aria-hidden="true">✨</span><p>All caught up.</p></div>'}
+            </section>
+            <section class="gp-card">
+              <header><h2><i class="fa-solid fa-bolt" aria-hidden="true"></i> Quick Actions</h2></header>
+              <div class="gp-quick">
+                <a href="#" onclick="event.preventDefault(); gurujiView('all')"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>View Assignments</span></a>
+                <a ${workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link` : 'href="#" onclick="event.preventDefault()"'}><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i><span>Start Analysis</span></a>
+                <a ${workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link onclick="gurujiOpenChecklist('${esc(workspaceCase.orderId)}')"` : 'href="#" onclick="event.preventDefault()"'}><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>Assessment Checklist</span></a>
+                <a href="#" onclick="event.preventDefault(); gurujiView('unread')"><i class="fa-solid fa-comments" aria-hidden="true"></i><span>Messages${counts.unread ? ` <em>${counts.unread}</em>` : ''}</span></a>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="gp-grid gp-grid--even">
+          <section class="gp-card">
+            <header><h2><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Last 7 Days</h2>
+              <span class="gp-legend"><i class="gp-key gp-key--in"></i> Booked <i class="gp-key gp-key--done"></i> Completed</span></header>
+            <div class="gp-bars" role="img" aria-label="${esc(week.map(w => `${w.label}: ${w.booked} booked, ${w.done} completed`).join('; '))}">
+              ${week.map((w, i) => `<div class="gp-bars__day${i === 6 ? ' is-today' : ''}">
+                <div class="gp-bars__cols">
+                  <span class="gp-bar gp-bar--in" style="height:${Math.round(w.booked / peak * 100)}%" title="${w.booked} booked">${w.booked || ''}</span>
+                  <span class="gp-bar gp-bar--done" style="height:${Math.round(w.done / peak * 100)}%" title="${w.done} completed">${w.done || ''}</span>
+                </div>
+                <small>${esc(w.label)}</small></div>`).join('')}
+            </div>
           </section>
           <section class="gp-card">
-            <header><h2>Quick Actions</h2></header>
-            <div class="gp-quick">
-              <a href="#" onclick="event.preventDefault(); gurujiView('all')"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>View Assignments</span></a>
-              <a ${workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link` : 'href="#" onclick="event.preventDefault()"'}><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i><span>Start Analysis</span></a>
-              <a ${workspaceCase ? `href="/guruji/${esc(workspaceCase.orderId)}" data-link onclick="gurujiOpenChecklist('${esc(workspaceCase.orderId)}')"` : 'href="#" onclick="event.preventDefault()"'}><i class="fa-solid fa-table-list" aria-hidden="true"></i><span>Assessment Checklist</span></a>
-              <a href="#" onclick="event.preventDefault(); gurujiPrintDay()"><i class="fa-solid fa-print" aria-hidden="true"></i><span>Day Sheet</span></a>
+            <header><h2><i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Open Work by Service</h2></header>
+            <div class="gp-mix">
+              <div class="gp-donut" style="background:conic-gradient(${donut})"><span><strong>${mixTotal}</strong><small>open</small></span></div>
+              <ul>${top.map(([t, n], i) => `<li><i style="background:${COLORS[i]}"></i><span>${esc(t)}</span><strong>${n}</strong></li>`).join('') || '<li><span>No open work</span></li>'}</ul>
             </div>
           </section>
         </div>
+
         <section class="gp-card">
-          <header><h2>Pending Assignments</h2><div class="gp-tabs">
+          <header><h2><i class="fa-solid fa-list-check" aria-hidden="true"></i> Assignments</h2><div class="gp-tabs">
             ${[['all', 'All', all.length], ['pending', 'Pending', counts.pending], ['inprogress', 'In Progress', counts.inprogress], ['completed', 'Completed', counts.completed]]
               .map(([v, l, n]) => `<a href="#" onclick="event.preventDefault(); gurujiView('${v}')">${l} (${n})</a>`).join('')}</div></header>
-          ${recent.length ? `<div class="gp-table" role="table">
-            <div class="gp-tr gp-th" role="row"><span>Booking ID</span><span>Seeker Name</span><span>Service</span><span>Submitted On</span><span>Status</span><span>Action</span></div>
-            ${recent.map(c => `<div class="gp-tr" role="row">
-              <span class="gp-mono">${esc(c.orderId)}</span><span>${esc((c.devotee || {}).name || '—')}</span>
-              <span>${esc((c.service && c.service.title) || 'Enquiry')}</span>
-              <span>${esc(c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—')}</span>
-              <span>${pill(c)}</span>
-              <span>${c.kind === 'enquiry' ? '' : `<a ${link(c)} class="gp-act${STAGE.pending(c) ? ' gp-act--fill' : ''}">${action(c)} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>`}</span>
-            </div>`).join('')}
-          </div>` : '<p class="gm-empty">No open assignments.</p>'}
+          ${(() => {
+            const recent = all.filter(c => !STAGE.completed(c) && c.kind !== 'general').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 8);
+            return recent.length ? `<div class="gp-table" role="table">
+              <div class="gp-tr gp-th" role="row"><span>Booking ID</span><span>Seeker Name</span><span>Service</span><span>Submitted On</span><span>Status</span><span>Action</span></div>
+              ${recent.map(c => `<div class="gp-tr" role="row">
+                <span class="gp-mono">${esc(c.orderId)}</span><span>${esc((c.devotee || {}).name || '—')}</span>
+                <span>${esc((c.service && c.service.title) || 'Enquiry')}</span>
+                <span>${esc(c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—')}</span>
+                <span>${pill(c)}</span>
+                <span>${c.kind === 'enquiry' ? '' : `<a ${link(c)} class="gp-act${STAGE.pending(c) ? ' gp-act--fill' : ''}">${STAGE.pending(c) ? 'Analyse' : 'Continue'} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>`}</span>
+              </div>`).join('')}
+            </div>` : '<p class="gm-empty">No open assignments.</p>';
+          })()}
         </section>
       </main>`;
+  }
+
+  /** Keeps the dashboard alive: the clock, each session's countdown and its
+   *  Join button tick every 20 s, and the case list refreshes every 2 min. */
+  function startGurujiDashboardClock() {
+    clearInterval(GURUJI.dashTimer);
+    let ticks = 0;
+    const tick = () => {
+      const board = document.querySelector('[data-gp-dashboard]');
+      if (!board) { clearInterval(GURUJI.dashTimer); return; }
+      const now = Date.now();
+      const clock = board.querySelector('[data-gp-clock]');
+      if (clock) clock.textContent = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+      board.querySelectorAll('.gp-slot').forEach(li => {
+        const start = new Date(li.dataset.start).getTime();
+        const end = start + (Number(li.dataset.minutes) || 45) * 60e3;
+        const when = li.querySelector('[data-countdown]');
+        const join = li.querySelector('[data-join]');
+        const mins = Math.round((start - now) / 60e3);
+        let text = '', cls = '';
+        if (now >= end) { text = 'Time passed'; cls = 'is-past'; }
+        else if (now >= start) { text = 'Live now'; cls = 'is-live'; }
+        else if (mins <= 60) { text = `Starts in ${mins} min`; cls = 'is-soon'; }
+        else { const h = Math.floor(mins / 60); text = `In ${h} h ${mins % 60} min`; }
+        if (when) { when.textContent = text; when.className = 'gp-when ' + cls; }
+        if (join) join.hidden = !(now >= start - 10 * 60e3 && now < end);
+        li.classList.toggle('is-live', cls === 'is-live');
+        li.classList.toggle('is-past', cls === 'is-past');
+      });
+      ticks++;
+      // Every two minutes, pull fresh cases (only while Guruji is looking).
+      if (ticks % 6 === 0 && document.visibilityState === 'visible' && !document.querySelector('.gm-search:focus')) {
+        gurujiFetch('/api/guruji/cases').then(data => {
+          if (!document.querySelector('[data-gp-dashboard]')) return;
+          GURUJI.list = (data && data.cases) || GURUJI.list;
+          renderCaseList();
+        }).catch(() => {});
+      }
+    };
+    tick();
+    GURUJI.dashTimer = setInterval(tick, 20000);
   }
 
   /** Unread chat from seekers, shown on the bell in the admin dashboard. */
