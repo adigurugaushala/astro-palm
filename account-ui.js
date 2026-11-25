@@ -77,6 +77,8 @@
   function render(container, data) {
     const q = new URLSearchParams(location.search);
     const tab = TABS.some(t => t[0] === q.get('tab')) ? q.get('tab') : 'overview';
+    if (window.setBottomNav) window.setBottomNav('account');
+    if (window.markBottomNav) window.markBottomNav(tab === 'payments' ? 'overview' : tab);
     S = Object.assign({ container, tab, filter: 'all', q: '' }, data);
     draw();
   }
@@ -86,10 +88,8 @@
     S.tab = tab; S.filter = 'all'; S.q = '';
     const url = tab === 'overview' ? '/account' : '/account?tab=' + tab;
     try { history.pushState({ pageId: 'account', params: { query: tab === 'overview' ? {} : { tab } } }, '', url); } catch (e) { /* ignore */ }
-    document.querySelectorAll('[data-bnav]').forEach(a => {
-      const on = a.dataset.bnav === (tab === 'reports' ? 'reports' : 'account');
-      a.classList.toggle('is-active', on);
-    });
+    if (window.setBottomNav) window.setBottomNav('account');
+    if (window.markBottomNav) window.markBottomNav(tab === 'payments' ? 'overview' : tab);
     draw();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -342,6 +342,7 @@
       <section class="ac-card ac-section">
         <header><h3><i class="fa-solid fa-lock" aria-hidden="true"></i> Account &amp; security</h3></header>
         <button type="button" class="ac-line" onclick="toggleProfileEdit()"><i class="fa-solid fa-key" aria-hidden="true"></i><span>${c.provider === 'google' ? 'Set a password' : 'Change password'}</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        <button type="button" class="ac-line" onclick="AccountUI.go('payments')"><i class="fa-solid fa-receipt" aria-hidden="true"></i><span>Payments &amp; receipts</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
         <button type="button" class="ac-line" onclick="handleCustomerLogout()"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i><span>Sign out of this device</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
       </section>
       <div class="ac-info-grid">

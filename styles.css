@@ -2492,3 +2492,21 @@ body.staff-portal #whatsapp-fab { display: none !important; }
 .ac-main { grid-template-columns: minmax(0, 1fr); }
 .ac-main > * { min-width: 0; max-width: 100%; }
 .ac-main .rp-section, .ac-main section { max-width: 100%; }
+
+/* Bottom bar in the site's own colours: the dark header with gold accents. */
+@media (max-width: 1023px) {
+  .bottom-nav { background: rgb(var(--c-night)) !important; border-top: 1px solid rgb(var(--c-night-line)); border-radius: 0 !important;
+    box-shadow: 0 -10px 28px -12px rgb(0 0 0 / .6) !important; gap: .1rem !important; padding-left: .35rem !important; padding-right: .35rem !important; }
+  .bottom-nav a { color: rgb(var(--c-cream) / .78) !important; font-size: .66rem !important; letter-spacing: 0 !important; border-radius: 14px; }
+  .bottom-nav a i { font-size: 1.1rem; color: rgb(var(--c-gold-soft) / .85); }
+  .bottom-nav a:hover { color: rgb(var(--c-cream)) !important; }
+  .bottom-nav a.is-active { background: linear-gradient(135deg, #f7cb68 0%, #e9ae4f 55%, #d6962f 100%) !important; color: rgb(var(--c-night)) !important;
+    box-shadow: 0 4px 14px -4px rgb(201 136 38 / .45); }
+  .bottom-nav a.is-active i, .bottom-nav a.is-active.bottom-nav__book i { color: rgb(var(--c-night)) !important; }
+  .bottom-nav__book i { color: rgb(var(--c-gold)) !important; }
+  .bottom-nav a:focus-visible { outline: 2px solid rgb(var(--c-gold)) !important; }
+  .bottom-nav a span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* One menu on phones: the account's tab row gives way to the bottom bar. */
+  .ac-tabs { display: none !important; }
+}
+@media (max-width: 1023px) { .ac-side { display: none !important; } }
