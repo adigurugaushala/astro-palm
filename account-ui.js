@@ -295,15 +295,15 @@
             <div class="ac-row__pills">${payPill(b)}<strong class="ac-amount">${rupees(b.amount)}</strong></div>
           </div>
           <div class="ac-row__actions">
-            ${isPaid(b) ? `<button type="button" class="ac-btn ac-btn--outline" onclick="AccountUI.receipt('${esc(b.orderId)}', this)"><i class="fa-solid fa-download" aria-hidden="true"></i> Receipt (PDF)</button>` : ''}
+            ${isPaid(b) ? `<button type="button" class="ac-btn ac-btn--outline" onclick="AccountUI.receipt('${esc(b.orderId)}', this)"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Invoice (PDF)</button>` : ''}
             ${!isPaid(b) ? `<button type="button" class="ac-btn ac-btn--gold" onclick="resumeHeldBooking()">Pay now</button>` : ''}
             <a href="/track" data-link class="ac-btn ac-btn--outline" onclick="fillAndTrack('${esc(b.orderId)}', '${esc((b.devotee && b.devotee.mobile) || S.cust.mobile || S.cust.email || '')}')"><i class="fa-regular fa-eye" aria-hidden="true"></i> View details</a>
           </div>
         </article>`).join('')}</div>` : emptyCard('fa-receipt', all.length ? 'No payments match' : 'No payments yet', all.length ? 'Try another filter or search.' : 'Your payments appear here after you book.', '', '')}
       <div class="ac-info-grid">
-        <section class="ac-card ac-info"><h3><i class="fa-regular fa-file-lines" aria-hidden="true"></i> About your receipt</h3>
-          <ul><li>A receipt is available for every successful payment.</li><li>Download it any time from this section.</li><li>Payments are processed securely by Cashfree.</li></ul></section>
-        ${helpCard('Need help with a payment?', 'For payment issues, refunds or receipt requests, contact our support team.')}
+        <section class="ac-card ac-info"><h3><i class="fa-regular fa-file-lines" aria-hidden="true"></i> About your invoice</h3>
+          <ul><li>A formal tax invoice is available for every completed booking.</li><li>Download it any time from this section.</li><li>Payments are processed securely by Cashfree.</li></ul></section>
+        ${helpCard('Need help with a payment?', 'For payment issues, refunds or billing inquiries, contact our support team at support@gurujipalmistry.org.')}
       </div>`;
   }
 
@@ -431,45 +431,302 @@
       }
     },
 
-    /** A payment receipt, made in the browser from the booking record. */
+    /** Customer Invoice PDF in the official Guruji Palmistry format */
     async receipt(orderId, btn) {
       const b = S.bookings.find(x => x.orderId === orderId);
       if (!b) return;
-      btn.disabled = true;
+      if (btn) btn.disabled = true;
       const lib = typeof loadJsPdf === 'function' ? await loadJsPdf() : window.jspdf;
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
       if (!lib) { showVedicToast('Could not load the PDF maker. Check your connection and try again.', 'error'); return; }
       const doc = new lib.jsPDF({ unit: 'pt', format: 'a4' });
       const W = doc.internal.pageSize.getWidth();
-      doc.setFillColor(107, 29, 54); doc.rect(0, 0, W, 90, 'F');
-      doc.setTextColor(247, 217, 160); doc.setFont('times', 'bold'); doc.setFontSize(24); doc.text('Guruji Palmistry', 40, 52);
-      doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.text('Palmistry · Astrology · Spiritual Guidance', 40, 72);
-      doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.text('PAYMENT RECEIPT', W - 40, 56, { align: 'right' });
-      doc.setTextColor(40, 30, 30); doc.setFontSize(11);
-      const rows = [
-        ['Receipt for booking', b.orderId],
-        ['Date of payment', dayTime((b.payment && b.payment.paidAt) || b.updatedAt || b.createdAt)],
-        ['Received from', (b.devotee && b.devotee.name) || S.cust.name || ''],
-        ['Mobile', (b.devotee && b.devotee.mobile) ? '+91 ' + b.devotee.mobile : ''],
-        ['Email', (b.devotee && b.devotee.email) || S.cust.email || ''],
-        ['Service', title(b)],
-        ['Payment method', 'Online (Cashfree)' + (b.payment && b.payment.reference ? ' · Ref ' + b.payment.reference : '')],
-        ['Status', 'Paid']
-      ].filter(r => r[1]);
-      let y = 140;
-      rows.forEach(([k, v]) => {
-        doc.setFont('helvetica', 'bold'); doc.text(k, 40, y);
-        doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(String(v), W - 260), 220, y);
-        y += 26;
+
+      function numberToWords(n) {
+        n = Math.round(Number(n) || 0);
+        if (n === 0) return 'Zero Rupees Only';
+        const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const numTens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        function convert(num) {
+          if (num < 20) return a[num];
+          if (num < 100) return numTens[Math.floor(num / 10)] + (num % 10 ? ' ' + a[num % 10] : '');
+          if (num < 1000) return a[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' ' + convert(num % 100) : '');
+          if (num < 100000) return convert(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 ? ' ' + convert(num % 1000) : '');
+          if (num < 10000000) return convert(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 ? ' ' + convert(num % 100000) : '');
+          return convert(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 ? ' ' + convert(num % 10000000) : '');
+        }
+        return convert(n) + (n === 1 ? ' Rupee Only' : ' Rupees Only');
+      }
+
+      // 1. Logo and Company Header
+      const logoImg = await new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = '/assets/guruji-palmistry-logo-512.png';
       });
-      doc.setDrawColor(200, 170, 120); doc.line(40, y, W - 40, y); y += 34;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text('Amount paid', 40, y);
-      doc.text('INR ' + Number(b.amount || 0).toLocaleString('en-IN') + '.00', W - 40, y, { align: 'right' });
-      y += 50;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(110, 100, 100);
-      doc.text(doc.splitTextToSize('This receipt confirms a payment received by Guruji Palmistry for the service above. It was generated from your account at gurujipalmistry.org. For questions, refunds or a tax invoice, please contact support.', W - 80), 40, y);
-      doc.save(`Receipt_${b.orderId}.pdf`);
+
+      let topTextX = 40;
+      if (logoImg) {
+        try {
+          doc.addImage(logoImg, 'PNG', 40, 26, 48, 48);
+          topTextX = 98;
+        } catch (e) { topTextX = 40; }
+      }
+
+      doc.setFont('times', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(74, 18, 26);
+      doc.text('GURUJI PALMISTRY', topTextX, 39);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(50, 50, 50);
+      doc.text('2-4-123/E/84/A, Swaroop Nagar, Srinivasa Colony, Uppal, Hyderabad, Telangana – 500039', topTextX, 52);
+      doc.text('Phone: +91 8977615081  |  support@gurujipalmistry.org  |  www.gurujipalmistry.org', topTextX, 64);
+
+      // Top divider
+      doc.setDrawColor(210, 185, 140);
+      doc.setLineWidth(1);
+      doc.line(40, 84, W - 40, 84);
+
+      // 2. INVOICE Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(74, 18, 26);
+      doc.text('INVOICE', 40, 106);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(110, 110, 110);
+      doc.text('Original for Recipient', W - 40, 106, { align: 'right' });
+
+      // 3. Bill To & Invoice Details (Two-column boxes)
+      const boxY = 118;
+      const boxH = 82;
+      const colGap = 16;
+      const boxW = (W - 80 - colGap) / 2;
+      const rightBoxX = 40 + boxW + colGap;
+
+      // Left Box: Bill To
+      doc.setFillColor(248, 244, 236);
+      doc.rect(40, boxY, boxW, 18, 'F');
+      doc.setDrawColor(215, 205, 190);
+      doc.rect(40, boxY, boxW, boxH);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(74, 18, 26);
+      doc.text('Bill To', 48, boxY + 12);
+
+      const custName = (b.devotee && b.devotee.name) || S.cust.name || 'Valued Devotee';
+      const custAddr = (b.devotee && (b.devotee.address || b.devotee.city || b.devotee.pob)) || 'Hyderabad, Telangana';
+      const custMobile = (b.devotee && b.devotee.mobile) ? '+91 ' + b.devotee.mobile : (S.cust.mobile ? '+91 ' + S.cust.mobile : '—');
+      const custEmail = (b.devotee && b.devotee.email) || S.cust.email || '—';
+
+      doc.setFontSize(8.5);
+      doc.setTextColor(40, 30, 30);
+
+      doc.setFont('helvetica', 'bold'); doc.text('Name:', 48, boxY + 31);
+      doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(custName, boxW - 55), 88, boxY + 31);
+
+      doc.setFont('helvetica', 'bold'); doc.text('Address:', 48, boxY + 46);
+      doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(custAddr, boxW - 55), 88, boxY + 46);
+
+      doc.setFont('helvetica', 'bold'); doc.text('Phone / Email:', 48, boxY + 61);
+      doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(`${custMobile}  |  ${custEmail}`, boxW - 55), 48, boxY + 72);
+
+      // Right Box: Invoice Details
+      doc.setFillColor(248, 244, 236);
+      doc.rect(rightBoxX, boxY, boxW, 18, 'F');
+      doc.setDrawColor(215, 205, 190);
+      doc.rect(rightBoxX, boxY, boxW, boxH);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(74, 18, 26);
+      doc.text('Invoice Details', rightBoxX + 8, boxY + 12);
+
+      const invNo = 'INV-' + b.orderId;
+      const invDate = (b.payment && b.payment.paidAt) ? new Date(b.payment.paidAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : new Date(b.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const placeOfSupply = (b.devotee && b.devotee.state) ? `${b.devotee.state}` : 'Telangana (36)';
+
+      doc.setFontSize(8.5);
+      doc.setTextColor(40, 30, 30);
+
+      doc.setFont('helvetica', 'bold'); doc.text('Invoice No.:', rightBoxX + 8, boxY + 31);
+      doc.setFont('helvetica', 'normal'); doc.text(invNo, rightBoxX + 85, boxY + 31);
+
+      doc.setFont('helvetica', 'bold'); doc.text('Date:', rightBoxX + 8, boxY + 46);
+      doc.setFont('helvetica', 'normal'); doc.text(invDate, rightBoxX + 85, boxY + 46);
+
+      doc.setFont('helvetica', 'bold'); doc.text('Place of Supply:', rightBoxX + 8, boxY + 61);
+      doc.setFont('helvetica', 'normal'); doc.text(placeOfSupply, rightBoxX + 85, boxY + 61);
+
+      // 4. Line Items Table
+      const tableY = 214;
+      const col1 = 40;
+      const col2 = 68;
+      const col3 = 345;
+      const col4 = 415;
+      const tableW = W - 80;
+
+      // Table Header Bar
+      doc.setFillColor(74, 18, 26);
+      doc.rect(40, tableY, tableW, 20, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text('#', col1 + 8, tableY + 13);
+      doc.text('Description', col2, tableY + 13);
+      doc.text('Qty', col3 + 12, tableY + 13, { align: 'center' });
+      doc.text('Rate (INR)', col4 + 30, tableY + 13, { align: 'right' });
+      doc.text('Amount (INR)', W - 48, tableY + 13, { align: 'right' });
+
+      // Table Rows
+      const amountVal = Number(b.amount || 0);
+      const amountStr = amountVal.toLocaleString('en-IN') + '.00';
+      const serviceTitle = title(b);
+
+      const rowH = 26;
+      let curY = tableY + 20;
+
+      // Row 1
+      doc.setFillColor(255, 255, 255);
+      doc.rect(40, curY, tableW, rowH, 'F');
+      doc.setDrawColor(220, 215, 205);
+      doc.rect(40, curY, tableW, rowH);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(40, 30, 30);
+      doc.text('1', col1 + 10, curY + 16);
+      doc.text(doc.splitTextToSize(serviceTitle, col3 - col2 - 10), col2, curY + 16);
+      doc.text('1', col3 + 12, curY + 16, { align: 'center' });
+      doc.text(amountStr, col4 + 30, curY + 16, { align: 'right' });
+      doc.text(amountStr, W - 48, curY + 16, { align: 'right' });
+
+      curY += rowH;
+
+      // Empty rows 2 and 3 as in user template
+      for (let r = 2; r <= 3; r++) {
+        doc.setFillColor(r % 2 === 0 ? 252 : 255, r % 2 === 0 ? 250 : 255, r % 2 === 0 ? 247 : 255);
+        doc.rect(40, curY, tableW, rowH, 'F');
+        doc.setDrawColor(220, 215, 205);
+        doc.rect(40, curY, tableW, rowH);
+        doc.setTextColor(160, 160, 160);
+        doc.text(String(r), col1 + 10, curY + 16);
+        doc.text('—', col2, curY + 16);
+        doc.text('—', col3 + 12, curY + 16, { align: 'center' });
+        doc.text('—', col4 + 30, curY + 16, { align: 'right' });
+        doc.text('—', W - 48, curY + 16, { align: 'right' });
+        curY += rowH;
+      }
+
+      // 5. Totals Section
+      const totalsW = 210;
+      const totalsX = W - 40 - totalsW;
+
+      doc.setTextColor(40, 30, 30);
+      doc.setFontSize(8.5);
+
+      // Subtotal
+      doc.setFont('helvetica', 'bold');
+      doc.text('Subtotal', totalsX + 10, curY + 16);
+      doc.setFont('helvetica', 'normal');
+      doc.text('INR ' + amountStr, W - 48, curY + 16, { align: 'right' });
+      doc.setDrawColor(220, 215, 205);
+      doc.line(totalsX, curY + 22, W - 40, curY + 22);
+      curY += 24;
+
+      // Tax
+      doc.setFont('helvetica', 'normal');
+      doc.text('Tax (if applicable)', totalsX + 10, curY + 14);
+      doc.text('INR 0.00', W - 48, curY + 14, { align: 'right' });
+      doc.line(totalsX, curY + 20, W - 40, curY + 20);
+      curY += 22;
+
+      // Total Amount
+      doc.setFillColor(248, 244, 236);
+      doc.rect(totalsX, curY, totalsW, 22, 'F');
+      doc.setDrawColor(210, 185, 140);
+      doc.rect(totalsX, curY, totalsW, 22);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(74, 18, 26);
+      doc.text('Total Amount', totalsX + 10, curY + 15);
+      doc.text('INR ' + amountStr, W - 48, curY + 15, { align: 'right' });
+
+      curY += 36;
+
+      // 6. Amount in Words
+      doc.setFillColor(252, 250, 247);
+      doc.rect(40, curY, W - 80, 24, 'F');
+      doc.setDrawColor(220, 215, 205);
+      doc.rect(40, curY, W - 80, 24);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(74, 18, 26);
+      doc.text('Amount in Words:', 48, curY + 16);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(40, 30, 30);
+      doc.text(numberToWords(amountVal), 142, curY + 16);
+
+      curY += 36;
+
+      // 7. Payment Information
+      const isBookingPaid = isPaid(b);
+      const txId = (b.payment && (b.payment.reference || b.payment.transactionId)) || b.orderId;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(40, 30, 30);
+      doc.text('Payment: Cashfree', 40, curY);
+
+      doc.text('Status:', 160, curY);
+      doc.setFont('helvetica', isBookingPaid ? 'bold' : 'normal');
+      doc.setTextColor(isBookingPaid ? 16 : 80, isBookingPaid ? 120 : 80, isBookingPaid ? 50 : 80);
+      doc.text(isBookingPaid ? '[ ✓ ] Paid' : '[   ] Paid', 200, curY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      doc.text(!isBookingPaid ? '[ ✓ ] Pending' : '[   ] Pending', 260, curY);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 30, 30);
+      doc.text('Transaction ID:', 340, curY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(txId, 420, curY);
+
+      curY += 40;
+
+      // 8. Thank you note & Authorised Signatory
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9.5);
+      doc.setTextColor(74, 18, 26);
+      doc.text('Thank you for choosing Guruji Palmistry.', 40, curY);
+
+      const sigX = W - 180;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(40, 30, 30);
+      doc.text('For GURUJI PALMISTRY', sigX, curY);
+
+      doc.setDrawColor(180, 170, 160);
+      doc.line(sigX, curY + 36, W - 40, curY + 36);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(90, 90, 90);
+      doc.text('Authorised Signatory', sigX, curY + 48);
+
+      doc.save(`Invoice_${b.orderId}.pdf`);
     },
+
+    invoice(orderId, btn) { return this.receipt(orderId, btn); },
 
     exportData() {
       const data = { exportedAt: new Date().toISOString(), account: S.cust, bookings: S.bookings };
