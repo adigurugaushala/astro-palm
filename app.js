@@ -3572,6 +3572,7 @@ window.handleCustomerLogout = async function() {
   if (typeof showVedicToast === "function") {
     showVedicToast("You have signed out of your account.", "info");
   }
+  if (window.setBottomNav) { window.setBottomNav('site'); window.markBottomNav('account'); }
   renderAccountPortal();
 };
 

@@ -1353,16 +1353,19 @@
       on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
     });
 
-    // Bottom navigation on phones
-    const bkey = pageId === 'home' ? 'home'
+    // Bottom navigation on phones: the site's menu everywhere, and the
+    // account's own menu while a signed-in seeker is in My Account.
+    let signedIn = false;
+    try { signedIn = Boolean(localStorage.getItem('guruji_cust_token')); } catch (e) { /* private mode */ }
+    const accountMode = pageId === 'account' && signedIn;
+    setBottomNav(accountMode ? 'account' : 'site');
+    const tab = (params.query && params.query.tab) || '';
+    const bkey = accountMode ? (tab || 'overview')
+      : pageId === 'home' ? 'home'
       : /^(services|service-detail|reiki-healing|courses|course-detail|palmistry|mantras|resources|resource-detail)$/.test(pageId) ? 'services'
       : /^book/.test(pageId) ? 'book'
-      : pageId === 'account' ? ((params.query && params.query.tab === 'reports') ? 'reports' : 'account') : '';
-    document.querySelectorAll('[data-bnav]').forEach(a => {
-      const on = a.dataset.bnav === bkey;
-      a.classList.toggle('is-active', on);
-      on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
-    });
+      : pageId === 'account' ? (tab === 'reports' ? 'reports' : 'account') : '';
+    markBottomNav(bkey);
     // Not over staff workspaces, a live session, a lesson, or the pay button.
     document.body.classList.toggle('no-bottom-nav', /^(admin|guruji|session|learn|book-payment)$/.test(pageId));
 
@@ -1377,6 +1380,33 @@
     updateSeo(pageId, params);
     closeSiteSearch();
   };
+
+  /** The phone bottom bar has two sets of items; this draws the one asked for. */
+  const BOTTOM_NAV = {
+    site: [['home', '/', 'fa-house', 'Home'], ['services', '/services', 'fa-hand-sparkles', 'Services'],
+      ['book', '/book', 'fa-calendar-check', 'Book'], ['reports', '/account?tab=reports', 'fa-file-lines', 'Reports'],
+      ['account', '/account', 'fa-user', 'Account']],
+    account: [['overview', '/account', 'fa-house', 'Dashboard'], ['consultations', '/account?tab=consultations', 'fa-calendar-check', 'Consultations'],
+      ['reports', '/account?tab=reports', 'fa-file-lines', 'Reports'], ['palm', '/account?tab=palm', 'fa-hand', 'Palm Images'],
+      ['profile', '/account?tab=profile', 'fa-user', 'Profile']]
+  };
+  function setBottomNav(mode) {
+    const nav = document.getElementById('bottom-nav');
+    if (!nav || nav.dataset.mode === mode) return;
+    nav.dataset.mode = mode;
+    nav.setAttribute('aria-label', mode === 'account' ? 'My account' : 'Main');
+    nav.innerHTML = BOTTOM_NAV[mode].map(([key, href, icon, label]) =>
+      `<a href="${href}" data-link data-bnav="${key}"${key === 'book' ? ' class="bottom-nav__book"' : ''}><i class="fa-solid ${icon}" aria-hidden="true"></i><span>${label}</span></a>`).join('');
+  }
+  function markBottomNav(key) {
+    document.querySelectorAll('[data-bnav]').forEach(a => {
+      const on = a.dataset.bnav === key;
+      a.classList.toggle('is-active', on);
+      on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
+    });
+  }
+  window.markBottomNav = markBottomNav;
+  window.setBottomNav = setBottomNav;
 
   function navigate(href, opts = {}) {
     const u = new URL(href, location.origin);
