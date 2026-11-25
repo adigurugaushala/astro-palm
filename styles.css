@@ -2830,3 +2830,69 @@ body.staff-portal footer.gp-footer { display: block !important; }
   .gp-band__cta > a { width: 100%; justify-content: center; }
   .gp-foot__grid { gap: 1.75rem; }
 }
+
+/* ======================================= Instagram Animated Footer Badge */
+.ig-animated-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px rgba(220, 39, 67, 0.45);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  animation: igPulseGlow 2.5s infinite ease-in-out;
+}
+.ig-animated-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 24px rgba(220, 39, 67, 0.75);
+  animation-play-state: paused;
+  color: #ffffff !important;
+}
+.ig-animated-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  animation: igIconWiggle 3.5s infinite ease-in-out;
+}
+.ig-animated-label {
+  white-space: nowrap;
+}
+
+@keyframes igPulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 16px rgba(220, 39, 67, 0.45), 0 0 0 0 rgba(225, 48, 108, 0.55);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 6px 22px rgba(220, 39, 67, 0.7), 0 0 0 7px rgba(225, 48, 108, 0);
+  }
+}
+
+@keyframes igIconWiggle {
+  0%, 80%, 100% { transform: rotate(0deg); }
+  85% { transform: rotate(-12deg) scale(1.15); }
+  90% { transform: rotate(12deg) scale(1.15); }
+  95% { transform: rotate(-6deg) scale(1.1); }
+}
+
+.ig-contact-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(45deg, #f09433, #dc2743, #bc1888);
+  color: #ffffff !important;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(220, 39, 67, 0.4);
+  animation: igPulseGlow 2.5s infinite ease-in-out;
+}
