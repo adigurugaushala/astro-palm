@@ -16,16 +16,9 @@ const state = {
   slotTimerSeconds: 600, // 10 minutes hold
   slotTimerInterval: null,
   isSlotHeld: true,
-  user: {
-    name: "Srikar Babu G",
-    email: "srikar.babu@example.com",
-    mobile: "+91 89776 25078",
-    gotram: "Bharadwaja Gotram",
-    dob: "1994-07-18",
-    tob: "06:45 AM",
-    pob: "Hyderabad, Telangana",
-    questions: "Career trajectory, startup venture timing and overseas relocation guidance."
-  },
+  // Starts empty: these are filled from the seeker's own sign-in and forms.
+  // (Sample values here once leaked into real bookings and the payment page.)
+  user: { name: "", email: "", mobile: "", gotram: "", dob: "", tob: "", pob: "", questions: "" },
   orderId: "GURUJI-PLM-7843",
   paymentStatus: "PENDING",
   uploadedPhotos: [
@@ -231,7 +224,8 @@ function currentBookingRequest() {
       poojaDate: state.pooja.date,
       poojaSlot: state.pooja.slot && state.pooja.slot.id,
       prasadam: state.pooja.prasadam || { deliver: false },
-      devotee: { name: state.user.name, mobile: state.user.mobile, gotram: state.user.gotram, dob: state.user.dob }
+      devotee: { name: state.user.name, mobile: state.user.mobile, gotram: state.user.gotram, dob: state.user.dob },
+      consent: Boolean(state.payConsent)
     };
   }
   return {
@@ -239,7 +233,8 @@ function currentBookingRequest() {
     serviceId: state.selectedService.id,
     handedness: state.handedness,
     slot: { date: state.selectedDate, time: state.selectedTime, iso: state.selectedDateISO || '' },
-    devotee: { name: state.user.name, mobile: state.user.mobile, email: state.user.email }
+    devotee: { name: state.user.name, mobile: state.user.mobile, email: state.user.email },
+    consent: Boolean(state.payConsent)
   };
 }
 
@@ -1251,62 +1246,40 @@ function selectTimeSlot(slotTime) {
 
 async function handleAuthSubmit(event) {
   event.preventDefault();
+  // Only who they are here. The mobile number and the agreement to the terms
+  // are asked once, on the payment page (see collectPayDetails).
   const ok = validateFields([
     { id: "auth-name", rule: "name", msg: "Please enter your full name." },
-    { id: "auth-mobile", rule: "mobile", msg: "Enter a valid 10-digit mobile number." }
+    { id: "auth-email", rule: "email", msg: "Please enter a valid email address." }
   ]);
   if (!ok) return;
 
-  const consentBox = document.getElementById("auth-consent");
-  if (consentBox && !consentBox.checked) {
-    if (typeof showVedicToast === "function") {
-      showVedicToast("Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.", "error");
-    } else {
-      alert("Please agree to the Disclaimer, Terms & Conditions and Privacy Policy to proceed.");
-    }
-    consentBox.focus();
-    return;
-  }
-
   const name = document.getElementById("auth-name").value.trim();
-  const mobile = document.getElementById("auth-mobile").value.replace(/\D/g, "");
-  // No address is asked for any more: the reading is delivered in the account, not by mail.
   const email = (document.getElementById("auth-email")?.value || "").trim().toLowerCase();
   const password = document.getElementById("auth-password") ? document.getElementById("auth-password").value : "";
-  const serviceAck = Boolean(document.getElementById("consult-service-ack")?.checked);
 
   state.user.name = name;
-  state.user.mobile = mobile;
   state.user.email = email;
 
   // Persist slot hold immediately so it cannot be lost (only when one is held)
   if (state.selectedDateISO) persistHeldSlot();
 
-  // Securely register or update customer account in DB with legal consent record
   try {
     const res = await fetch("/api/customer/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        mobile,
-        email,
-        password: password || undefined,
-        consent: true,
-        disclaimerAccepted: true,
-        termsAccepted: true,
-        privacyAccepted: true,
-        serviceAcknowledgement: serviceAck,
-        serviceType: 'consultation',
-        consentSource: 'booking_auth'
-      })
+      body: JSON.stringify({ name, email, password: password || undefined })
     });
     const data = await res.json();
     if ((data.ok || data.success) && data.token) {
       localStorage.setItem("guruji_cust_token", data.token);
       if (data.customer) {
         state.user.customerId = data.customer.id;
+        if (data.customer.mobile) state.user.mobile = data.customer.mobile;
       }
+    } else if (data.error) {
+      showVedicToast(data.error, "error");
+      return;
     }
   } catch (e) {
     console.warn("[Customer Account Register]", e);
@@ -1404,8 +1377,41 @@ window.handleBookSignIn = async function(e) {
 // PAYU GATEWAY SIMULATION
 // ==========================================
 
+/** Fills the payment page's mobile box from what we already know. */
+function prefillPayDetails() {
+  const box = document.getElementById("pay-mobile");
+  if (box && !box.value && state.user.mobile) box.value = String(state.user.mobile).replace(/\D/g, "").slice(-10);
+}
+window.prefillPayDetails = prefillPayDetails;
+
+/** The payment page asks for the mobile number and the agreement to the terms
+ *  (they used to be on the login card). Returns true when both are given. */
+function collectPayDetails() {
+  const box = document.getElementById("pay-mobile");
+  const tick = document.getElementById("pay-consent");
+  const err = document.getElementById("pay-details-err");
+  const fail = (msg, el) => {
+    if (err) { err.textContent = msg; err.classList.remove("hidden"); }
+    if (el) el.focus();
+    return false;
+  };
+  if (!box) return true; // older page without the block
+  let digits = box.value.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  if (!/^[6-9]\d{9}$/.test(digits)) return fail("Please enter your 10-digit mobile number, so Guruji can reach you.", box);
+  if (tick && !tick.checked) return fail("Please tick the box to agree to the Disclaimer, Terms & Conditions and Privacy Policy.", tick);
+  if (err) err.classList.add("hidden");
+  box.value = digits;
+  state.user.mobile = digits;
+  state.payConsent = true;
+  return true;
+}
+window.collectPayDetails = collectPayDetails;
+
 async function simulatePaymentSuccess(btn) {
   if (state.paymentInFlight || state.paymentStatus === "SUCCESS") return;
+  if (!collectPayDetails()) return;
   state.paymentInFlight = true;
   setButtonLoading(btn, true, "Processing payment…");
   try {
