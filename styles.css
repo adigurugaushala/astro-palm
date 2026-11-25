@@ -2510,3 +2510,13 @@ body.staff-portal #whatsapp-fab { display: none !important; }
   .ac-tabs { display: none !important; }
 }
 @media (max-width: 1023px) { .ac-side { display: none !important; } }
+
+/* Chat: send a new palm photo */
+.chat__photo { flex: none; width: 2.75rem; height: 2.75rem; border-radius: var(--radius-md); display: grid; place-items: center; cursor: pointer;
+  border: 1px solid rgb(var(--c-line-strong)); background: rgb(var(--c-paper)); color: rgb(var(--c-maroon)); font-size: 1.1rem; transition: background .15s; }
+.chat__photo:hover { background: rgb(var(--c-gold) / .15); border-color: rgb(var(--c-gold-deep)); }
+.chat__photo.is-busy { opacity: .5; pointer-events: none; }
+.chat__photo.is-busy i::before { content: '\f110'; } /* spinner glyph */
+.chat__photo.is-busy i { animation: fa-spin 1s linear infinite; }
+.chat__photohint { margin: 0; padding: .1rem .8rem .7rem; font-size: .74rem; color: rgb(var(--c-ink-3)); display: flex; gap: .4rem; align-items: flex-start; }
+.chat__photohint i { color: rgb(var(--c-gold-deep)); margin-top: .15rem; }
