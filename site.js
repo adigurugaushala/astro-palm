@@ -1521,8 +1521,14 @@
     const social = $('#footer-social');
     if (social) {
       const icons = { instagram: 'fa-instagram', youtube: 'fa-youtube', facebook: 'fa-facebook-f' };
-      social.innerHTML = Object.entries(st.social || {}).filter(([, url]) => /^https:\/\//.test(url || ''))
-        .map(([k, url]) => `<a href="${esc(url)}" target="_blank" rel="noopener" class="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center hover:border-amber-400 hover:text-amber-300" aria-label="${k}"><i class="fa-brands ${icons[k] || 'fa-link'}" aria-hidden="true"></i></a>`).join('');
+      const links = Object.entries(st.social || {}).filter(([, url]) => /^https:\/\//.test(url || ''));
+      if (links.length) {
+        social.innerHTML = links
+          .map(([k, url]) => `<a href="${esc(url)}" target="_blank" rel="noopener" class="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center hover:border-amber-400 hover:text-amber-300 text-zinc-300 transition-colors" aria-label="${k}"><i class="fa-brands ${icons[k] || 'fa-link'} text-lg" aria-hidden="true"></i></a>`).join('');
+      } else {
+        const defaultIg = 'https://www.instagram.com/gurujipalmistry?jplx=MXNzMG83eXpkbm8yYw==';
+        social.innerHTML = `<a href="${defaultIg}" target="_blank" rel="noopener" class="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center hover:border-amber-400 hover:text-amber-300 text-zinc-300 transition-colors" aria-label="Instagram" title="Follow Guruji Palmistry on Instagram"><i class="fa-brands fa-instagram text-lg" aria-hidden="true"></i></a>`;
+      }
     }
   }
 

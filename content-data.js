@@ -31,7 +31,7 @@
     certificatePdf: '/assets/certificate_of_registration_guruji_palmistry.pdf',
     certificateImg: '/assets/certificate_of_registration_guruji_palmistry.jpg',
     verifyGovtUrl: 'https://labour.telangana.gov.in/',
-    social: { instagram: '', youtube: '', facebook: '' },
+    social: { instagram: 'https://www.instagram.com/gurujipalmistry?jplx=MXNzMG83eXpkbm8yYw==', youtube: '', facebook: '' },
     hero: {
       title: 'Ancient Wisdom. Personal Guidance. Inner Clarity.',
       subtitle: "Discover the wisdom of Palmistry, Vedic Astrology and Reiki through personal consultations, spiritual practices and traditional knowledge. Guidance to understand yourself better, navigate life's challenges and move forward with greater clarity."

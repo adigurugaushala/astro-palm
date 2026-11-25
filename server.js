@@ -619,6 +619,11 @@ async function getContent(store) {
       merged.about.sections = DEFAULT_CONTENT.about.sections;
     }
   }
+  if (merged.settings) {
+    if (!merged.settings.social || !merged.settings.social.instagram) {
+      merged.settings.social = Object.assign({}, DEFAULT_CONTENT.settings.social, merged.settings.social);
+    }
+  }
   store.__contentCache = { at: Date.now(), value: merged };
   return merged;
 }
