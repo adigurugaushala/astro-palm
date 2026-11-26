@@ -1693,16 +1693,22 @@ function buildApi(store, { gateway = createCashfree(CASHFREE) } = {}) {
       return [201, { photo }];
     }],
 
-    ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/photos\/([a-z0-9-]+)$/, async (req, [, orderId, photoId]) => {
+    ['GET', /^\/api\/bookings\/([A-Z0-9-]+)\/photos\/([a-z0-9-]+)$/, async (req, [, orderId, photoId], url) => {
       rateLimit(req, 'palm-photo-read', 240);
       const booking = await store.getBooking(orderId);
       const actor = bookingActor(req, booking);
       if (!booking || !actor) throw new HttpError(actor === undefined ? 401 : 404, 'Booking not found');
-      const listed = (booking.photos || []).some(p => p.id === photoId);
+      const listed = (booking.photos || []).find(p => p.id === photoId);
       if (!listed) throw new HttpError(404, 'Photo not found');
       const item = await store.getMedia(photoId);
       if (!item || !MEDIA_TYPES[item.type]) throw new HttpError(404, 'Photo not found');
-      return [200, { __raw: Buffer.from(item.data, 'base64'), type: item.type, cache: 'private, max-age=600' }];
+      const fname = (listed.name || `palm-${orderId}-${photoId}.jpg`).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const headers = {
+        'Content-Disposition': url && url.searchParams.get('download')
+          ? `attachment; filename="${fname}"`
+          : `inline; filename="${fname}"`
+      };
+      return [200, { __raw: Buffer.from(item.data, 'base64'), type: item.type, cache: 'private, max-age=600', headers }];
     }],
 
     ['POST', /^\/api\/bookings\/([A-Z0-9-]+)\/messages$/, async (req, [, orderId]) => {

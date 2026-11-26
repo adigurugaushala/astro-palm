@@ -2498,6 +2498,36 @@
     return url;
   }
 
+  window.downloadPalmPhoto = async function(orderId, photoId, filename) {
+    try {
+      toast('Preparing photo download…', 'info');
+      const url = await palmImageUrl(orderId, photoId);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `palm_${orderId}_${photoId}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast('Palm photo downloaded successfully! ✓', 'success');
+    } catch (err) {
+      toast('Failed to download photo: ' + (err.message || 'Error'), 'error');
+    }
+  };
+
+  window.downloadAllPalmPhotos = async function(orderId) {
+    const c = GURUJI.current;
+    if (!c || !c.photos || !c.photos.length) return toast('No photos available to download.', 'warn');
+    toast(`Downloading ${c.photos.length} photos…`, 'info');
+    for (let idx = 0; idx < c.photos.length; idx++) {
+      const p = c.photos[idx];
+      const devName = (c.devotee && c.devotee.name) ? c.devotee.name.replace(/\s+/g, '_') + '_' : '';
+      const label = palmLabel(p, 'photo_' + (idx + 1)).replace(/\s+/g, '_');
+      const filename = `${devName}${orderId}_${label}.jpg`;
+      await window.downloadPalmPhoto(orderId, p.id, filename);
+      await new Promise(r => setTimeout(r, 400));
+    }
+  };
+
   const SCHEMAS = {
     services: {
       label: 'Services', key: 'slug', title: 'title', fields: [
@@ -4477,17 +4507,28 @@
             </div>
 
             <div class="sp-panel">
-              <h2 class="sp-h3">Palm photos</h2>
+              <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <h2 class="sp-h3 m-0">Palm photos</h2>
+                ${(c.photos || []).length > 1 ? `
+                  <button type="button" class="sp-btn-outline sp-btn-sm" onclick="downloadAllPalmPhotos('${esc(c.orderId)}')" title="Download all palm photos">
+                    <i class="fa-solid fa-download mr-1" aria-hidden="true"></i> Download All (${c.photos.length})
+                  </button>` : ''}
+              </div>
               ${(c.photos || []).length
         ? `<ul class="palm-grid">${c.photos.map((p, i) => `
                      <li class="palm-thumb">
                        <button type="button" class="palm-thumb__btn" data-palm-open="${i}"
-                               title="Open ${esc(p.name)}">
+                               title="Click to zoom, analyze and draw on ${esc(p.name)}">
                          <img data-palm-src="${esc(p.id)}" alt="${esc(palmLabel(p, 'Palm photo'))} sent by ${esc(c.devotee && c.devotee.name || 'the seeker')}">
                        </button>
-                       <small>${esc(palmLabel(p, 'Photo ' + (i + 1)))} · ${Math.round((p.size || 0) / 1024)} KB</small>
+                       <div class="palm-thumb__meta">
+                         <small>${esc(palmLabel(p, 'Photo ' + (i + 1)))} · ${Math.round((p.size || 0) / 1024)} KB</small>
+                         <button type="button" class="palm-thumb__dl" onclick="event.stopPropagation(); downloadPalmPhoto('${esc(c.orderId)}', '${esc(p.id)}', '${esc((c.devotee && c.devotee.name ? c.devotee.name.replace(/\s+/g, '_') + '_' : '') + palmLabel(p, 'photo_' + (i + 1)).replace(/\s+/g, '_') + '.jpg')}')" title="Download this palm photo">
+                           <i class="fa-solid fa-download" aria-hidden="true"></i> Download
+                         </button>
+                       </div>
                      </li>`).join('')}</ul>
-                   <p class="text-xs text-ink-3 mt-2">Click a photo to open it full size, zoom and draw on it.</p>`
+                   <p class="text-xs text-ink-3 mt-2">Click any photo to open full-screen analysis workspace with zoom and drawing tools, or click <strong>Download</strong> to save the photo to your device.</p>`
         : '<p class="sp-text">No photos uploaded yet.</p>'}
             </div>
 
@@ -4664,6 +4705,8 @@
         <button type="button" data-pv="in" title="Zoom in">+</button>
         <button type="button" data-pv="fit" title="Fit to screen">Fit</button>
         <span class="palm-viewer__sep"></span>
+        <button type="button" class="palm-viewer__download" data-pv="download" title="Download original palm photo"><i class="fa-solid fa-download" aria-hidden="true"></i> Download Photo</button>
+        <span class="palm-viewer__sep"></span>
         <button type="button" data-pv="pencil" title="Draw on the photo">&#9998; Mark</button>
         <button type="button" data-pv="note" title="Write a note on the photo">&#9997; Note</button>
         <button type="button" data-pv="book" title="Open the notebook beside the photo (B)">&#128211; Notebook</button>
@@ -4675,6 +4718,7 @@
           <button type="button" data-pv="undo" title="Undo the last mark">Undo</button>
           <button type="button" data-pv="clear" title="Remove all marks">Clear</button>
           <button type="button" class="palm-viewer__save" data-pv="save">Save marked copy</button>
+          <button type="button" class="palm-viewer__dlmarked" data-pv="dlmarked" title="Download marked copy with photo"><i class="fa-solid fa-download" aria-hidden="true"></i> Download marked</button>
         <button type="button" class="palm-viewer__send" data-pv="send" disabled>Send to seeker</button>
         </span>
         <span class="palm-viewer__sep"></span>
@@ -5270,6 +5314,32 @@
           } else strokes.pop();
           redraw(); break;
         case 'clear': strokes = []; notes = []; redraw(); break;
+        case 'download': {
+          const p = photos[i];
+          if (!p) break;
+          const devName = (caseData.devotee && caseData.devotee.name) ? caseData.devotee.name.replace(/\s+/g, '_') + '_' : '';
+          const label = palmLabel(p, 'photo_' + (i + 1)).replace(/\s+/g, '_');
+          const fname = `${devName}${caseData.orderId}_${label}.jpg`;
+          await window.downloadPalmPhoto(caseData.orderId, p.id, fname);
+          break;
+        }
+        case 'dlmarked': {
+          const out = document.createElement('canvas');
+          out.width = ink.width || img.naturalWidth;
+          out.height = ink.height || img.naturalHeight;
+          const ctx = out.getContext('2d');
+          ctx.drawImage(img, 0, 0, out.width, out.height);
+          ctx.drawImage(ink, 0, 0);
+          const a = document.createElement('a');
+          a.href = out.toDataURL('image/jpeg', 0.95);
+          const devName = (caseData.devotee && caseData.devotee.name) ? caseData.devotee.name.replace(/\s+/g, '_') + '_' : '';
+          a.download = `marked_${devName}${caseData.orderId}_photo_${i + 1}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          toast('Marked copy downloaded! ✓', 'success');
+          break;
+        }
         case 'save': await saveMarked(btn); break;
         case 'send': await sendMarked(btn); break;
       }

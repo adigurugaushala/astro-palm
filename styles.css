@@ -1221,6 +1221,13 @@ body.details-done-open { overflow: hidden; }
   overflow: hidden; background: rgb(var(--c-sand) / .6); cursor: zoom-in; aspect-ratio: 1; }
 .palm-thumb__btn:hover { border-color: rgb(var(--c-maroon)); }
 .palm-thumb__btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.palm-thumb__meta { display: flex; align-items: center; justify-content: space-between; gap: .35rem; margin-top: .25rem; flex-wrap: wrap; }
+.palm-thumb__dl { display: inline-flex; align-items: center; gap: .3rem; font-size: 11.5px; font-weight: 600; color: #8d2a47; background: #fff5f2; border: 1px solid rgba(141, 42, 71, .35); border-radius: 4px; padding: 2px 7px; cursor: pointer; text-decoration: none; transition: all .15s ease; }
+.palm-thumb__dl:hover { background: #8d2a47; color: #fff; border-color: #8d2a47; }
+.palm-viewer__download { background: #1e3a5f !important; color: #e0f2fe !important; border-color: #38bdf8 !important; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+.palm-viewer__download:hover { background: #0284c7 !important; color: #ffffff !important; }
+.palm-viewer__dlmarked { background: #451a03 !important; color: #fef3c7 !important; border-color: #d97706 !important; font-weight: 600; }
+.palm-viewer__dlmarked:hover { background: #b45309 !important; color: #ffffff !important; }
 
 body.palm-viewer-open { overflow: hidden; }
 .palm-viewer { position: fixed; inset: 0; z-index: 90; background: #15100f;
