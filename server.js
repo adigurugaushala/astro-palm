@@ -147,7 +147,7 @@ const PRIVATE_PATHS = [
 const CONSULTATIONS = {
   palmistry_reading:     { title: 'Detailed Palm Analysis', price: 549, duration: '30 Mins' },
   astrology_correlation: { title: 'Comprehensive Kundali Analysis', price: 549, duration: '30 Mins' },
-  combined_consultation: { title: 'Astro-Palmistry Correlation', price: 10, duration: '45 Mins' },
+  combined_consultation: { title: 'Astro-Palmistry Correlation', price: 649, duration: '45 Mins' },
   followup_session:      { title: '15-Min Follow-up Consultation', price: 750, duration: '15 Mins' }
 };
 const POOJAS = {
@@ -549,7 +549,7 @@ function requireAdmin(req, need = 'owner') {
   const role = adminRole(req);
   if (!role) throw new HttpError(401, 'Admin authorization required');
   if (need === 'owner' && role !== 'owner') throw new HttpError(403, 'Only the owner account can do this');
-  if (need === 'editor' && !['owner', 'editor'].includes(role)) throw new HttpError(403, 'This account cannot edit the site content');
+  if (need === 'editor' && !['owner', 'editor', 'guruji'].includes(role)) throw new HttpError(403, 'This account cannot edit the site content');
   return role;
 }
 
@@ -610,6 +610,10 @@ async function getContent(store) {
   try { overrides = await store.getContentOverrides(); } catch (e) { console.error('[server] content overrides unavailable:', e.message); }
   const merged = { ...DEFAULT_CONTENT };
   for (const k of CONTENT_SECTIONS) if (overrides[k] !== undefined) merged[k] = overrides[k];
+  if (Array.isArray(merged.services)) {
+    const ap = merged.services.find(s => s && (s.slug === 'astro-palmistry-correlation' || s.consultationId === 'combined_consultation'));
+    if (ap && Number(ap.price) === 10) ap.price = 649;
+  }
   if (merged.about) {
     if (!merged.about.portrait || merged.about.portrait.includes('img-mwvpeyvaf2f031')) {
       merged.about.portrait = DEFAULT_CONTENT.about.portrait;
@@ -633,6 +637,10 @@ function publicContent(content) {
     out[k] = LIST_SECTIONS_WITH_PUBLISH.includes(k) && Array.isArray(content[k])
       ? content[k].filter(item => item && item.published !== false)
       : content[k];
+  }
+  if (Array.isArray(out.services)) {
+    const ap = out.services.find(s => s && (s.slug === 'astro-palmistry-correlation' || s.consultationId === 'combined_consultation'));
+    if (ap && Number(ap.price) === 10) ap.price = 649;
   }
   if (out.about) {
     if (!out.about.portrait || out.about.portrait.includes('img-mwvpeyvaf2f031')) {

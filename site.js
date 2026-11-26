@@ -3216,6 +3216,7 @@
       ADMIN.data.content[section] = value;
       if (!ADMIN.data.edited.includes(section)) ADMIN.data.edited.push(section);
       SITE.content = Object.assign({}, SITE.content, { [section]: value });
+      if (window.GURUJI_CONTENT) window.GURUJI_CONTENT[section] = value;
       applySettings();
       toast(msg || 'Saved.');
       renderAdminBody();
@@ -3429,26 +3430,13 @@
       return;
     }
     const owner = ADMIN.role === 'owner';
-    if (ADMIN.role === 'guruji') {
-      // Guruji's sign-in opens the case area, not the site's content and prices.
-      host.innerHTML = `<section class="sp-section"><div class="sp-wrap sp-narrow">
-        <div class="sp-panel sp-form max-w-md mx-auto text-center space-y-4">
-          <i class="fa-solid fa-hands-praying text-3xl text-gold-deep" aria-hidden="true"></i>
-          <h1 class="sp-h2">Namaste${ADMIN.email ? ', ' + esc(ADMIN.email) : ''}</h1>
-          <p class="sp-text">This sign-in opens Guruji's case area: the seekers waiting, their palms and charts, the chat and the readings.</p>
-          <div class="flex gap-3 justify-center flex-wrap">
-            <a href="/guruji" data-link class="gold-gradient-btn h-11 px-5 rounded-xl inline-flex items-center">Go to my cases</a>
-            <button type="button" onclick="adminLogout()" class="sp-btn-outline">Sign out</button>
-          </div>
-        </div></div></section>`;
-      return;
-    }
+    const isGuruji = ADMIN.role === 'guruji';
     const tabs = [
-      owner && ['overview', 'Overview', 'fa-gauge-high'],
-      owner && ['bookings', 'Bookings', 'fa-calendar-check'],
-      owner && ['enquiries', 'Enquiries', 'fa-envelope-open-text'],
+      (owner || isGuruji) && ['overview', 'Overview', 'fa-gauge-high'],
+      (owner || isGuruji) && ['bookings', 'Bookings', 'fa-calendar-check'],
+      (owner || isGuruji) && ['enquiries', 'Enquiries', 'fa-envelope-open-text'],
       owner && ['consents', 'Consent Records', 'fa-shield-halved'],
-      owner && ['reviews', 'Reviews', 'fa-star'],
+      (owner || isGuruji) && ['reviews', 'Reviews', 'fa-star'],
       ['services', 'Services & pricing', 'fa-hand'], ['serviceCategories', 'Service categories', 'fa-layer-group'], ['courses', 'Courses', 'fa-graduation-cap'],
       ['articles', 'Articles', 'fa-newspaper'], ['faqCategories', 'FAQs', 'fa-circle-question'], ['testimonials', 'Testimonials', 'fa-quote-left'],
       ['about', 'About Guruji', 'fa-user'], ['pillars', 'Home pillars', 'fa-table-columns'], ['settings', 'Settings & homepage', 'fa-gear'],
@@ -3459,6 +3447,7 @@
       <section class="adm">
         <aside class="adm-nav">
           <div class="adm-nav__head"><strong>Admin</strong><span class="sp-pill sp-pill--gold">${esc(ADMIN.email || ADMIN.role)}</span></div>
+          <a href="/guruji" data-link class="adm-nav__cases sp-pill sp-pill--gold flex items-center gap-1.5 justify-center py-2 px-3 mb-2 font-semibold text-xs no-underline" style="color:#4a1525;background:#fde8e8;"><i class="fa-solid fa-hands-praying" aria-hidden="true"></i> Guruji Case Portal</a>
           ${tabs.map(([id, label, ic]) => `<button class="${ADMIN.tab === id ? 'is-active' : ''}" onclick="adminTab('${id}')"><i class="fa-solid ${ic}" aria-hidden="true"></i>${label}</button>`).join('')}
           <button onclick="adminLogout()" class="adm-nav__logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>Sign out</button>
         </aside>
@@ -5606,6 +5595,10 @@
         if (!j || !j.paragraphs || !j.paragraphs.length) {
           content.content.about.sections = window.GURUJI_CONTENT.about.sections;
         }
+      }
+      if (Array.isArray(content.content.services)) {
+        const ap = content.content.services.find(s => s && (s.slug === 'astro-palmistry-correlation' || s.consultationId === 'combined_consultation'));
+        if (ap && Number(ap.price) === 10) ap.price = 649;
       }
       SITE.content = Object.assign({}, window.GURUJI_CONTENT, content.content);
       if (content.content.testOneRupee) {

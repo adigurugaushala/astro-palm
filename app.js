@@ -696,7 +696,7 @@ function startBooking() {
 }
 
 function selectServiceAndStart(serviceId) {
-  selectConsultationService(serviceId, serviceId === 'combined_consultation' ? 10 : 549);
+  selectConsultationService(serviceId, serviceId === 'combined_consultation' ? 649 : 549);
   showPage("book-consultation");
 }
 
@@ -1217,7 +1217,7 @@ function proceedToPoojaPayment() {
 }
 
 function selectServiceCard(serviceId) {
-  selectConsultationService(serviceId, serviceId === 'combined_consultation' ? 10 : 549);
+  selectConsultationService(serviceId, serviceId === 'combined_consultation' ? 649 : 549);
 }
 
 // Handedness Selector Listener
